@@ -79,7 +79,9 @@ export function dateRange(startsAt: string, endsAt: string): string {
   if (dayFormat.format(start) === dayFormat.format(end)) {
     return `${weekdayFormat.format(start)} · ${timeFormat.format(start)}–${timeFormat.format(end)} WAT`;
   }
-  return dayFormat.formatRange(start, end);
+  // Newer ICU (Node 22+) writes "7 – 8 September", older "7–8": between two numbers the dash is
+  // always closed up, so the page and its link preview read the same on every server
+  return dayFormat.formatRange(start, end).replace(/(\d)\s*–\s*(\d)/g, '$1–$2');
 }
 
 /** "Transcorp Hilton, Abuja": whichever of venue and city are set, without repeating one. */
