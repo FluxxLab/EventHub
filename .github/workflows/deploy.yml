@@ -1,0 +1,84 @@
+# Builds, checks and deploys the console to Cloudflare on every push to main (or by hand from the
+# Actions tab). The static export (out/) and the link-preview Worker (worker/index.js) go up
+# together with `wrangler deploy`, using wrangler.jsonc.
+#
+# Repository settings (Settings > Secrets and variables > Actions):
+#   secret    CLOUDFLARE_API_TOKEN   a Cloudflare API token from the "Edit Cloudflare Workers" template
+#   secret    CLOUDFLARE_ACCOUNT_ID  the Cloudflare account id (in the dashboard URL)
+#   variable  NEXT_PUBLIC_API_URL    the API, e.g. https://3-10-44-142.sslip.io/api/v1
+#   variable  NEXT_PUBLIC_SITE_URL   this console's own address (optional)
+#
+# Pull requests get the same build and checks, without deploying.
+
+name: Deploy console
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# one deploy at a time; a newer push waits for the one in progress
+concurrency:
+  group: deploy-console-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # the version comes from package.json's packageManager
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check the settings
+        if: github.event_name != 'pull_request'
+        env:
+          API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -n "$API_URL" ] || missing="$missing NEXT_PUBLIC_API_URL (variable)"
+          [ -n "$TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN (secret)"
+          [ -n "$ACCOUNT" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID (secret)"
+          if [ -n "$missing" ]; then
+            echo "::error::Set these under Settings > Secrets and variables > Actions:$missing"
+            exit 1
+          fi
+
+      # next build also type-checks; the export lands in out/
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://api.invalid/api/v1' }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_TELEMETRY_DISABLED: 1
+        run: pnpm run build
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Deploy to Cloudflare
+        if: github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # wrangler.jsonc uses run_worker_first and keep_vars, which need wrangler 4
+          wranglerVersion: "4"
+          command: deploy
