@@ -5,8 +5,9 @@ import { money } from '@/lib/format';
 
 /**
  * The public event page (`/e/<id>`): what a link shared from the delegate app opens for someone
- * without the app. Server-only data: `GET /editions/:id/public` needs no token, so this is the one
- * place outside `lib/api/client.ts` that calls the API, from the server, with Next's fetch cache.
+ * without the app. `GET /editions/:id/public` needs no token, so this is the one place outside
+ * `lib/api/client.ts` that calls the API; the page fetches it in the browser, and the Worker in
+ * `worker/index.js` fetches the same summary for the link preview.
  */
 
 /** `GET /editions/:id/public`. Parsed rather than trusted: a malformed answer is "unavailable", not a crash. */
@@ -37,8 +38,7 @@ const TIMEOUT_MS = 5_000;
 /**
  * Fetch one edition's public summary. Never throws: a missing or draft edition is `not-found`
  * (the page 404s), anything else going wrong (API down, slow, odd answer) is `unavailable` and the
- * page still offers "Open in the app". Called by both `generateMetadata` and the page with the same
- * URL and options, so Next memoises it into one request.
+ * page still offers "Open in the app".
  */
 export async function fetchPublicEvent(id: string, fetcher: typeof fetch = fetch): Promise<PublicEventResult> {
   let response: Response;
@@ -130,3 +130,14 @@ export const appEventLink = (id: string) => `${APP_SCHEME}://events/${encodeURIC
 
 /** This page's path, as the app's share sheet builds it (`eventLink` in the app's `lib/event-cta.ts`). */
 export const publicEventPath = (id: string) => `/e/${encodeURIComponent(id)}`;
+
+/** The edition id in a shared link's path (`/e/<id>`), or null for anything else. */
+export function eventIdFromPath(pathname: string): string | null {
+  const match = /^\/e\/([^/?#]+)\/?$/.exec(pathname);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]!);
+  } catch {
+    return null;
+  }
+}

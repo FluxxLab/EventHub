@@ -51,3 +51,8 @@ AGENTS.md
 # internal business papers: not for the code repo
 docs/pic-events-business-case.md
 docs/pic-events-running-costs.md
+
+# check builds (NEXT_DIST_DIR) and Cloudflare local files
+/.next-check/
+.dev.vars
+.wrangler/

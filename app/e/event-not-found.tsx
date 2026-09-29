@@ -1,6 +1,6 @@
 import { PublicShell } from '@/components/public-event/public-shell';
 
-/** A shared link to an event that does not exist (or is not announced yet). Answered with a 404. */
+/** A shared link to an event that does not exist (or is not announced yet). */
 export default function EventNotFound() {
   return (
     <PublicShell>
