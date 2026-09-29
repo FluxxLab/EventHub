@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+/*
+ * PIC brand tokens (shared with the mobile app): navy primary #002D74, gold secondary #FCCC00.
+ * Screens use the Tailwind names below (bg-primary, text-muted, border-border …), never hex codes,
+ * so a colour change happens here once.
+ */
+:root {
+  --primary: #002d74;
+  --primary-soft: #ebeff6;
+  --on-primary: #ffffff;
+  --secondary: #fccc00;
+  --secondary-soft: #fff6e5;
+  --gold: #a46b00;
+
+  --background: #fdfdfd;
+  --surface: #fdfdfd;
+  --surface-soft: #f5f5f5;
+  --border: #dcdcdc;
+  --divider: #ededed;
+
+  --ink: #292929;
+  --muted: #6b7280;
+  --placeholder: #9ca3af;
+
+  --success: #2e9e6b;
+  --success-soft: #eaf6f0;
+  --danger: #cc0000;
+  --danger-soft: #fdecec;
+
+  /*
+   * Chart series, in this fixed order: brand navy and gold stepped into the chart lightness band
+   * (validated for colour-blind separation). Gold and sky sit under 3:1 on white, so every chart
+   * using them also prints its values. `--chart-other` is the neutral for a folded "Other" slice.
+   */
+  --chart-1: #1f4fa3;
+  --chart-2: #d6a300;
+  --chart-3: #5fa3e8;
+  --chart-4: #9a5d00;
+  --chart-other: #c4c9d2;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-secondary: var(--secondary);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-gold: var(--gold);
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-placeholder: var(--placeholder);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-other: var(--chart-other);
+
+  --font-sans: var(--font-manrope);
+
+  /* The design system's elevation scale (xs to xxl); Tailwind's shadow-* utilities use these. */
+  --shadow-xs: 0 1px 2px rgba(36, 36, 36, 0.05);
+  --shadow-sm: 0 1px 3px rgba(36, 36, 36, 0.1), 0 1px 2px rgba(36, 36, 36, 0.06);
+  --shadow-md: 0 4px 8px -2px rgba(36, 36, 36, 0.1), 0 2px 4px -2px rgba(36, 36, 36, 0.06);
+  --shadow-lg: 0 12px 16px -4px rgba(36, 36, 36, 0.08), 0 4px 6px -2px rgba(36, 36, 36, 0.03);
+  --shadow-xl: 0 20px 24px -4px rgba(36, 36, 36, 0.08), 0 8px 8px -4px rgba(36, 36, 36, 0.03);
+  --shadow-xxl: 0 24px 48px -12px rgba(36, 36, 36, 0.18);
+}
+
+body {
+  background: var(--background);
+  color: var(--ink);
+}
+
+/* Text never goes heavier than 500 (medium); these elements default to bold in browsers. */
+b,
+strong,
+th {
+  font-weight: 500;
+}
+
+/*
+ * No focus outline anywhere, by request. Text fields still show focus through their own border
+ * and ring (focus: classes), which is not an outline.
+ */
+*:focus,
+*:focus-visible {
+  outline: none;
+}
+
+/* The logo loader's breath (components/ui/logo-loader.tsx). */
+@keyframes logo-breathe {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/*
+ * Public screens (display boards, self check-in): short entrances only, nothing that loops, so a
+ * grainy display box does not smear. Off for anyone whose device asks for reduced motion.
+ */
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes row-flash {
+  0%,
+  40% {
+    background: var(--primary-soft);
+  }
+  100% {
+    background: transparent;
+  }
+}
+@keyframes check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.screen-in {
+  animation: screen-in 350ms ease-out both;
+}
+.pop-in {
+  animation: pop-in 250ms ease-out both;
+}
+.row-flash {
+  animation: row-flash 3s ease-out;
+}
+.check-pop {
+  animation: check-pop 450ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-in,
+  .pop-in,
+  .row-flash,
+  .check-pop {
+    animation: none;
+  }
+}
