@@ -1,85 +1,67 @@
-import type { Metadata } from 'next';
+'use client';
+
 import type { ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
 
 import { AppLinks, PublicShell } from '@/components/public-event/public-shell';
-import { SITE_URL } from '@/lib/config';
 import {
   appEventLink,
   dateRange,
+  eventIdFromPath,
   fetchPublicEvent,
   placeLine,
-  previewDescription,
-  publicEventPath,
   STATUS_TEXT,
   ticketLine,
   type PublicEvent,
+  type PublicEventResult,
 } from '@/lib/public-event/public-event';
 import { cn } from '@/lib/utils';
 
+import EventNotFound from './event-not-found';
+
 /**
  * The public page a shared event link opens (`<site>/e/<edition id>`, built by the delegate app's
- * share sheet). No sign-in: outside the `(console)` group and its guard. Rendered on the server
- * from `GET /editions/:id/public` and cached for a minute, so chat apps unfurling a link that goes
- * round a WhatsApp group do not each hit the API.
+ * share sheet). No sign-in: outside the `(console)` group and its guard. The console is static
+ * files, so this one page is served for every `/e/<id>` by the Worker (worker/index.js), which also
+ * writes the event into the page's link-preview tags; here the details load in the browser from
+ * `GET /editions/:id/public`.
  */
 
-type Props = { params: Promise<{ id: string }> };
+const noSubscribe = () => () => undefined;
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const result = await fetchPublicEvent(id);
-  const base: Metadata = SITE_URL ? { metadataBase: new URL(SITE_URL) } : {};
-  if (result.kind === 'not-found') {
-    return { ...base, title: { absolute: 'Event not found · PIC Events' }, robots: { index: false } };
-  }
-  if (result.kind === 'unavailable') {
-    // the page still renders (with the app link); it just is not indexed half-empty
-    return { ...base, title: { absolute: 'PIC Events' }, robots: { index: false } };
-  }
+export default function PublicEventPage() {
+  // null during the static build; the edition id once the browser has the link
+  const id = useSyncExternalStore(noSubscribe, () => eventIdFromPath(window.location.pathname) ?? '', () => null);
+  const [result, setResult] = useState<PublicEventResult | null>(null);
 
-  const event = result.event;
-  const title = `${event.name} · PIC Events`;
-  const description = previewDescription(event);
-  const path = publicEventPath(event.id);
-  // The cover when the organiser uploaded one; otherwise the PIC logo, which needs SITE_URL to be absolute.
-  const image = event.coverUrl
-    ? { url: event.coverUrl, alt: `${event.name} cover` }
-    : SITE_URL
-      ? { url: '/pic-logo.png', alt: 'Policy Innovation Centre' }
-      : null;
+  useEffect(() => {
+    if (!id) return;
+    let live = true;
+    void fetchPublicEvent(id).then((r) => {
+      if (!live) return;
+      setResult(r);
+      if (r.kind === 'ok') document.title = `${r.event.name} · PIC Events`;
+    });
+    return () => {
+      live = false;
+    };
+  }, [id]);
 
-  return {
-    ...base,
-    title: { absolute: title },
-    description,
-    ...(SITE_URL ? { alternates: { canonical: path } } : {}),
-    openGraph: {
-      type: 'website',
-      siteName: 'PIC Events',
-      title: event.name,
-      description,
-      ...(SITE_URL ? { url: path } : {}),
-      ...(image ? { images: [image] } : {}),
-    },
-    twitter: {
-      card: event.coverUrl ? 'summary_large_image' : 'summary',
-      title: event.name,
-      description,
-      ...(image ? { images: [image] } : {}),
-    },
-  };
-}
-
-export default async function PublicEventPage({ params }: Props) {
-  const { id } = await params;
-  const result = await fetchPublicEvent(id);
-  if (result.kind === 'not-found') notFound();
-
+  if (id === '' || result?.kind === 'not-found') return <EventNotFound />;
   return (
     <PublicShell>
-      {result.kind === 'ok' ? <EventDetails event={result.event} /> : <Unavailable id={id} />}
+      {!result || !id ? (
+        <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm sm:p-8" aria-busy="true">
+          <div className="aspect-[16/9] w-full animate-pulse rounded-lg bg-surface-soft" />
+          <div className="h-7 w-2/3 animate-pulse rounded bg-surface-soft" />
+          <div className="h-4 w-1/2 animate-pulse rounded bg-surface-soft" />
+        </div>
+      ) : result.kind === 'ok' ? (
+        <EventDetails event={result.event} />
+      ) : (
+        <Unavailable id={id} />
+      )}
     </PublicShell>
   );
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  eventIdFromPath,
   appEventLink,
   dateRange,
   excerpt,
@@ -99,5 +100,13 @@ describe('display helpers', () => {
   it('matches the app: picevents://events/<id> in, /e/<id> out', () => {
     expect(appEventLink(EVENT.id)).toBe(`picevents://events/${EVENT.id}`);
     expect(publicEventPath(EVENT.id)).toBe(`/e/${EVENT.id}`);
+  });
+
+  it('reads the edition id from a shared link path', () => {
+    expect(eventIdFromPath('/e/0b6f7c1e-3d6a-4b8e-9a3c-2f1d5e7a9b10')).toBe('0b6f7c1e-3d6a-4b8e-9a3c-2f1d5e7a9b10');
+    expect(eventIdFromPath('/e/abc/')).toBe('abc');
+    expect(eventIdFromPath('/e')).toBeNull();
+    expect(eventIdFromPath('/e/a/b')).toBeNull();
+    expect(eventIdFromPath('/meals')).toBeNull();
   });
 });
