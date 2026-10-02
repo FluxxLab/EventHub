@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-import { useEffect, useRef, useState, type FocusEvent } from 'react';
+import { useEffect, useRef, useState, type FocusEvent, type MouseEvent } from 'react';
 
 import { Avatar } from '@/components/shell/avatar';
 import { type StaffUser, TIER_LABEL } from '@/lib/auth/session';
@@ -60,8 +60,21 @@ export function Sidebar({
     if (closeTimer.current) clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => onPeek(false), CLOSE_DELAY_MS);
   };
+  const closeNow = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    onPeek(false);
+  };
+  // Keyboard focus only: a clicked link keeps focus, and the browser focuses it again when the
+  // window comes back (after another app or DevTools), which opened the rail with no pointer near.
+  const onFocus = (event: FocusEvent<HTMLElement>) => {
+    if (event.target instanceof HTMLElement && event.target.matches(':focus-visible')) show();
+  };
   const onBlur = (event: FocusEvent<HTMLElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget)) hide();
+  };
+  // A page picked from a hover-opened rail closes it; on a touch screen nothing else would.
+  const onPick = (event: MouseEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest('a')) closeNow();
   };
 
   const toggle = (group: string) =>
@@ -77,7 +90,7 @@ export function Sidebar({
       aria-label="Sections"
       onPointerEnter={show}
       onPointerLeave={hide}
-      onFocus={show}
+      onFocus={onFocus}
       onBlur={onBlur}
       className="flex h-full w-full flex-col overflow-hidden border-r border-border bg-surface"
     >
@@ -101,7 +114,7 @@ export function Sidebar({
         )}
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
+      <nav onClick={onPick} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
         {groups.map((group) => {
           const holdsCurrent = current?.group.label === group.label;
           if (group.pages.length === 1) {
