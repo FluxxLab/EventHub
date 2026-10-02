@@ -259,7 +259,7 @@ function RoomsCard({ edition }: { edition: Edition }) {
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[40rem] border-collapse">
             <thead>
               <tr>
@@ -429,7 +429,7 @@ function AudioStreamsCard({ edition }: { edition: Edition }) {
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-176 border-collapse">
             <thead>
               <tr>

@@ -675,7 +675,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
           <p className="px-6 py-12 text-center text-sm text-[#7c7c7c]">Nobody matches. Try another name or tier.</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full min-w-[44rem] border-collapse">
                 <thead>
                   <tr>

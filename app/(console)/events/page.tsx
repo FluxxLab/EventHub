@@ -153,7 +153,7 @@ export default function EventsPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[64rem] border-collapse">
               <thead>
                 <tr>

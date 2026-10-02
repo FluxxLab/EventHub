@@ -171,7 +171,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; day: nu
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto" role="tabpanel">
+          <div className="relative overflow-x-auto" role="tabpanel">
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
                 <tr>

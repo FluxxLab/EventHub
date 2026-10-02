@@ -18,7 +18,7 @@ export function OrdersCard({ orders }: { orders: DashboardView['recentOrders'] }
       {orders.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted">No orders yet.</p>
       ) : (
-        <div className="-mx-1 overflow-x-auto px-1">
+        <div className="relative -mx-1 overflow-x-auto px-1">
           <table className="w-full min-w-[28rem] text-xs">
             <thead>
               <tr className="border-b border-ink/20 text-left text-ink/40">

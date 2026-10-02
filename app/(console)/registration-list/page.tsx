@@ -141,7 +141,7 @@ export default function RegistrationListPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
                 <tr>
