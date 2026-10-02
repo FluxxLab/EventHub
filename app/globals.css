@@ -180,3 +180,27 @@ th {
     animation: none;
   }
 }
+
+/*
+ * The hand on everything that can be clicked. Tailwind v4 dropped it from buttons (they show the
+ * arrow, as browsers do), which made actions read as plain text. Disabled controls keep the arrow.
+ */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="menuitemradio"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  select:not(:disabled),
+  summary,
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  input[type="color"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
