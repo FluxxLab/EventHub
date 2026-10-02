@@ -59,7 +59,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-5">
       <h1 className="sr-only">Dashboard{data.edition ? `: ${data.edition.name}` : ''}</h1>
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         <StatCard label="Tickets sold" hint="Paid tickets to this event, this month" icon={TicketIcon} compare={data.kpis.ticketsSold} format={compact} href="/ticketing" hrefLabel="Open ticketing" />
         <StatCard
           label="Revenue"
@@ -108,7 +108,7 @@ export default function DashboardPage() {
 function DashboardSkeleton() {
   return (
     <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading dashboard">
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-37.5" />
         ))}

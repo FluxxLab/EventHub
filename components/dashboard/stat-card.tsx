@@ -42,17 +42,20 @@ export function StatCard({
           <EllipsisHorizontalIcon className="size-6" />
         </Link>
       </div>
-      <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
-        {label}
+      <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink">
+        {/* four to a row on any screen: a long name is cut, never wrapped under the number */}
+        <span className="truncate" title={label}>
+          {label}
+        </span>
         {hint && (
           <Tooltip label={hint}>
-            <button type="button" aria-label={`About ${label}`} className="flex size-5 items-center justify-center rounded-full text-[#7c7c7c] hover:text-ink">
+            <button type="button" aria-label={`About ${label}`} className="flex size-5 shrink-0 items-center justify-center rounded-full text-[#7c7c7c] hover:text-ink">
               <InformationCircleIcon className="size-4" />
             </button>
           </Tooltip>
         )}
         {change === null && (
-          <span title={`Nothing to compare with in ${compare.previousLabel} yet`} className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary-soft px-2 text-xs font-normal leading-[18px] text-primary">
+          <span title={`Nothing to compare with in ${compare.previousLabel} yet`} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary bg-primary-soft px-2 text-xs font-normal leading-[18px] text-primary">
             <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
             new
           </span>
