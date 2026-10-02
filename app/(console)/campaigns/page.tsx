@@ -3,6 +3,7 @@
 import { ArrowLeftIcon, CheckIcon, EnvelopeIcon, PaperAirplaneIcon, PlusIcon, TrashIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useMemo, useRef, useState } from 'react';
 
+import { DesignPanel } from '@/components/campaigns/design-panel';
 import { EventBar } from '@/components/events/event-bar';
 import { useSubPage } from '@/components/shell/breadcrumbs';
 import { buttonClass } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { fieldBox, TextInput } from '@/components/ui/field';
 import { useToast } from '@/components/ui/toaster';
 import {
   AUDIENCE_LABEL,
+  DEFAULT_DESIGN,
   draftProblem,
   engagementLine,
   rate,
@@ -24,9 +26,10 @@ import {
   type AudienceKind,
   type Campaign,
   type CampaignDraft,
+  type CampaignImages,
   type MergeField,
 } from '@/lib/campaigns/campaigns';
-import { useAudienceSize, useCampaignActions, useCampaignLinks, useCampaigns } from '@/lib/campaigns/use-campaigns';
+import { useAudienceSize, useCampaignActions, useCampaignDesignDefault, useCampaignLinks, useCampaigns } from '@/lib/campaigns/use-campaigns';
 import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { count } from '@/lib/format';
@@ -149,7 +152,7 @@ function Composer({
 }) {
   const toast = useToast();
   const actions = useCampaignActions(edition.id);
-  const initial: CampaignDraft = campaign ? { subject: campaign.subject, body: campaign.body, buttonLabel: campaign.buttonLabel, buttonUrl: campaign.buttonUrl, audience: campaign.audience } : EMPTY_DRAFT;
+  const initial: CampaignDraft = campaign ? { subject: campaign.subject, body: campaign.body, buttonLabel: campaign.buttonLabel, buttonUrl: campaign.buttonUrl, audience: campaign.audience, design: campaign.design } : EMPTY_DRAFT;
   const [draft, setDraft] = useState<CampaignDraft>(initial);
   // what is on the server, and its id: known the moment a save returns, before the list refreshes
   const [savedDraft, setSavedDraft] = useState<CampaignDraft>(initial);
@@ -158,6 +161,21 @@ function Composer({
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const readOnly = !!campaign && campaign.status !== 'draft';
+  // the design's pictures as the preview shows them: signed URLs, or the file just picked
+  const [pictures, setPictures] = useState<CampaignImages>({ logo: campaign?.logoUrl ?? null, banner: campaign?.bannerUrl ?? null });
+  const eventDesign = useCampaignDesignDefault(edition.id);
+  const applyEventDesign = () => {
+    if (!eventDesign.data) return;
+    const { design, logoUrl, bannerUrl } = eventDesign.data;
+    setDraft((d) => ({ ...d, design }));
+    setPictures({ logo: logoUrl, banner: bannerUrl });
+  };
+  // a new campaign starts from the event's branding, once it has loaded
+  const [seeded, setSeeded] = useState(!!campaign);
+  if (!seeded && eventDesign.data) {
+    setSeeded(true);
+    applyEventDesign();
+  }
   const dirty = JSON.stringify(draft) !== JSON.stringify(savedDraft);
   const problem = draftProblem(draft);
   const size = useAudienceSize(edition.id, draft.audience);
@@ -217,7 +235,7 @@ function Composer({
 
   const sampleTier = draft.audience.ticketTypeIds.length ? (tierNames.get(draft.audience.ticketTypeIds[0]!) ?? 'VIP') : ([...tierNames.values()][0] ?? 'Standard');
   const sample = { email: 'ngozi.eze@example.com', name: 'Ngozi Eze', code: 'PIC-VIP-3QX7', tier: sampleTier };
-  const preview = renderCampaign(draft, sample, edition.name);
+  const preview = renderCampaign(draft, sample, edition.name, '#unsubscribe', pictures);
   const busy = actions.save.isPending || actions.send.isPending;
 
   const toggleTier = (id: string) =>
@@ -305,6 +323,17 @@ function Composer({
                 </p>
               )}
             </div>
+
+            <DesignPanel
+              editionId={edition.id}
+              design={draft.design ?? DEFAULT_DESIGN}
+              pictures={pictures}
+              onChange={(design, next) => {
+                set({ design });
+                if (next) setPictures(next);
+              }}
+              onReset={eventDesign.data ? applyEventDesign : undefined}
+            />
 
             <div className="flex flex-col gap-4 px-6 py-5">
               <div className="flex flex-col gap-1">

@@ -88,14 +88,15 @@ function ImagePick({ id, kind, file, shown, onChange }: { id: string; kind: 'cov
   );
 }
 
-function ColourPick({ id, value, onChange }: { id: string; value: string; onChange: (hex: string) => void }) {
+/** Preset swatches, any colour, or a typed hex. `checkPale` warns when white text would not read on it. */
+export function ColourPick({ id, value, onChange, checkPale = true }: { id: string; value: string; onChange: (hex: string) => void; checkPale?: boolean }) {
   const [typed, setTyped] = useState(value);
   const [shownFor, setShownFor] = useState(value);
   if (shownFor !== value) {
     setShownFor(value);
     setTyped(value);
   }
-  const warning = paleWarning(value);
+  const warning = checkPale ? paleWarning(value) : null;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Quick colours">

@@ -9,6 +9,50 @@ export type AudienceKind = 'all' | 'checked_in' | 'not_checked_in';
 export type Audience = { kind: AudienceKind; ticketTypeIds: string[] };
 export type CampaignStatus = 'draft' | 'sending' | 'sent';
 
+/**
+ * How a campaign email looks (the API's `CampaignDesign`). A new campaign starts from the event's
+ * branding. The pictures are storage keys; the console shows them from the signed URLs the API
+ * sends with each campaign (`logoUrl`, `bannerUrl`).
+ */
+export type CampaignDesign = {
+  logo: string | null;
+  banner: string | null;
+  headerColor: string;
+  buttonColor: string;
+  /** The small line above the event name; empty hides it. */
+  eyebrow: string;
+  showEventName: boolean;
+  /** A line above the legal footer; empty for none. */
+  footer: string;
+};
+
+export const PIC_NAVY = '#002d74';
+
+export const DEFAULT_DESIGN: CampaignDesign = {
+  logo: null,
+  banner: null,
+  headerColor: PIC_NAVY,
+  buttonColor: PIC_NAVY,
+  eyebrow: 'Policy Innovation Centre',
+  showEventName: true,
+  footer: '',
+};
+
+/** Where the design's pictures load from: signed URLs, or the file just picked. */
+export type CampaignImages = { logo: string | null; banner: string | null };
+export const NO_IMAGES: CampaignImages = { logo: null, banner: null };
+
+/** Light text on a dark colour, dark text on a light one (WCAG relative luminance), as the API decides. */
+export function readsLight(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const l = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return 1.05 / (l + 0.05) >= (l + 0.05) / 0.05;
+}
+
 export type Campaign = {
   id: string;
   editionId: string;
@@ -17,6 +61,11 @@ export type Campaign = {
   buttonLabel: string | null;
   buttonUrl: string | null;
   audience: Audience;
+  /** Null: the PIC layout. */
+  design: CampaignDesign | null;
+  /** The design's pictures, signed for the preview. */
+  logoUrl?: string | null;
+  bannerUrl?: string | null;
   status: CampaignStatus;
   recipients: number;
   sent: number;
@@ -33,9 +82,9 @@ export type Campaign = {
   finishedAt: string | null;
 };
 
-export type CampaignDraft = Pick<Campaign, 'subject' | 'body' | 'buttonLabel' | 'buttonUrl' | 'audience'>;
+export type CampaignDraft = Pick<Campaign, 'subject' | 'body' | 'buttonLabel' | 'buttonUrl' | 'audience' | 'design'>;
 
-export const EMPTY_DRAFT: CampaignDraft = { subject: '', body: '', buttonLabel: null, buttonUrl: null, audience: { kind: 'all', ticketTypeIds: [] } };
+export const EMPTY_DRAFT: CampaignDraft = { subject: '', body: '', buttonLabel: null, buttonUrl: null, audience: { kind: 'all', ticketTypeIds: [] }, design: null };
 
 export const AUDIENCE_LABEL: Record<AudienceKind, string> = {
   all: 'Everyone with a ticket',
@@ -81,7 +130,8 @@ function bodyHtml(text: string): string {
 }
 
 /** One person's email: the subject, and the HTML shown in the preview (with the unsubscribe link every real one carries). */
-export function renderCampaign(c: CampaignDraft, r: Recipient, event: string, unsubscribeUrl: string | null = '#unsubscribe'): { subject: string; html: string } {
+export function renderCampaign(c: CampaignDraft, r: Recipient, event: string, unsubscribeUrl: string | null = '#unsubscribe', images: CampaignImages = NO_IMAGES): { subject: string; html: string } {
+  const d = c.design ?? DEFAULT_DESIGN;
   const subject = merge(c.subject, r, event).replace(/\s+/g, ' ').trim();
   const body = merge(c.body, r, event);
   const label = c.buttonLabel ? merge(c.buttonLabel, r, event) : null;
@@ -89,15 +139,24 @@ export function renderCampaign(c: CampaignDraft, r: Recipient, event: string, un
   const why = `You are receiving this because you have a ticket to ${event}.`;
   const button =
     label && url
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 8px"><tr><td style="background:#002d74;border-radius:8px"><a href="${escapeHtml(url)}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">${escapeHtml(label)}</a></td></tr></table>`
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 8px"><tr><td style="background:${d.buttonColor};border-radius:8px"><a href="${escapeHtml(url)}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:${readsLight(d.buttonColor) ? '#ffffff' : '#111111'};text-decoration:none">${escapeHtml(label)}</a></td></tr></table>`
       : '';
+  const light = readsLight(d.headerColor);
+  const eyebrow = d.eyebrow.trim();
+  const header = [
+    images.logo ? `<img src="${escapeHtml(images.logo)}" alt="" height="44" style="display:block;height:44px;max-width:220px;border:0${eyebrow || d.showEventName ? ';margin:0 0 12px' : ''}">` : '',
+    eyebrow ? `<p style="margin:0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:${light ? '#f2b705' : '#5c5c5c'}">${escapeHtml(eyebrow)}</p>` : '',
+    d.showEventName ? `<p style="margin:${eyebrow ? '4px' : '0'} 0 0;font-size:20px;font-weight:600;color:${light ? '#ffffff' : '#111111'}">${escapeHtml(event)}</p>` : '',
+  ].join('');
+  const headerRow = header ? `<tr><td style="background:${d.headerColor};padding:20px 28px">${header}</td></tr>` : '';
+  const bannerRow = images.banner ? `<tr><td style="padding:0;line-height:0"><img src="${escapeHtml(images.banner)}" alt="" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0"></td></tr>` : '';
+  const footer = d.footer.trim() ? `${escapeHtml(d.footer.trim()).replace(/\n/g, '<br>')}<br><br>` : '';
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
 <body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">
-<tr><td style="background:#002d74;padding:20px 28px"><p style="margin:0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#f2b705">Policy Innovation Centre</p><p style="margin:4px 0 0;font-size:20px;font-weight:600;color:#ffffff">${escapeHtml(event)}</p></td></tr>
-<tr><td style="padding:28px 28px 12px">${bodyHtml(body)}${button}</td></tr>
-<tr><td style="padding:16px 28px 24px;border-top:1px solid #ececec"><p style="margin:0;font-size:12px;line-height:18px;color:#7c7c7c">${escapeHtml(why)}<br>Policy Innovation Centre${unsubscribeUrl ? ` · <a href="${escapeHtml(unsubscribeUrl)}" style="color:#7c7c7c;text-decoration:underline">Unsubscribe from event emails</a>` : ''}</p></td></tr>
+${headerRow}${bannerRow}<tr><td style="padding:28px 28px 12px">${bodyHtml(body)}${button}</td></tr>
+<tr><td style="padding:16px 28px 24px;border-top:1px solid #ececec"><p style="margin:0;font-size:12px;line-height:18px;color:#7c7c7c">${footer}${escapeHtml(why)}<br>Policy Innovation Centre${unsubscribeUrl ? ` · <a href="${escapeHtml(unsubscribeUrl)}" style="color:#7c7c7c;text-decoration:underline">Unsubscribe from event emails</a>` : ''}</p></td></tr>
 </table></td></tr></table></body></html>`;
   return { subject, html };
 }

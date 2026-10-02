@@ -4,8 +4,9 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api/client';
-import type { Audience, Campaign, CampaignDraft } from '@/lib/campaigns/campaigns';
+import { DEFAULT_DESIGN, type Audience, type Campaign, type CampaignDesign, type CampaignDraft } from '@/lib/campaigns/campaigns';
 import { DEMO_MODE } from '@/lib/demo';
+import { uploadFile } from '@/lib/uploads';
 
 const listKey = (editionId: string) => ['admin', 'campaigns', editionId] as const;
 
@@ -20,6 +21,7 @@ let demoList: Campaign[] = [
     buttonLabel: 'See the programme',
     buttonUrl: 'https://policycentre.org/gs27/programme',
     audience: { kind: 'all', ticketTypeIds: [] },
+    design: null,
     status: 'sent',
     recipients: 1412,
     sent: 1409,
@@ -40,6 +42,7 @@ let demoList: Campaign[] = [
     buttonLabel: null,
     buttonUrl: null,
     audience: { kind: 'all', ticketTypeIds: ['t2'] },
+    design: null,
     status: 'draft',
     recipients: 0,
     sent: 0,
@@ -108,6 +111,35 @@ export function useAudienceSize(editionId: string, audience: Audience) {
         : api.post<{ count: number; unsubscribed: number }>(`/editions/${editionId}/campaigns/audience-size`, { audience: settled }),
     placeholderData: keepPreviousData,
   });
+}
+
+/** A new campaign's design: the event's logo, cover and brand colour, with the pictures signed for the preview. */
+export function useCampaignDesignDefault(editionId: string) {
+  return useQuery({
+    queryKey: ['admin', 'campaign-design-default', editionId],
+    queryFn: ({ signal }): Promise<{ design: CampaignDesign; logoUrl: string | null; bannerUrl: string | null }> =>
+      DEMO_MODE
+        ? Promise.resolve({ design: DEFAULT_DESIGN, logoUrl: null, bannerUrl: null })
+        : api.get(`/editions/${editionId}/campaigns/design-default`, undefined, signal),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** The picture types email apps show reliably; the API signs uploads for these only. */
+export const CAMPAIGN_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif'];
+export const CAMPAIGN_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Uploads a logo or banner; answers the key to save in the design and a data URL to preview it with. */
+export async function uploadCampaignImage(editionId: string, file: File, onProgress: (fraction: number) => void): Promise<{ key: string; preview: string }> {
+  const key = await uploadFile(file, { presignPath: `/editions/${editionId}/campaigns/upload-url`, contentType: file.type }, onProgress);
+  // a data URL, not a blob: one, so the sandboxed preview frame can show it
+  const preview = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('The picture could not be read.'));
+    reader.readAsDataURL(file);
+  });
+  return { key: DEMO_MODE ? `campaigns/${crypto.randomUUID()}` : key, preview };
 }
 
 const body = (d: CampaignDraft) => ({ ...d, buttonLabel: d.buttonLabel?.trim() || null, buttonUrl: d.buttonUrl?.trim() || null });
