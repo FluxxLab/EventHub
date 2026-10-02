@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 /** `GET /editions` (organisers only): every edition, newest first. The fields the Events page uses. */
-export type EditionStatus = 'draft' | 'announced' | 'live' | 'ended';
+export const EDITION_STATUSES = ['draft', 'announced', 'live', 'ended'] as const;
+export type EditionStatus = (typeof EDITION_STATUSES)[number];
 
 export const EDITION_CATEGORIES = [
   'summits',
@@ -127,6 +128,10 @@ export const createEditionSchema = z
     venue: z.string().trim().max(255, 'Keep the venue under 255 characters.'),
     city: z.string().trim().max(100, 'Keep the city under 100 characters.'),
     category: z.enum(EDITION_CATEGORIES),
+    /** Who can see it: a draft is the console's only; announced, live and ended show in the app. */
+    status: z.enum(EDITION_STATUSES).default('draft'),
+    /** Whether delegates can get tickets now. */
+    registrationOpen: z.boolean().default(false),
   })
   .refine((v) => !v.startsAt || !v.endsAt || new Date(v.endsAt) > new Date(v.startsAt), {
     path: ['endsAt'],
@@ -143,6 +148,7 @@ export function toCreateBody(form: z.output<typeof createEditionSchema>) {
     startsAt: new Date(form.startsAt).toISOString(),
     endsAt: new Date(form.endsAt).toISOString(),
     category: form.category,
+    status: form.status,
     ...(form.venue ? { venue: form.venue } : {}),
     ...(form.city ? { city: form.city } : {}),
   };
@@ -160,11 +166,27 @@ export function editionToForm(e: Edition): { form: CreateEditionForm; range: { s
   const start = localParts(e.startsAt);
   const end = localParts(e.endsAt);
   return {
-    form: { name: e.name, shortName: e.shortName, startsAt: '', endsAt: '', venue: e.venue ?? '', city: e.city ?? '', category: e.category },
+    form: { name: e.name, shortName: e.shortName, startsAt: '', endsAt: '', venue: e.venue ?? '', city: e.city ?? '', category: e.category, status: e.status, registrationOpen: e.registrationOpen },
     range: { start: start.date, end: end.date },
     times: { start: start.time, end: end.time },
   };
 }
 
-/** The edit form as the `PATCH /editions/:id` body: like create, but an emptied venue or city is sent, which clears it. */
-export const toUpdateBody = (form: z.output<typeof createEditionSchema>) => ({ ...toCreateBody(form), venue: form.venue, city: form.city });
+/**
+ * The edit form as the `PATCH /editions/:id` body: like create, but an emptied venue or city is
+ * sent, which clears it, and registration too (the create endpoint does not take it).
+ */
+export const toUpdateBody = (form: z.output<typeof createEditionSchema>) => ({
+  ...toCreateBody(form),
+  venue: form.venue,
+  city: form.city,
+  registrationOpen: form.registrationOpen,
+});
+
+/** What each status means for the people outside the console, for the form's status picker. */
+export const STATUS_HINT: Record<EditionStatus, string> = {
+  draft: 'Only organisers can see it',
+  announced: 'In the app, before it starts',
+  live: 'In the app, happening now',
+  ended: 'In the app, over',
+};

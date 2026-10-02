@@ -10,18 +10,20 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toaster';
 import { HALF_HOURS, type DayRange } from '@/lib/calendar';
-import { categoryLabel, createEditionSchema, EDITION_CATEGORIES, editionToForm, toCreateBody, toUpdateBody, type CreateEditionForm, type Edition } from '@/lib/events/events';
+import { categoryLabel, createEditionSchema, EDITION_CATEGORIES, EDITION_STATUSES, editionToForm, STATUS_HINT, STATUS_LABEL, toCreateBody, toUpdateBody, type CreateEditionForm, type Edition } from '@/lib/events/events';
 import { useInterestLibrary, useTrackLibrary, type EditionTopics } from '@/lib/catalog/use-topics';
 import { useCreateEdition, useSaveBranding, useUpdateEdition, type BrandingChange } from '@/lib/events/use-editions';
 
-const EMPTY: CreateEditionForm = { name: '', shortName: '', startsAt: '', endsAt: '', venue: '', city: '', category: 'summits' };
+const EMPTY: CreateEditionForm = { name: '', shortName: '', startsAt: '', endsAt: '', venue: '', city: '', category: 'summits', status: 'draft', registrationOpen: false };
 const NO_RANGE: DayRange = { start: '', end: '' };
 /** A typical event day, so most organisers only pick the dates. */
 const DEFAULT_TIMES = { start: '09:00', end: '17:00' };
 
 const CATEGORY_OPTIONS = EDITION_CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }));
+const STATUS_OPTIONS = EDITION_STATUSES.map((s) => ({ value: s, label: `${STATUS_LABEL[s]} · ${STATUS_HINT[s].toLowerCase()}` }));
 const TIME_OPTIONS = HALF_HOURS.map((t) => ({ value: t, label: t }));
 
 type Errors = Partial<Record<keyof CreateEditionForm, string>>;
@@ -139,13 +141,17 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
     }
     // sent only once the lists have loaded; otherwise the API gives it every active one anyway
     const picks = topics ?? (trackLibrary.data && interestLibrary.data ? defaultTopics(trackLibrary.data, interestLibrary.data) : null);
+    const { registrationOpen } = parsed.data;
     create.mutate({ ...toCreateBody(parsed.data), ...(picks ?? {}) }, {
       onSuccess: (created) => {
+        // the create endpoint does not take registration; it is opened with a second call
+        if (registrationOpen) update.mutate({ id: created.id, body: { registrationOpen } });
+        const seen = created.status === 'draft' ? 'is saved as a draft. Delegates will not see it until you announce it.' : `is saved and ${STATUS_HINT[created.status].toLowerCase()}.`;
         const added = () =>
           toast.push({
             title: 'Event added',
             leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' },
-            body: `${created.name} is saved as a draft. Delegates will not see it until you announce it.`,
+            body: `${created.name} ${seen}`,
           });
         if (brandingUnchanged(branding)) {
           finish();
@@ -163,7 +169,7 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
               toast.push({
                 title: 'Event added, branding not saved',
                 leading: { kind: 'icon', icon: ExclamationTriangleIcon, tone: 'danger' },
-                body: `${created.name} is saved as a draft, but ${error.message.replace(/\.$/, '').toLowerCase()}. Add the picture, logo and colour from Branding in the Events table.`,
+                body: `${created.name} is saved, but ${error.message.replace(/\.$/, '').toLowerCase()}. Add the picture, logo and colour from Branding in the Events table.`,
               });
             },
           },
@@ -230,6 +236,21 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
             <Field id={id('category')} label="Category">
               <Select id={id('category')} value={form.category} options={CATEGORY_OPTIONS} onChange={(v) => set('category', v)} />
             </Field>
+          </Section>
+
+          <Section title="Visibility" description="Who sees the event in the app, and whether they can get tickets now.">
+            <Field id={id('status')} label="Status">
+              <Select id={id('status')} value={form.status ?? 'draft'} options={STATUS_OPTIONS} onChange={(v) => set('status', v)} />
+            </Field>
+            <div className="flex flex-col gap-2">
+              <span id={id('registration')} className="text-sm font-medium text-ink">
+                Registration
+              </span>
+              <div className="flex min-h-11 items-center gap-3">
+                <Switch checked={form.registrationOpen ?? false} onChange={(on) => set('registrationOpen', on)} labelledBy={id('registration')} />
+                <span className="text-sm text-muted">{form.registrationOpen ? 'Open: delegates can get tickets' : 'Closed: no new tickets'}</span>
+              </div>
+            </div>
           </Section>
 
           <Section title="Schedule" description="Pick the first and last day, then the daily start and end times.">
