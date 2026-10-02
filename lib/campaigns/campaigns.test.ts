@@ -12,7 +12,7 @@ describe('email campaigns', () => {
   });
 
   it('previews escaped, with paragraphs, links and the button', () => {
-    const { subject, html } = renderCampaign({ subject: 'For {{name}}', body: 'Hi <b>{{first_name}}</b>\n\nhttps://pic.org/x.', buttonLabel: 'Open', buttonUrl: 'https://pic.org/?a=1&b=2', audience: EMPTY_DRAFT.audience }, ada, 'GS-27');
+    const { subject, html } = renderCampaign({ subject: 'For {{name}}', body: 'Hi <b>{{first_name}}</b>\n\nhttps://pic.org/x.', buttonLabel: 'Open', buttonUrl: 'https://pic.org/?a=1&b=2', audience: EMPTY_DRAFT.audience, design: null }, ada, 'GS-27');
     expect(subject).toBe('For Ada Okafor');
     expect(html).toContain('Hi &lt;b&gt;Ada&lt;/b&gt;</p>');
     expect(html).toContain('<a href="https://pic.org/x"');
