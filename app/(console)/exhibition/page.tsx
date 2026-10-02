@@ -174,7 +174,7 @@ function Report({ edition }: { edition: Edition }) {
             ]}
           />
         </header>
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[52rem] border-collapse">
             <thead>
               <tr>

@@ -221,7 +221,7 @@ export default function PassportPage() {
               <p className="max-w-sm text-sm text-[#7c7c7c]">Add each exhibition stand. Each gets a code; print its sign, and delegates scan it to stamp their passport.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full min-w-[46rem] border-collapse">
                 <thead>
                   <tr>

@@ -91,7 +91,7 @@ function Board({ edition }: { edition: Edition }) {
             </button>
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[44rem] border-collapse">
               <thead>
                 <tr>

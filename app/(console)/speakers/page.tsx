@@ -133,7 +133,7 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[48rem] border-collapse">
               <thead>
                 <tr>

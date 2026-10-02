@@ -549,7 +549,7 @@ function SoundDesk({ live }: { live: Session[] }) {
             and they appear here.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr>

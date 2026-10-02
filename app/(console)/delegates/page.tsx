@@ -240,7 +240,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
             </button>
           </div>
         ) : (
-          <div className={cn('overflow-x-auto transition-opacity', delegates.isFetching && delegates.data && 'opacity-60')}>
+          <div className={cn('relative overflow-x-auto transition-opacity', delegates.isFetching && delegates.data && 'opacity-60')}>
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
                 <tr>

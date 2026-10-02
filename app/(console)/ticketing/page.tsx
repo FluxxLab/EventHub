@@ -142,7 +142,7 @@ function TiersPanel({ edition }: { edition: Edition }) {
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[52rem] border-collapse">
             <thead>
               <tr>
