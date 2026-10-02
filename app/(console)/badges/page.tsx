@@ -53,6 +53,26 @@ const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 const SWATCHES = ['#002d74', '#10a957', '#b8860b', '#8b5cf6', '#e0115f', '#fe9239', '#292929'];
 const MM = 3.7795;
 
+/**
+ * The made-up person the preview shows, and the test print uses, until the event has a ticket
+ * holder: the design can be checked on paper before anyone registers. Its QR does not scan.
+ */
+const SAMPLE_HOLDER: BadgeHolder = {
+  ticketId: 'sample',
+  code: 'PIC-VIP-3QX7',
+  name: 'Ngozi Eze',
+  title: 'Programme Director',
+  organisation: 'Women in Policy Africa',
+  country: 'Nigeria',
+  photo: null,
+  tierName: 'VIP',
+  ticketTypeId: 'sample',
+  section: '',
+  quantity: 1,
+  qr: 'PICT1.sample',
+  admitted: 0,
+};
+
 /** Prints the badges from a hidden frame (silent with Chrome's --kiosk-printing). */
 async function printBadges(holders: BadgeHolder[], design: BadgeDesign, edition: Edition, layout: PrintLayout, artworkUrl: string | null): Promise<void> {
   await printHtml(await badgesDocument(holders, design, edition.shortName, layout, artworkUrl));
@@ -74,7 +94,7 @@ function BadgePreview({
   onPlace?: (part: BadgePart, placement: BadgePlacement) => void;
 }) {
   const [svg, setSvg] = useState('');
-  const payload = holder?.qr ?? 'PICT1.sample';
+  const payload = holder?.qr ?? SAMPLE_HOLDER.qr;
   useEffect(() => {
     let live = true;
     void qrSvg(payload).then((s) => live && setSvg(s));
@@ -82,7 +102,7 @@ function BadgePreview({
       live = false;
     };
   }, [payload]);
-  const sample = holder ?? { name: 'Ngozi Eze', title: 'Programme Director', organisation: 'Women in Policy Africa', country: 'Nigeria', tierName: 'VIP', code: 'PIC-VIP-3QX7' };
+  const sample = holder ?? SAMPLE_HOLDER;
   // the QR arrives after mount, so the document (which needs the page's origin for the logo) is only built in the browser
   const doc = svg ? `<!doctype html><html><head><style>${badgeCss(design.size)}html,body{overflow:hidden}</style></head><body>${badgeMarkup(sample, design, { shortName: edition.shortName, logo: badgeLogo(), artworkUrl }, svg)}</body></html>` : '';
 
@@ -573,7 +593,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
             artworkUrl={artworkUrl}
             onPlace={(part, placement) => design.layout && edit({ layout: { ...design.layout, [part]: placement } })}
           />
-          <button type="button" disabled={!sample || printing} onClick={() => sample && void print([sample], 'single')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+          <button type="button" disabled={printing} onClick={() => void print([sample ?? SAMPLE_HOLDER], 'single')} className={buttonClass({ style: 'outline', color: 'gray' })}>
             <PrinterIcon className="size-4" />
             Print a test badge
           </button>
