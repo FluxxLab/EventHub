@@ -14,7 +14,6 @@ import {
   ChatBubbleBottomCenterTextIcon,
   ChatBubbleLeftRightIcon,
   CheckBadgeIcon,
-  ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
@@ -79,7 +78,6 @@ export const NAV: NavGroup[] = [
     pages: [
       { href: '/delegates', label: 'Delegates', icon: UsersIcon, tiers: EVENTS },
       { href: '/badges', label: 'Badges', icon: IdentificationIcon, tiers: EVENTS },
-      { href: '/registration-list', label: 'Registration list', icon: ClipboardDocumentCheckIcon, tiers: ADMIN },
       { href: '/team', label: 'Team', icon: UserGroupIcon, tiers: ADMIN },
     ],
   },
