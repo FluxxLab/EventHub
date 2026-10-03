@@ -1,7 +1,7 @@
 'use client';
 
-import { CakeIcon, CheckCircleIcon, ClipboardDocumentIcon, LinkIcon, NoSymbolIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useState, type FormEvent } from 'react';
+import { BuildingStorefrontIcon, CakeIcon, CheckCircleIcon, ClipboardDocumentIcon, LinkIcon, NoSymbolIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useState, type FormEvent, type KeyboardEvent } from 'react';
 
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
@@ -44,7 +44,51 @@ export default function MealsPage() {
   );
 }
 
+const TABS = [
+  { key: 'meals', label: 'Meals', icon: CakeIcon },
+  { key: 'counters', label: 'Food counters', icon: BuildingStorefrontIcon },
+] as const;
+type Tab = (typeof TABS)[number]['key'];
+
+/** Meals and food counters, one at a time, as Ticketing shows tiers and sales. */
+function Tabs({ tab, onChange, counts }: { tab: Tab; onChange: (tab: Tab) => void; counts: Record<Tab, number> }) {
+  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const next = TABS[(TABS.findIndex((t) => t.key === tab) + 1) % TABS.length]!.key;
+    onChange(next);
+    document.getElementById(`meals-tab-${next}`)?.focus();
+  };
+  return (
+    <div role="tablist" aria-label="Meals sections" onKeyDown={onKey} className="flex gap-6 border-b border-border">
+      {TABS.map((t) => {
+        const selected = tab === t.key;
+        return (
+          <button
+            key={t.key}
+            id={`meals-tab-${t.key}`}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            aria-controls="meals-panel"
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onChange(t.key)}
+            className={cn(
+              '-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm transition-colors',
+              selected ? 'border-primary font-medium text-primary' : 'border-transparent text-[#525252] hover:text-ink',
+            )}
+          >
+            <t.icon className="size-4" />
+            {t.label}
+            <Tag tone={selected ? 'primary' : 'gray'}>{counts[t.key]}</Tag>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Board({ edition }: { edition: Edition }) {
+  const [tab, setTab] = useState<Tab>('meals');
   const board = useMeals(edition.id);
   const actions = useMealActions(edition.id);
   const toast = useToast();
@@ -69,6 +113,9 @@ function Board({ edition }: { edition: Edition }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <Tabs tab={tab} onChange={setTab} counts={{ meals: meals.length, counters: counters.length }} />
+      <div id="meals-panel" role="tabpanel" aria-labelledby={`meals-tab-${tab}`}>
+      {tab === 'meals' && (
       <section aria-labelledby="meals-title" className={cardClass}>
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
           <div>
@@ -153,7 +200,9 @@ function Board({ edition }: { edition: Edition }) {
           </div>
         )}
       </section>
+      )}
 
+      {tab === 'counters' && (
       <section aria-labelledby="counters-title" className={cardClass}>
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
           <div>
@@ -206,6 +255,8 @@ function Board({ edition }: { edition: Edition }) {
           </ul>
         )}
       </section>
+      )}
+      </div>
 
       <MealDialog
         key={editing?.meal?.id ?? 'new'}
