@@ -1,18 +1,13 @@
 /** `GET /delegates` (organisers): up to 500 delegates, newest first. The fields the page uses. */
 
-export const TIERS = ['standard', 'vip', 'vvip', 'press'] as const;
-/** Tiers an organiser can set from this page; staff roles are granted on the Team page. */
-export type DelegateTier = (typeof TIERS)[number];
-export type AccessTier = DelegateTier | 'admin' | 'session_admin';
+/**
+ * The account's own tier. The console no longer shows or sets it: a delegate's tier is their
+ * ticket's, from the event's tiers in Ticketing. It still tells staff accounts apart.
+ */
+export type AccessTier = 'standard' | 'vip' | 'vvip' | 'press' | 'admin' | 'session_admin';
 
-export const TIER_LABEL: Record<AccessTier, string> = {
-  standard: 'Standard',
-  vip: 'VIP',
-  vvip: 'VVIP',
-  press: 'Press',
-  admin: 'Organiser',
-  session_admin: 'Session operator',
-};
+/** One of a delegate's tickets, as the list carries them (with an event chosen, that event's only). */
+export type DelegateTicket = { ticketId: string; editionId: string; ticketTypeId: string; tierName: string };
 
 /** Set on accounts made for ticket holders who have not signed in yet (TICKET_HOLDER_TAG). */
 export const TICKET_HOLDER_TAG = 'ticket-holder';
@@ -25,6 +20,8 @@ export type Delegate = {
   title: string | null;
   country: string | null;
   accessTier: AccessTier;
+  /** Their tickets, each with its tier from Ticketing. */
+  tickets?: DelegateTicket[];
   tracks: string[];
   interests: string[];
   tags: string[];
@@ -33,6 +30,9 @@ export type Delegate = {
   createdAt: string;
   consentAt: string | null;
 };
+
+/** Their ticket tiers, once each: "VIP", or "VIP; Speaker" across events. */
+export const ticketTiers = (d: Pick<Delegate, 'tickets'>) => [...new Set((d.tickets ?? []).map((t) => t.tierName))];
 
 export const isStaff = (d: Pick<Delegate, 'accessTier'>) => d.accessTier === 'admin' || d.accessTier === 'session_admin';
 
@@ -83,7 +83,7 @@ export function delegatesCsv(delegates: Delegate[]): string {
     d.organisation ?? '',
     d.title ?? '',
     d.country ?? '',
-    TIER_LABEL[d.accessTier] ?? d.accessTier,
+    ticketTiers(d).join('; '),
     STATUS_LABEL[statusOf(d)],
     d.tracks.join('; '),
     d.interests.join('; '),

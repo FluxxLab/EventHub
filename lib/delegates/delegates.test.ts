@@ -55,7 +55,7 @@ describe('paginate', () => {
 
 describe('delegatesCsv', () => {
   it('writes readable tiers and statuses, joins lists, and quotes where needed', () => {
-    const [header, row] = delegatesCsv([delegate({ organisation: 'PIC, Abuja', accessTier: 'vip', tracks: ['digital', 'gbv'] })]).split('\r\n');
+    const [header, row] = delegatesCsv([delegate({ organisation: 'PIC, Abuja', tickets: [{ ticketId: 'k1', editionId: 'e1', ticketTypeId: 't2', tierName: 'VIP' }], tracks: ['digital', 'gbv'] })]).split('\r\n');
     expect(header?.startsWith('Name,Email,Organisation')).toBe(true);
     expect(row).toContain('"PIC, Abuja"');
     expect(row).toContain(',VIP,Approved,digital; gbv,');
