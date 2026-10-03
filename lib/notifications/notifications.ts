@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-/** Who an announcement goes to (the API's AudienceSegment). */
+/**
+ * The API's AudienceSegment. The console now sends every announcement to `all`, narrowed by the
+ * event's ticket tiers from Ticketing; the other segments only label announcements sent before.
+ */
 export const SEGMENTS = ['all', 'vip', 'press', 'speakers', 'volunteers'] as const;
 export type Segment = (typeof SEGMENTS)[number];
 
@@ -22,6 +25,8 @@ export type SentNotification = {
   title: string;
   body: string;
   segment: Segment;
+  /** Only holders of these ticket tiers of its event; empty is everyone. */
+  ticketTypeIds?: string[];
   delegateId: string | null;
   category: string | null;
   sessionId: string | null;
@@ -63,7 +68,8 @@ export type Target = (typeof TARGETS)[number];
 
 export const announcementSchema = z
   .object({
-    segment: z.enum(SEGMENTS),
+    /** The event's ticket tiers it goes to; empty is everyone. */
+    ticketTypeIds: z.array(z.string()),
     title: z.string().trim().min(1, 'Give it a title.').max(255, 'Keep the title under 255 characters.'),
     body: z.string().trim().min(1, 'Write the message.').max(1000, 'Keep the message under 1,000 characters.'),
     target: z.enum(TARGETS),
@@ -79,18 +85,27 @@ export const announcementSchema = z
   });
 export type AnnouncementForm = z.input<typeof announcementSchema>;
 
-export const emptyAnnouncement = (): AnnouncementForm => ({ segment: 'all', title: '', body: '', target: 'none', sessionId: '', linkUrl: '' });
+export const emptyAnnouncement = (): AnnouncementForm => ({ ticketTypeIds: [], title: '', body: '', target: 'none', sessionId: '', linkUrl: '' });
 
-/** `POST /notifications`: only the target that was chosen is sent. */
+/** `POST /notifications`: only the target that was chosen is sent, and tiers only when some are chosen. */
 export function toAnnouncementBody(form: z.output<typeof announcementSchema>) {
   return {
-    segment: form.segment,
+    segment: 'all',
+    ...(form.ticketTypeIds.length ? { ticketTypeIds: form.ticketTypeIds } : {}),
     title: form.title,
     body: form.body,
     category: 'announcement',
     ...(form.target === 'session' ? { sessionId: form.sessionId } : {}),
     ...(form.target === 'link' ? { linkUrl: form.linkUrl } : {}),
   };
+}
+
+/** "Everyone", or the tiers it went to by name ("VIP and Speaker"), or an old segment's label. */
+export function audienceLabel(n: Pick<SentNotification, 'segment' | 'ticketTypeIds'>, tierNames: Map<string, string>): string {
+  const ids = n.ticketTypeIds ?? [];
+  if (!ids.length) return SEGMENT_LABEL[n.segment] ?? n.segment;
+  const names = ids.map((id) => tierNames.get(id) ?? 'a removed tier');
+  return names.length === 1 ? names[0]! : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 }
 
 /** Flips one automatic push on or off in an edition's muted list. */

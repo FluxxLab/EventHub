@@ -49,7 +49,7 @@ export function useSentNotifications() {
 }
 
 /** `editionId` sends to that event's delegates only; left out, everyone in the segment. */
-export type AnnouncementBody = { segment: string; title: string; body: string; category: string; sessionId?: string; linkUrl?: string; editionId?: string; /** Also to delegates who opted in to WhatsApp. */ whatsapp?: boolean };
+export type AnnouncementBody = { segment: string; /** Only holders of these ticket tiers of `editionId`. */ ticketTypeIds?: string[]; title: string; body: string; category: string; sessionId?: string; linkUrl?: string; editionId?: string; /** Also to delegates who opted in to WhatsApp. */ whatsapp?: boolean };
 
 /** Send an announcement (queued at once; delivery runs in the background), or retract one. */
 export function useNotificationActions() {
@@ -102,11 +102,15 @@ export function useMutedNotifications(editionId: string | undefined) {
  * a phone), and whether WhatsApp is connected on the server (`live`); without it messages are only
  * logged.
  */
-export function useWhatsAppReach(segment: string, editionId: string | undefined, enabled: boolean) {
+export function useWhatsAppReach(ticketTypeIds: string[], editionId: string | undefined, enabled: boolean) {
+  // tiers belong to an event: without one they do not narrow it
+  const tiers = editionId ? [...ticketTypeIds].sort().join(',') : '';
   return useQuery({
-    queryKey: ['admin', 'notifications', 'whatsapp-reach', segment, editionId ?? 'all'] as const,
+    queryKey: ['admin', 'notifications', 'whatsapp-reach', tiers, editionId ?? 'all'] as const,
     queryFn: ({ signal }) =>
-      DEMO_MODE ? Promise.resolve({ recipients: 128, live: false }) : api.get<{ recipients: number; live: boolean }>('/notifications/whatsapp-reach', { segment, editionId }, signal),
+      DEMO_MODE
+        ? Promise.resolve({ recipients: 128, live: false })
+        : api.get<{ recipients: number; live: boolean }>('/notifications/whatsapp-reach', { segment: 'all', editionId, ticketTypeIds: tiers || undefined }, signal),
     enabled,
     staleTime: 30_000,
   });

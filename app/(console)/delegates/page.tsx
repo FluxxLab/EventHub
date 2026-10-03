@@ -22,17 +22,15 @@ import {
   paginate,
   STATUS_LABEL,
   statusOf,
-  TIER_LABEL,
-  TIERS,
-  type AccessTier,
   type Delegate,
   type DelegateStatus,
-  type DelegateTier,
+  type DelegateTicket,
   type StatusFilter,
 } from '@/lib/delegates/delegates';
 import { useSession } from '@/lib/auth/session';
 import { useDelegateActions, useDelegates } from '@/lib/delegates/use-delegates';
 import { useEditions } from '@/lib/events/use-editions';
+import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { cn } from '@/lib/utils';
 
 const cardClass =
@@ -40,10 +38,7 @@ const cardClass =
 const th = 'h-15 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 
-const TIER_TONE: Record<AccessTier, TagTone> = { standard: 'gray', vip: 'gold', vvip: 'gold', press: 'primary', admin: 'primary', session_admin: 'primary' };
 const STATUS_TONE: Record<DelegateStatus, TagTone> = { pending: 'gold', approved: 'green', unclaimed: 'gray' };
-const TIER_FILTER = [{ value: 'all' as const, label: 'All tiers' }, ...TIERS.map((t) => ({ value: t, label: TIER_LABEL[t] }))];
-const TIER_OPTIONS = TIERS.map((t) => ({ value: t, label: TIER_LABEL[t] }));
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending review' },
@@ -65,7 +60,8 @@ function downloadCsv(delegates: Delegate[]) {
 
 function DelegatesView({ initialQuery }: { initialQuery: string }) {
   const [query, setQuery] = useState(initialQuery);
-  const [tier, setTier] = useState<DelegateTier | 'all'>('all');
+  // one of the chosen event's ticket tiers (from Ticketing), or every tier
+  const [tier, setTier] = useState('all');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
   // Typing does not fire a request per keystroke: the search follows the text once React is idle.
@@ -78,12 +74,17 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
   const firstEvent = editions.data?.[0]?.id;
   const editionId = eventId !== 'all' ? eventId : scoped ? firstEvent : undefined;
   const eventOptions = [...(scoped ? [] : [{ value: 'all', label: 'All events' }]), ...(editions.data ?? []).map((e) => ({ value: e.id, label: e.shortName }))];
-  const delegates = useDelegates({ search, tier, editionId }, !scoped || Boolean(editionId));
+  const delegates = useDelegates({ search, ticketTypeId: tier, editionId }, !scoped || Boolean(editionId));
+  const ticketTypes = useTicketTypes(editionId);
+  const eventTiers = useMemo(() => (editionId ? (ticketTypes.data?.tiers ?? []) : []), [editionId, ticketTypes.data]);
+  const tierFilter = [{ value: 'all', label: 'All tiers' }, ...eventTiers.map((t) => ({ value: t.id, label: t.name }))];
+  const shortNames = useMemo(() => new Map((editions.data ?? []).map((e) => [e.id, e.shortName])), [editions.data]);
   const actions = useDelegateActions();
   const toast = useToast();
 
-  const [changing, setChanging] = useState<Delegate | null>(null);
-  const [newTier, setNewTier] = useState<DelegateTier>('standard');
+  // the delegate and their ticket to the chosen event, while its tier is being changed
+  const [changing, setChanging] = useState<{ delegate: Delegate; ticket: DelegateTicket } | null>(null);
+  const [newTier, setNewTier] = useState('');
   const [approvingAll, setApprovingAll] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -94,25 +95,31 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
   const view = paginate(filtered, page);
   const capped = all.length >= 500;
 
-  const openTier = (d: Delegate) => {
-    setChanging(d);
-    setNewTier(isStaff(d) ? 'standard' : (d.accessTier as DelegateTier));
+  /** Their ticket to the chosen event; only that can move to another of its tiers. */
+  const ticketHere = (d: Delegate) => (editionId ? d.tickets?.find((t) => t.editionId === editionId) : undefined);
+  const openTier = (d: Delegate, ticket: DelegateTicket) => {
+    actions.moveTicket.reset();
+    setChanging({ delegate: d, ticket });
+    setNewTier(ticket.ticketTypeId);
   };
-  const confirmTier = () =>
-    changing &&
-    actions.setTier.mutate(
-      { id: changing.id, tier: newTier },
+  const confirmTier = () => {
+    if (!changing) return;
+    const to = eventTiers.find((t) => t.id === newTier);
+    if (!to || to.id === changing.ticket.ticketTypeId) return setChanging(null);
+    actions.moveTicket.mutate(
+      { ticketId: changing.ticket.ticketId, ticketTypeId: to.id, tierName: to.name },
       {
         onSuccess: () => {
           toast.push({
             title: 'Tier changed',
-            leading: { kind: 'avatar', name: changing.name },
-            body: `${changing.name} is now ${TIER_LABEL[newTier]}${changing.pendingReview ? ', and approved' : ''}.`,
+            leading: { kind: 'avatar', name: changing.delegate.name },
+            body: `${changing.delegate.name} now has a ${to.name} ticket. Their QR still works; reprint their badge to show the new tier.`,
           });
           setChanging(null);
         },
       },
     );
+  };
   const approve = (d: Delegate, approved: boolean) =>
     actions.setApproval.mutate(
       { id: d.id, approved },
@@ -212,22 +219,26 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                   options={eventOptions}
                   onChange={(v) => {
                     setEventId(v);
+                    // tiers are the event's own
+                    setTier('all');
                     setPage(1);
                   }}
                 />
               </div>
             )}
-            <div className="w-44">
-              <Select
-                label="Tier"
-                value={tier}
-                options={TIER_FILTER}
-                onChange={(v) => {
-                  setTier(v);
-                  setPage(1);
-                }}
-              />
-            </div>
+            {editionId && eventTiers.length > 0 && (
+              <div className="w-44">
+                <Select
+                  label="Tier"
+                  value={tier}
+                  options={tierFilter}
+                  onChange={(v) => {
+                    setTier(v);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -305,7 +316,18 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                           )}
                         </td>
                         <td className={td}>
-                          <Tag tone={TIER_TONE[d.accessTier]}>{TIER_LABEL[d.accessTier] ?? d.accessTier}</Tag>
+                          {d.tickets?.length ? (
+                            <div className="flex flex-wrap gap-1">
+                              {d.tickets.map((t) => (
+                                <Tag key={t.ticketId} tone="primary">
+                                  {t.tierName}
+                                  {editionId ? '' : ` · ${shortNames.get(t.editionId) ?? 'event'}`}
+                                </Tag>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-placeholder">No ticket</span>
+                          )}
                         </td>
                         <td className={td}>
                           <Tag tone={STATUS_TONE[s]} dot>
@@ -336,9 +358,14 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                                   Send back
                                 </button>
                               )}
-                              <button type="button" onClick={() => openTier(d)} className={buttonClass({ style: 'outline', color: 'gray' })}>
-                                Change tier
-                              </button>
+                              {(() => {
+                                const ticket = ticketHere(d);
+                                return ticket && eventTiers.length > 1 ? (
+                                  <button type="button" onClick={() => openTier(d, ticket)} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                                    Change tier
+                                  </button>
+                                ) : null;
+                              })()}
                           </div>
                         </td>
                       </tr>
@@ -364,18 +391,20 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
 
       <ConfirmDialog
         open={!!changing}
-        title={`Change ${changing?.name ?? 'delegate'}’s tier`}
+        title={`Change ${changing?.delegate.name ?? 'delegate'}’s tier`}
         confirmLabel="Change tier"
         pendingLabel="Changing…"
-        pending={actions.setTier.isPending}
+        pending={actions.moveTicket.isPending}
         onConfirm={() => void confirmTier()}
         onCancel={() => setChanging(null)}
       >
         <div className="flex flex-col gap-3">
-          <p>The tier sets what the delegate can see and where they sit. The change is logged.</p>
-          <Select label="New tier" value={newTier} options={TIER_OPTIONS} onChange={setNewTier} />
-          {changing?.pendingReview && <p className="text-xs text-[#7c7c7c]">This also approves them, so they can use the app straight away.</p>}
-          {actions.setTier.error && <p className="text-xs text-danger">{actions.setTier.error.message}</p>}
+          <p>
+            Moves their {shortNames.get(editionId ?? '') ?? 'event'} ticket to another of its tiers in Ticketing, and where they sit with it. Their QR code keeps working; reprint their
+            badge to show the new tier. The change is logged.
+          </p>
+          <Select label="New tier" value={newTier} options={eventTiers.map((t) => ({ value: t.id, label: t.name }))} onChange={setNewTier} />
+          {actions.moveTicket.error && <p className="text-xs text-danger">{actions.moveTicket.error.message}</p>}
         </div>
       </ConfirmDialog>
       <ConfirmDialog
@@ -387,7 +416,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
         onConfirm={() => void confirmApproveAll()}
         onCancel={() => setApprovingAll(false)}
       >
-        Everyone waiting for review gets in at their current tier. To give someone a different tier, change it first.
+        Everyone waiting for review gets in, with the tickets they hold.
       </ConfirmDialog>
     </div>
   );

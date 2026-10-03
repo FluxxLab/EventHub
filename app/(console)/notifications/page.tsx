@@ -18,13 +18,12 @@ import { usePageEdition } from '@/lib/events/use-page-edition';
 import { ago } from '@/lib/format';
 import {
   announcementSchema,
+  audienceLabel,
   AUTOMATIC,
   BODY_VISIBLE,
   categoryLabel,
   emptyAnnouncement,
   isAnnouncement,
-  SEGMENT_LABEL,
-  SEGMENTS,
   TITLE_VISIBLE,
   toAnnouncementBody,
   toggleMuted,
@@ -34,6 +33,7 @@ import {
 } from '@/lib/notifications/notifications';
 import { useMutedNotifications, useNotificationActions, useSentNotifications, useWhatsAppReach, type AnnouncementBody } from '@/lib/notifications/use-notifications';
 import { useSessions } from '@/lib/programme/use-sessions';
+import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 
@@ -94,6 +94,7 @@ function Composer({
   pending,
   reach,
   eventName,
+  tiers,
   canReachEveryone,
   onReach,
   onChange,
@@ -105,6 +106,8 @@ function Composer({
   pending: boolean;
   reach: Reach;
   eventName: string;
+  /** The event's ticket tiers, from Ticketing. */
+  tiers: { id: string; name: string }[];
   /** Organisers may send to everyone on the app; event organisers only to their event's delegates. */
   canReachEveryone: boolean;
   onReach: (reach: Reach) => void;
@@ -140,10 +143,42 @@ function Composer({
             <p className="text-sm text-[#525252]">{eventName} delegates: ticket holders and people who saved or attended its sessions.</p>
           )}
         </div>
-        <div>
-          <p className="mb-1.5 text-sm text-ink">To</p>
-          <Choice label="Audience" value={form.segment} options={SEGMENTS.map((s) => ({ value: s, label: SEGMENT_LABEL[s] }))} onChange={(v) => onChange('segment', v)} />
-        </div>
+        {reach === 'event' && (
+          <div>
+            <p className="mb-1.5 text-sm text-ink">To</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Ticket tiers">
+              <button
+                type="button"
+                aria-pressed={form.ticketTypeIds.length === 0}
+                onClick={() => onChange('ticketTypeIds', [])}
+                className={cn('rounded-full border px-3 py-1 text-sm', form.ticketTypeIds.length === 0 ? 'border-primary bg-primary text-white' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+              >
+                Everyone
+              </button>
+              {tiers.map((t) => {
+                const on = form.ticketTypeIds.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => onChange('ticketTypeIds', on ? form.ticketTypeIds.filter((id) => id !== t.id) : [...form.ticketTypeIds, t.id])}
+                    className={cn('rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary text-white' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+                  >
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-xs text-[#7c7c7c]">
+              {tiers.length === 0
+                ? `${eventName} has no ticket tiers yet; add them in Ticketing to send to some of them.`
+                : form.ticketTypeIds.length
+                  ? 'Only people holding a ticket in the chosen tiers.'
+                  : 'Ticket holders and people who saved or attended its sessions.'}
+            </p>
+          </div>
+        )}
 
         <div>
           <div className="mb-1.5 flex items-baseline justify-between">
@@ -214,22 +249,21 @@ function Composer({
         <p className="text-xs text-[#7c7c7c]">A push cannot be recalled once it reaches phones.</p>
         <button type="submit" disabled={pending} className={buttonClass()}>
           <PaperAirplaneIcon className="size-4" />
-          Send to {SEGMENT_LABEL[form.segment]}
-          {reach === 'event' ? ` at ${eventName}` : ''}
+          Send to {reach === 'event' ? `${audienceLabel({ segment: 'all', ticketTypeIds: form.ticketTypeIds }, new Map(tiers.map((t) => [t.id, t.name])))} at ${eventName}` : 'everyone on the app'}
         </button>
       </footer>
     </form>
   );
 }
 
-function SentRow({ n, now, sessionTitle, eventName, onRetract }: { n: SentNotification; now: number; sessionTitle?: string; eventName?: string; onRetract: () => void }) {
+function SentRow({ n, now, sessionTitle, eventName, tierNames, onRetract }: { n: SentNotification; now: number; sessionTitle?: string; eventName?: string; tierNames: Map<string, string>; onRetract: () => void }) {
   const automatic = !isAnnouncement(n);
   return (
     <li className="flex gap-4 px-6 py-4">
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2 text-xs text-[#7c7c7c]">
           <Tag tone={automatic ? 'gray' : 'primary'}>{categoryLabel(n.category)}</Tag>
-          {n.delegateId ? 'One delegate' : `To ${SEGMENT_LABEL[n.segment] ?? n.segment}${n.editionId ? ` at ${eventName ?? 'an event'}` : ''}`}
+          {n.delegateId ? 'One delegate' : `To ${audienceLabel(n, tierNames)}${n.editionId ? ` at ${eventName ?? 'an event'}` : ' on the app'}`}
           <span>· {n.sentAt ? ago(n.sentAt, now).toLowerCase() : 'sending…'}</span>
           {n.whatsapp && <Tag tone="green">Also on WhatsApp</Tag>}
         </p>
@@ -282,7 +316,10 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
   const [retracting, setRetracting] = useState<SentNotification | null>(null);
   const [whatsapp, setWhatsapp] = useState(false);
   const toEventNow = reach === 'event' || !organiser;
-  const waReach = useWhatsAppReach(form.segment, toEventNow ? edition.id : undefined, whatsapp);
+  const ticketTypes = useTicketTypes(edition?.id);
+  const tiers = useMemo(() => (ticketTypes.data?.tiers ?? []).map((t) => ({ id: t.id, name: t.name })), [ticketTypes.data]);
+  const tierNames = useMemo(() => new Map(tiers.map((t) => [t.id, t.name])), [tiers]);
+  const waReach = useWhatsAppReach(toEventNow ? form.ticketTypeIds : [], toEventNow ? edition.id : undefined, whatsapp);
 
   const sessionOptions = useMemo(
     () => (sessions.data ?? []).filter((s) => s.type !== 'break').map((s) => ({ value: s.id, label: `Day ${s.day} · ${s.room} · ${s.title}` })),
@@ -308,7 +345,9 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
     }
     // an event organiser's announcements always go to their event's delegates
     const toEvent = reach === 'event' || !organiser;
-    setConfirming({ ...toAnnouncementBody(parsed.data), ...(toEvent ? { editionId: edition.id } : {}), ...(whatsapp ? { whatsapp: true } : {}) });
+    // tiers are the event's, so they only narrow an announcement to it
+    const body = toAnnouncementBody(toEvent ? parsed.data : { ...parsed.data, ticketTypeIds: [] });
+    setConfirming({ ...body, ...(toEvent ? { editionId: edition.id } : {}), ...(whatsapp ? { whatsapp: true } : {}) });
   };
 
   return (
@@ -322,6 +361,7 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
           pending={send.isPending}
           reach={organiser ? reach : 'event'}
           eventName={edition.shortName}
+          tiers={tiers}
           canReachEveryone={organiser}
           onReach={setReach}
           onChange={change}
@@ -389,7 +429,7 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
           ) : (
             <ul className="divide-y divide-border">
               {shown.map((n) => (
-                <SentRow key={n.id} n={n} now={now} sessionTitle={titleOf(n.sessionId)} eventName={edition.shortName} onRetract={() => setRetracting(n)} />
+                <SentRow key={n.id} n={n} now={now} sessionTitle={titleOf(n.sessionId)} eventName={edition.shortName} tierNames={tierNames} onRetract={() => setRetracting(n)} />
               ))}
             </ul>
           )}
@@ -397,7 +437,7 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
 
       <ConfirmDialog
         open={!!confirming}
-        title={`Send to ${confirming ? SEGMENT_LABEL[confirming.segment as keyof typeof SEGMENT_LABEL] : ''}${confirming?.editionId ? ` at ${edition.shortName}` : ' on the app'}?`}
+        title={`Send to ${confirming ? (confirming.editionId ? `${audienceLabel({ segment: 'all', ticketTypeIds: confirming.ticketTypeIds }, tierNames)} at ${edition.shortName}` : 'everyone on the app') : ''}?`}
         confirmLabel="Send now"
         pendingLabel="Sending…"
         pending={send.isPending}
