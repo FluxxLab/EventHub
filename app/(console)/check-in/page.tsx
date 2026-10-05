@@ -7,8 +7,8 @@ import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
 import { canUseCamera, QrScanner } from '@/components/ui/qr-scanner';
 import { Switch } from '@/components/ui/switch';
-import { DEFAULT_DESIGN, tierColour, type BadgeDesign } from '@/lib/badges/badges';
-import { badgesDocument, printHtml } from '@/lib/badges/print';
+import { tierColour, type BadgeDesign } from '@/lib/badges/badges';
+import { badgeLook, badgesDocument, printHtml } from '@/lib/badges/print';
 import { useBadgeDesign } from '@/lib/badges/use-badges';
 import { badgeFor, isTicketQr, placesLine, whenAdmitted, type AdmitResult, type TicketMatch } from '@/lib/checkin/checkin';
 import { useAdmit, useFindTicket, useGateSummary } from '@/lib/checkin/use-checkin';
@@ -81,8 +81,7 @@ function Desk({ edition }: { edition: Edition }) {
   const find = useFindTicket(edition.id);
   const gate = useGateSummary(edition.id);
   const stored = useBadgeDesign(edition.id);
-  const design: BadgeDesign = stored.data?.design ?? DEFAULT_DESIGN;
-  const artworkUrl = stored.data?.artworkUrl ?? null;
+  const { design, artworkUrl, logo } = badgeLook(stored.data, edition);
   const [autoPrint, setAutoPrint] = useAutoPrint();
   const cameraReady = useSyncExternalStore(
     () => () => undefined,
@@ -108,13 +107,13 @@ function Desk({ edition }: { edition: Edition }) {
   const print = useCallback(
     async (result: AdmitResult): Promise<PrintState> => {
       try {
-        await printHtml(await badgesDocument([badgeFor(result)], design, edition.shortName, 'single', artworkUrl));
+        await printHtml(await badgesDocument([badgeFor(result)], design, edition.shortName, 'single', artworkUrl, logo));
         return 'printed';
       } catch {
         return 'failed';
       }
     },
-    [design, edition.shortName, artworkUrl],
+    [design, edition.shortName, artworkUrl, logo],
   );
 
   const letIn = useCallback(

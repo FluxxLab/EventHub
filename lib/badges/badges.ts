@@ -50,6 +50,14 @@ export const PART_LABEL: Record<BadgePart, string> = { photo: 'Photo', who: 'Nam
 export type BadgePlacement = { x: number; y: number; scale: number };
 export type BadgeLayout = Record<BadgePart, BadgePlacement>;
 
+/** Whose logo the header carries: the event's (Events > Branding), PIC's, one uploaded for badges, or none. */
+export const BADGE_LOGOS = ['event', 'pic', 'custom', 'none'] as const;
+export type BadgeLogo = (typeof BADGE_LOGOS)[number];
+export const LOGO_LABEL: Record<BadgeLogo, string> = { event: 'Event logo', pic: 'PIC logo', custom: 'Upload one', none: 'No logo' };
+
+/** A coloured header band, or a light header with a coloured rule under it. */
+export type BadgeHeaderStyle = 'band' | 'light';
+
 export type BadgeDesign = {
   size: BadgeSize;
   accent: string;
@@ -59,9 +67,35 @@ export type BadgeDesign = {
   artwork: string | null;
   /** Where each part sits on the artwork; null without artwork. */
   layout: BadgeLayout | null;
+  logo: BadgeLogo;
+  /** Storage key of a logo uploaded for badges; set only with `logo: 'custom'`. */
+  logoKey: string | null;
+  /** The header's words; null is the event's short name, empty hides them. */
+  heading: string | null;
+  headerStyle: BadgeHeaderStyle;
+  /** The card behind the name; the text picks white or ink to read on it. */
+  background: string;
 };
 
-export const DEFAULT_DESIGN: BadgeDesign = { size: 'a6', accent: '#002d74', fields: ['title', 'organisation', 'tier', 'qr'], tierColours: [], artwork: null, layout: null };
+/** PIC's look, as designs saved before logos and colours print (and the API reads them). */
+export const DEFAULT_DESIGN: BadgeDesign = {
+  size: 'a6',
+  accent: '#002d74',
+  fields: ['title', 'organisation', 'tier', 'qr'],
+  tierColours: [],
+  artwork: null,
+  layout: null,
+  logo: 'pic',
+  logoKey: null,
+  heading: null,
+  headerStyle: 'band',
+  background: '#ffffff',
+};
+
+/** Where an event's badges start before a design is saved: its brand colour and its logo (Events > Branding). */
+export function brandedDesign(event: { brandColor?: string | null; logoUrl?: string | null }): BadgeDesign {
+  return { ...DEFAULT_DESIGN, accent: event.brandColor?.toLowerCase() ?? DEFAULT_DESIGN.accent, logo: event.logoUrl ? 'event' : 'pic' };
+}
 
 /** Where the parts start on new artwork: stacked down the middle, or side by side on a landscape badge. */
 export function defaultLayout(size: BadgeSize): BadgeLayout {
@@ -142,7 +176,12 @@ export const sameDesign = (a: BadgeDesign, b: BadgeDesign) =>
   a.fields.every((f) => b.fields.includes(f)) &&
   JSON.stringify([...a.tierColours].sort((x, y) => x.tier.localeCompare(y.tier))) === JSON.stringify([...b.tierColours].sort((x, y) => x.tier.localeCompare(y.tier))) &&
   a.artwork === b.artwork &&
-  JSON.stringify(a.layout) === JSON.stringify(b.layout);
+  JSON.stringify(a.layout) === JSON.stringify(b.layout) &&
+  a.logo === b.logo &&
+  a.logoKey === b.logoKey &&
+  a.heading === b.heading &&
+  a.headerStyle === b.headerStyle &&
+  a.background.toLowerCase() === b.background.toLowerCase();
 
 /** Holders matching a search (name, organisation or code) and a tier. */
 export function filterHolders(holders: BadgeHolder[], search: string, tier: string): BadgeHolder[] {
@@ -172,7 +211,8 @@ export function initials(name: string): string {
 export function badgeMarkup(
   holder: Pick<BadgeHolder, 'name' | 'title' | 'organisation' | 'country' | 'tierName' | 'code'> & { photo?: string | null },
   design: BadgeDesign,
-  event: { shortName: string; logo: string; artworkUrl?: string | null },
+  /** `logo`: the picture the design's logo choice comes to (see `badgeLogoFor`), or null for none. */
+  event: { shortName: string; logo: string | null; artworkUrl?: string | null },
   qrSvg: string,
 ): string {
   const has = (f: BadgeField) => design.fields.includes(f);
@@ -195,8 +235,21 @@ export function badgeMarkup(
     // an <img>, not a CSS background, so printing waits for it to load
     return `<article class="badge art size-${design.size}"><img class="bg" src="${escape(event.artworkUrl)}" alt="">${photo ? at('photo', photo) : ''}${at('who', who)}${scan ? at('scan', scan) : ''}${footer}</article>`;
   }
-  return `<article class="badge size-${design.size}">
-  <header style="background:${design.accent};color:${textOn(design.accent)}"><span class="logo"><img src="${escape(event.logo)}" alt=""></span><span class="event">${escape(event.shortName)}</span></header>
+  const background = design.background ?? '#ffffff';
+  const ink = textOn(background);
+  const tinted = background.toLowerCase() !== '#ffffff';
+  const heading = design.heading ?? event.shortName;
+  const light = design.headerStyle === 'light';
+  const logo = event.logo ? `<span class="logo${light ? ' bare' : ''}"><img src="${escape(event.logo)}" alt=""></span>` : '';
+  const words = heading ? `<span class="event">${escape(heading)}</span>` : '';
+  const header =
+    logo || words
+      ? light
+        ? `<header class="light" style="border-bottom-color:${design.accent};color:${tinted ? ink : design.accent}">${logo}${words}</header>`
+        : `<header style="background:${design.accent};color:${textOn(design.accent)}">${logo}${words}</header>`
+      : '';
+  return `<article class="badge size-${design.size}${tinted ? ' tinted' : ''}" style="background:${background};--ink:${ink};--muted:${ink === '#ffffff' ? 'rgba(255,255,255,.78)' : '#525252'}">
+  ${header}
   <div class="body">
     <div class="who">${photo}${who}</div>
     ${scan ? `<div class="scan">${scan}</div>` : ''}
@@ -212,16 +265,18 @@ export function badgeCss(size: BadgeSize): string {
   const wide = size === '4x3';
   return `*{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#292929;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.badge{width:${w}mm;height:${h}mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;break-inside:avoid}
+.badge{width:${w}mm;height:${h}mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;color:var(--ink,#292929);break-inside:avoid}
 .badge header{display:flex;align-items:center;gap:${small ? 2 : 3}mm;padding:${small ? '2.5mm 3mm' : '4mm 5mm'};flex:none}
 .badge .logo{background:#fff;border-radius:${small ? 1 : 1.5}mm;padding:${small ? '.8mm 1.2mm' : '1.2mm 2mm'};display:flex}
+.badge header.light{border-bottom:${small ? 1 : 1.5}mm solid}
+.badge .logo.bare{background:none;padding:0}
 .badge .logo img{height:${small ? 5 : wide ? 6 : 8}mm;width:auto;display:block}
 .badge .event{font-size:${small ? 2.8 : 3.6}mm;letter-spacing:.06em;text-transform:uppercase;font-weight:500}
 .badge .body{flex:1;display:flex;flex-direction:${wide ? 'row' : 'column'};align-items:${wide ? 'center' : 'stretch'};gap:${small ? 2 : 4}mm;padding:${small ? '3mm' : '5mm'};min-height:0;text-align:${wide ? 'left' : 'center'}}
 .badge .who{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
 .badge h1{margin:0 0 ${small ? 1 : 2}mm;font-weight:500;line-height:1.1;overflow-wrap:anywhere}
-.badge .who p{margin:.6mm 0 0;font-size:${small ? 2.6 : 3.8}mm;color:#525252;line-height:1.25;overflow-wrap:anywhere}
-.badge .who .organisation{color:#292929;font-weight:500}
+.badge .who p{margin:.6mm 0 0;font-size:${small ? 2.6 : 3.8}mm;color:var(--muted,#525252);line-height:1.25;overflow-wrap:anywhere}
+.badge .who .organisation{color:var(--ink,#292929);font-weight:500}
 .badge .photo{width:${small ? 16 : wide ? 18 : 28}mm;height:${small ? 16 : wide ? 18 : 28}mm;border-radius:50%;overflow:hidden;background:#f1f1f1;display:flex;align-items:center;justify-content:center;margin:0 ${wide ? 'auto 0 0' : 'auto'} ${small ? 2 : 3}mm;flex:none;font-weight:500;font-size:${small ? 5 : wide ? 6 : 9}mm}
 .badge .photo img{width:100%;height:100%;object-fit:cover;display:block}
 .badge.art{position:relative;display:block}
@@ -234,7 +289,8 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#2
 .badge .scan{display:flex;flex-direction:column;align-items:center;flex:none}
 .badge .qr{width:${small ? 22 : wide ? 34 : 36}mm;height:${small ? 22 : wide ? 34 : 36}mm}
 .badge .qr svg{width:100%;height:100%;display:block}
-.badge .code{margin:1mm 0 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:${small ? 2.2 : 3}mm;letter-spacing:.08em;color:#525252}
+.badge .code{margin:1mm 0 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:${small ? 2.2 : 3}mm;letter-spacing:.08em;color:var(--muted,#525252)}
+.badge.tinted .qr{background:#fff;padding:1.2mm;border-radius:1mm}
 .badge footer{flex:none;padding:${small ? '1.8mm' : '3mm'};text-align:center;font-size:${small ? 3 : 4.4}mm;font-weight:500;letter-spacing:.08em;text-transform:uppercase}`;
 }
 

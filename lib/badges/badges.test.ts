@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { artworkMismatch, artworkPixels, badgeMarkup, badgesHtml, clampPlacement, defaultLayout, DEFAULT_DESIGN, filterHolders, initials, sameDesign, textOn, tierColour, withTierColour, type BadgeHolder } from '@/lib/badges/badges';
+import { artworkMismatch, artworkPixels, badgeMarkup, badgesHtml, brandedDesign, clampPlacement, defaultLayout, DEFAULT_DESIGN, filterHolders, initials, sameDesign, textOn, tierColour, withTierColour, type BadgeHolder } from '@/lib/badges/badges';
 
 const holder = (over: Partial<BadgeHolder> = {}): BadgeHolder => ({
   ticketId: 't1',
@@ -100,3 +100,30 @@ describe('badges', () => {
     expect(sameDesign(DEFAULT_DESIGN, { ...DEFAULT_DESIGN, size: 'cr80' })).toBe(false);
   });
 });
+
+describe('the badge look', () => {
+  const who = holder();
+  it('starts from the event colour and its logo, else PIC', () => {
+    expect(brandedDesign({ brandColor: '#0F6B3A', logoUrl: 'https://signed/logo.png' })).toMatchObject({ accent: '#0f6b3a', logo: 'event' });
+    expect(brandedDesign({})).toMatchObject({ accent: '#002d74', logo: 'pic' });
+  });
+
+  it('prints the header words chosen, or the short name, and leaves an empty header out', () => {
+    expect(badgeMarkup(who, { ...DEFAULT_DESIGN, heading: 'Build 2026' }, event, '')).toContain('<span class="event">Build 2026</span>');
+    expect(badgeMarkup(who, DEFAULT_DESIGN, event, '')).toContain(`<span class="event">${event.shortName}</span>`);
+    expect(badgeMarkup(who, { ...DEFAULT_DESIGN, heading: '' }, { ...event, logo: null }, '')).not.toContain('<header');
+  });
+
+  it('draws a light header with a rule of the header colour', () => {
+    const html = badgeMarkup(who, { ...DEFAULT_DESIGN, headerStyle: 'light', accent: '#0f6b3a' }, event, '');
+    expect(html).toContain('<header class="light" style="border-bottom-color:#0f6b3a;color:#0f6b3a">');
+    expect(html).toContain('class="logo bare"');
+  });
+
+  it('turns text white on a dark card and keeps the QR on white', () => {
+    const html = badgeMarkup(who, { ...DEFAULT_DESIGN, background: '#002d74', fields: ['qr'] }, event, '<svg></svg>');
+    expect(html).toContain('class="badge size-a6 tinted"');
+    expect(html).toContain('--ink:#ffffff');
+  });
+});
+
