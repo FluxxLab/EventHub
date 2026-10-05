@@ -17,15 +17,18 @@ import {
   artworkMismatch,
   artworkPixels,
   BADGE_FIELDS,
+  BADGE_LOGOS,
   BADGE_PARTS,
   BADGE_SIZES,
   badgeCss,
   badgeMarkup,
+  brandedDesign,
   clampPlacement,
   defaultLayout,
   PART_LABEL,
   FIELD_LABEL,
   filterHolders,
+  LOGO_LABEL,
   sameDesign,
   SHEET_GRID,
   SIZE_LABEL,
@@ -38,7 +41,7 @@ import {
   type BadgePlacement,
   type PrintLayout,
 } from '@/lib/badges/badges';
-import { badgeLogo, badgesDocument, printHtml, qrSvg } from '@/lib/badges/print';
+import { badgeLogoFor, badgesDocument, printHtml, qrSvg } from '@/lib/badges/print';
 import { uploadBadgeArtwork, useBadgeDesign, useBadgeHolders, useSaveBadgeDesign } from '@/lib/badges/use-badges';
 import { paginate } from '@/lib/delegates/delegates';
 import type { Edition } from '@/lib/events/events';
@@ -50,7 +53,7 @@ import { cn } from '@/lib/utils';
 const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
 const th = 'h-12 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
-const SWATCHES = ['#002d74', '#10a957', '#b8860b', '#8b5cf6', '#e0115f', '#fe9239', '#292929'];
+const SWATCHES = ['#002d74', '#10a957', '#b8860b', '#8b5cf6', '#e0115f', '#fe9239', '#292929', '#ffffff'];
 const MM = 3.7795;
 
 /**
@@ -74,8 +77,8 @@ const SAMPLE_HOLDER: BadgeHolder = {
 };
 
 /** Prints the badges from a hidden frame (silent with Chrome's --kiosk-printing). */
-async function printBadges(holders: BadgeHolder[], design: BadgeDesign, edition: Edition, layout: PrintLayout, artworkUrl: string | null): Promise<void> {
-  await printHtml(await badgesDocument(holders, design, edition.shortName, layout, artworkUrl));
+async function printBadges(holders: BadgeHolder[], design: BadgeDesign, edition: Edition, layout: PrintLayout, artworkUrl: string | null, logo: string | null): Promise<void> {
+  await printHtml(await badgesDocument(holders, design, edition.shortName, layout, artworkUrl, logo));
 }
 
 /** The badge at true size, scaled to fit: the same HTML and CSS the printer gets. */
@@ -84,12 +87,15 @@ function BadgePreview({
   design,
   edition,
   artworkUrl,
+  logo,
   onPlace,
 }: {
   holder: BadgeHolder | null;
   design: BadgeDesign;
   edition: Edition;
   artworkUrl: string | null;
+  /** The logo the design asks for (`badgeLogoFor`), or null for none. */
+  logo: string | null;
   /** With artwork: the photo, name and QR can be dragged (or moved with the arrow keys) into place. */
   onPlace?: (part: BadgePart, placement: BadgePlacement) => void;
 }) {
@@ -104,7 +110,7 @@ function BadgePreview({
   }, [payload]);
   const sample = holder ?? SAMPLE_HOLDER;
   // the QR arrives after mount, so the document (which needs the page's origin for the logo) is only built in the browser
-  const doc = svg ? `<!doctype html><html><head><style>${badgeCss(design.size)}html,body{overflow:hidden}</style></head><body>${badgeMarkup(sample, design, { shortName: edition.shortName, logo: badgeLogo(), artworkUrl }, svg)}</body></html>` : '';
+  const doc = svg ? `<!doctype html><html><head><style>${badgeCss(design.size)}html,body{overflow:hidden}</style></head><body>${badgeMarkup(sample, design, { shortName: edition.shortName, logo, artworkUrl }, svg)}</body></html>` : '';
 
   const { w, h } = SIZE_MM[design.size];
   const scale = Math.min(320 / (w * MM), 380 / (h * MM));
@@ -288,6 +294,148 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/**
+ * The header and the card: whose logo, a band or a light header, the header's words, and the card's
+ * colour, with one click back to the event's own colour and logo (Events > Branding).
+ */
+function LookSection({
+  editionId,
+  edition,
+  design,
+  uploadedLogo,
+  onChange,
+  onLogoUploaded,
+}: {
+  editionId: string;
+  edition: Edition;
+  design: BadgeDesign;
+  uploadedLogo: string | null;
+  onChange: (next: Partial<BadgeDesign>) => void;
+  onLogoUploaded: (key: string, url: string) => void;
+}) {
+  const toast = useToast();
+  const input = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const eventColour = edition.brandColor?.toLowerCase() ?? null;
+  const branded = (!eventColour || design.accent.toLowerCase() === eventColour) && (!edition.logoUrl || design.logo === 'event');
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) return toast.push({ title: 'Logo not added', body: 'Use a PNG or JPG. A PNG with a transparent background prints best.' });
+    if (file.size > 5 * 1024 * 1024) return toast.push({ title: 'Logo not added', body: 'Keep it under 5 MB.' });
+    setProgress(0);
+    try {
+      const { key, url } = await uploadBadgeArtwork(editionId, file, setProgress);
+      onLogoUploaded(key, url);
+    } catch (e) {
+      toast.push({ title: 'Logo not uploaded', body: e instanceof Error ? e.message : 'Try again.' });
+    } finally {
+      setProgress(null);
+    }
+  };
+
+  return (
+    <>
+      <Section title="Event branding">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-[#7c7c7c]">
+            {eventColour || edition.logoUrl ? 'The colour and logo set for this event in Events › Branding.' : 'This event has no colour or logo yet: add them in Events › Branding.'}
+          </p>
+          <button
+            type="button"
+            disabled={branded || (!eventColour && !edition.logoUrl)}
+            onClick={() => onChange({ ...(eventColour ? { accent: eventColour } : {}), ...(edition.logoUrl ? { logo: 'event' as const, logoKey: null } : {}) })}
+            className={buttonClass({ style: 'outline', color: 'gray' })}
+          >
+            {edition.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- a signed upload, shown as is
+              <img src={edition.logoUrl} alt="" className="size-4 object-contain" />
+            )}
+            {eventColour && <span className="size-3 rounded-full" style={{ background: eventColour }} aria-hidden />}
+            {branded ? 'Using event branding' : 'Use event branding'}
+          </button>
+        </div>
+      </Section>
+
+      <Section title="Logo">
+        <div className="grid gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Logo">
+          {BADGE_LOGOS.map((l) => {
+            const missing = l === 'event' && !edition.logoUrl;
+            return (
+              <button
+                key={l}
+                type="button"
+                role="radio"
+                aria-checked={design.logo === l}
+                disabled={missing}
+                title={missing ? 'Add a logo to the event in Events › Branding first' : undefined}
+                onClick={() => (l === 'custom' && !design.logoKey ? input.current?.click() : onChange({ logo: l }))}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-left text-sm transition-colors disabled:opacity-50',
+                  design.logo === l ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-[#525252] hover:border-[#bdbdbd]',
+                )}
+              >
+                {LOGO_LABEL[l]}
+              </button>
+            );
+          })}
+        </div>
+        <input ref={input} type="file" accept="image/png,image/jpeg" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void upload(e.target.files?.[0]).finally(() => (e.target.value = ''))} />
+        {design.logo === 'custom' && (
+          <div className="flex flex-wrap items-center gap-3">
+            {uploadedLogo && (
+              // eslint-disable-next-line @next/next/no-img-element -- a signed or just-picked upload
+              <img src={uploadedLogo} alt="Uploaded logo" className="h-10 max-w-32 rounded border border-border bg-white object-contain p-1" />
+            )}
+            <button type="button" disabled={progress !== null} onClick={() => input.current?.click()} className={buttonClass({ style: 'outline', color: 'gray' })}>
+              <PhotoIcon className="size-4" />
+              {progress !== null ? `Uploading ${Math.round(progress * 100)}%` : uploadedLogo ? 'Replace logo' : 'Upload logo'}
+            </button>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Header">
+        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Header style">
+          {(
+            [
+              ['band', 'Colour band', 'The header colour behind the logo and words'],
+              ['light', 'Light', 'The card colour, with a line of the header colour under it'],
+            ] as const
+          ).map(([value, label, hint]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={design.headerStyle === value}
+              onClick={() => onChange({ headerStyle: value })}
+              className={cn('rounded-lg border px-3 py-2.5 text-left text-sm transition-colors', design.headerStyle === value ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+            >
+              <span className="block font-medium">{label}</span>
+              <span className="block text-xs text-[#7c7c7c]">{hint}</span>
+            </button>
+          ))}
+        </div>
+        <label htmlFor="badge-heading" className="mt-1 text-sm text-[#525252]">
+          Words in the header <span className="text-[#7c7c7c]">(empty shows only the logo)</span>
+        </label>
+        <TextInput
+          id="badge-heading"
+          value={design.heading ?? edition.shortName}
+          maxLength={40}
+          onChange={(e) => onChange({ heading: e.target.value === edition.shortName ? null : e.target.value })}
+          placeholder="Only the logo"
+        />
+      </Section>
+
+      <Section title="Card colour">
+        <p className="-mt-1 text-xs text-[#7c7c7c]">Behind the name and details. Text turns white on dark colours; the QR keeps a white square so it still scans.</p>
+        <ColourPicker label="Card colour" value={design.background} onChange={(background) => onChange({ background })} />
+      </Section>
+    </>
+  );
+}
+
 function ColourPicker({ value, onChange, label }: { value: string; onChange: (hex: string) => void; label: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label={label}>
@@ -317,6 +465,7 @@ function PreviewDialog({
   design,
   edition,
   artworkUrl,
+  logo,
   printing,
   onPrint,
   onClose,
@@ -325,6 +474,7 @@ function PreviewDialog({
   design: BadgeDesign;
   edition: Edition;
   artworkUrl: string | null;
+  logo: string | null;
   printing: boolean;
   onPrint: () => void;
   onClose: () => void;
@@ -352,7 +502,7 @@ function PreviewDialog({
         <div className="flex flex-col gap-5 p-6">
           <ModalHeader icon={IdentificationIcon} title={holder.name} titleId={titleId} subtitle={`${holder.tierName} · ${holder.code}`} />
           <div className="rounded-lg bg-[#f6f6f6] py-5">
-            <BadgePreview holder={holder} design={design} edition={edition} artworkUrl={artworkUrl} />
+            <BadgePreview holder={holder} design={design} edition={edition} artworkUrl={artworkUrl} logo={logo} />
           </div>
           <ModalActions>
             <button type="button" autoFocus onClick={onClose} className={cancelClass}>
@@ -387,8 +537,14 @@ function BadgeBoard({ edition }: { edition: Edition }) {
   const tiers = useTicketTypes(edition.id);
 
   const [draft, setDraft] = useState<BadgeDesign | null>(null);
-  const design = draft ?? stored.data?.design ?? null;
-  const dirty = !!draft && !!stored.data && !sameDesign(draft, stored.data.design);
+  // until a design is saved, badges print with the event's own colour and logo
+  const base = stored.data ? (stored.data.saved ? stored.data.design : brandedDesign(edition)) : null;
+  const design = draft ?? base;
+  const dirty = !!draft && !!base && !sameDesign(draft, base);
+  // a logo just uploaded shows from this browser's copy until the design is saved and read back
+  const [localLogo, setLocalLogo] = useState<{ key: string; url: string } | null>(null);
+  const uploadedLogo = design?.logoKey ? (localLogo?.key === design.logoKey ? localLogo.url : (stored.data?.logoUrl ?? null)) : null;
+  const logo = design ? badgeLogoFor(design, { eventLogo: edition.logoUrl, uploadedLogo }) : null;
   // just-uploaded artwork shows from this browser's copy until the design is saved and read back
   const [localArt, setLocalArt] = useState<{ key: string; url: string } | null>(null);
   const artworkUrl = design?.artwork ? (localArt?.key === design.artwork ? localArt.url : (stored.data?.artworkUrl ?? null)) : null;
@@ -435,7 +591,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
     if (list.length === 0) return;
     setPrinting(true);
     try {
-      await printBadges(list, design, edition, how, artworkUrl);
+      await printBadges(list, design, edition, how, artworkUrl, logo);
     } catch (e) {
       toast.push({ title: 'Badges not printed', body: e instanceof Error ? e.message : 'Try again.', leading: { kind: 'icon', icon: XCircleIcon, tone: 'danger' } });
     } finally {
@@ -473,7 +629,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
         </div>
         {tab === 'print' && (
           <p className="text-sm text-[#7c7c7c]">
-            {dirty ? 'Printing with your unsaved design changes. ' : stored.data?.saved ? '' : 'Printing with the default design. '}
+            {dirty ? 'Printing with your unsaved design changes. ' : stored.data?.saved ? '' : 'Printing with the event’s colour and logo until a design is saved. '}
             <button type="button" onClick={() => setTab('design')} className="text-primary hover:underline">
               {dirty ? 'Review and save' : 'Change the design'}
             </button>
@@ -489,7 +645,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
               <h2 id="badge-design" className="text-base font-medium text-ink">
                 Badge design
               </h2>
-              <p className="text-sm text-[#7c7c7c]">{stored.data?.saved ? `Saved for ${edition.shortName}` : 'Not saved yet: the default design prints until you save one.'}</p>
+              <p className="text-sm text-[#7c7c7c]">{stored.data?.saved ? `Saved for ${edition.shortName}` : 'Not saved yet: badges print with the event’s colour and logo until you save a design.'}</p>
             </div>
             <div className="flex items-center gap-2">
               {dirty && (
@@ -502,7 +658,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
                 type="button"
                 disabled={(!dirty && !!stored.data?.saved) || save.isPending}
                 onClick={() =>
-                  save.mutate({ design, artworkUrl }, {
+                  save.mutate({ design, artworkUrl, logoUrl: uploadedLogo }, {
                     onSuccess: () => {
                       setDraft(null);
                       toast.push({ title: 'Badge design saved', body: `Badges for ${edition.shortName} print with it from now on.`, leading: { kind: 'icon', icon: CheckIcon, tone: 'success' } });
@@ -548,6 +704,20 @@ function BadgeBoard({ edition }: { edition: Edition }) {
             onScale={(part, scale) => design.layout && edit({ layout: { ...design.layout, [part]: clampPlacement({ ...design.layout[part], scale }) } })}
           />
 
+          {!design.artwork && (
+            <LookSection
+              editionId={edition.id}
+              edition={edition}
+              design={design}
+              uploadedLogo={uploadedLogo}
+              onChange={edit}
+              onLogoUploaded={(key, url) => {
+                setLocalLogo({ key, url });
+                edit({ logo: 'custom', logoKey: key });
+              }}
+            />
+          )}
+
           <Section title={design.artwork ? 'Accent colour' : 'Header colour'}>
             {design.artwork && <p className="-mt-1 text-xs text-[#7c7c7c]">Your artwork replaces the header band; this colours the initials shown for people without a photo.</p>}
             <ColourPicker label={design.artwork ? 'Accent colour' : 'Header colour'} value={design.accent} onChange={(accent) => edit({ accent })} />
@@ -591,6 +761,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
             design={design}
             edition={edition}
             artworkUrl={artworkUrl}
+            logo={logo}
             onPlace={(part, placement) => design.layout && edit({ layout: { ...design.layout, [part]: placement } })}
           />
           <button type="button" disabled={printing} onClick={() => void print([sample ?? SAMPLE_HOLDER], 'single')} className={buttonClass({ style: 'outline', color: 'gray' })}>
@@ -730,6 +901,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
         design={design}
         edition={edition}
         artworkUrl={artworkUrl}
+        logo={logo}
         printing={printing}
         onPrint={() => previewing && void print([previewing], 'single')}
         onClose={() => setPreviewId(null)}

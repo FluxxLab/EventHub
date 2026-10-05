@@ -14,8 +14,8 @@ import { QrScanner } from '@/components/ui/qr-scanner';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useSession } from '@/lib/auth/session';
-import { DEFAULT_DESIGN, tierColour } from '@/lib/badges/badges';
-import { badgesDocument, printHtml } from '@/lib/badges/print';
+import { tierColour } from '@/lib/badges/badges';
+import { badgeLook, badgesDocument, printHtml } from '@/lib/badges/print';
 import { useBadgeDesign } from '@/lib/badges/use-badges';
 import { badgeFor, isTicketQr, whenAdmitted, type AdmitResult } from '@/lib/checkin/checkin';
 import { CAMERA_LABEL, exactCode, hashPin, loadKiosk, RESET_AFTER_MS, saveKiosk, validPin, type KioskCamera, type KioskConfig } from '@/lib/checkin/kiosk';
@@ -188,8 +188,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
   const admit = useAdmit(edition.id);
   const find = useFindTicket(edition.id);
   const stored = useBadgeDesign(edition.id);
-  const design = stored.data?.design ?? DEFAULT_DESIGN;
-  const artworkUrl = stored.data?.artworkUrl ?? null;
+  const { design, artworkUrl, logo } = badgeLook(stored.data, edition);
   const [screen, setScreen] = useState<Screen>({ kind: 'ready' });
   const [typed, setTyped] = useState('');
   const [code, setCode] = useState('');
@@ -221,7 +220,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
           if (result.status === 'already_used') return setScreen({ kind: 'already', result });
           setScreen({ kind: 'welcome', result, printed: config.print ? 'printing' : 'off' });
           if (!config.print) return;
-          void badgesDocument([badgeFor(result)], design, edition.shortName, 'single', artworkUrl)
+          void badgesDocument([badgeFor(result)], design, edition.shortName, 'single', artworkUrl, logo)
             .then(printHtml)
             .then(
               () => setScreen((s) => (s.kind === 'welcome' && s.result === result ? { ...s, printed: 'printed' } : s)),
@@ -235,7 +234,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
           }),
       });
     },
-    [admit, config.print, design, edition.shortName, artworkUrl],
+    [admit, config.print, design, edition.shortName, artworkUrl, logo],
   );
 
   const onScan = (text: string) => {
@@ -352,7 +351,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
             </div>
             {screen.printed !== 'off' && (
               <div className="flex flex-col items-center gap-3">
-                <BadgeFrame person={badgeFor(screen.result)} design={design} eventShortName={edition.shortName} artworkUrl={artworkUrl} maxWidth={220} maxHeight={300} className="overflow-hidden rounded-md bg-white shadow-xl ring-1 ring-black/5" />
+                <BadgeFrame person={badgeFor(screen.result)} design={design} eventShortName={edition.shortName} artworkUrl={artworkUrl} logo={logo} maxWidth={220} maxHeight={300} className="overflow-hidden rounded-md bg-white shadow-xl ring-1 ring-black/5" />
                 <p className="text-xl text-[#525252]">
                   {screen.printed === 'failed' ? 'Your badge did not print. Please collect it from the help desk.' : screen.printed === 'printing' ? 'Printing your badge…' : 'Collect your badge from the printer.'}
                 </p>

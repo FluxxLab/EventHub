@@ -2,19 +2,40 @@
 
 import QRCode from 'qrcode';
 
-import { badgeMarkup, badgesHtml, type BadgeDesign, type BadgeHolder, type PrintLayout } from '@/lib/badges/badges';
+import { badgeMarkup, badgesHtml, brandedDesign, type BadgeDesign, type BadgeHolder, type PrintLayout } from '@/lib/badges/badges';
+import type { StoredDesign } from '@/lib/badges/use-badges';
 
 /** A badge's QR as SVG: the ticket's signed door payload. */
 export const qrSvg = (payload: string) => QRCode.toString(payload, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#292929' } });
 
-/** The logo on badges; absolute, since the print document has no base URL. */
+/** PIC's logo; absolute, since the print document has no base URL. */
 export const badgeLogo = () => `${window.location.origin}/pic-logo.png`;
+
+/**
+ * The picture a design's logo choice comes to: the event's logo (PIC's while the event has none),
+ * PIC's, the one uploaded for badges, or none.
+ */
+export function badgeLogoFor(design: Pick<BadgeDesign, 'logo'>, sources: { eventLogo: string | null | undefined; uploadedLogo: string | null | undefined }): string | null {
+  if (design.logo === 'none') return null;
+  if (design.logo === 'custom') return sources.uploadedLogo ?? null;
+  if (design.logo === 'event') return sources.eventLogo ?? badgeLogo();
+  return badgeLogo();
+}
+
+/**
+ * What an event's badges print with: its saved design, or its branding until one is saved, the
+ * artwork's link, and the logo the design asks for.
+ */
+export function badgeLook(stored: StoredDesign | undefined, event: { brandColor?: string | null; logoUrl?: string | null }) {
+  const design = stored?.saved ? stored.design : brandedDesign(event);
+  return { design, artworkUrl: stored?.artworkUrl ?? null, logo: badgeLogoFor(design, { eventLogo: event.logoUrl, uploadedLogo: stored?.logoUrl }) };
+}
 
 export type BadgePerson = Pick<BadgeHolder, 'name' | 'title' | 'organisation' | 'country' | 'tierName' | 'code' | 'qr'> & { photo?: string | null };
 
 /** The print document for these people's badges. */
-export async function badgesDocument(people: BadgePerson[], design: BadgeDesign, eventShortName: string, layout: PrintLayout, artworkUrl: string | null = null): Promise<string> {
-  const event = { shortName: eventShortName, logo: badgeLogo(), artworkUrl };
+export async function badgesDocument(people: BadgePerson[], design: BadgeDesign, eventShortName: string, layout: PrintLayout, artworkUrl: string | null = null, logo: string | null = badgeLogo()): Promise<string> {
+  const event = { shortName: eventShortName, logo, artworkUrl };
   const badges = await Promise.all(people.map(async (p) => badgeMarkup(p, design, event, design.fields.includes('qr') ? await qrSvg(p.qr) : '')));
   return badgesHtml(badges, design.size, layout, `${eventShortName} badges`);
 }

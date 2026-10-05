@@ -44,14 +44,14 @@ export const demoHolders = (): BadgeHolder[] =>
   }).sort((a, b) => a.name.localeCompare(b.name));
 
 /** The event's badge design; the default until one is saved. `saved` says which. */
-type DesignView = BadgeDesign & { artworkUrl: string | null };
-export type StoredDesign = { design: BadgeDesign; artworkUrl: string | null; saved: boolean };
+type DesignView = BadgeDesign & { artworkUrl: string | null; logoUrl?: string | null };
+export type StoredDesign = { design: BadgeDesign; artworkUrl: string | null; /** An uploaded logo, signed. */ logoUrl: string | null; saved: boolean };
 
 /** What the API answers, as the console keeps it; designs saved before artwork have neither field. */
 const stored = (view: DesignView | null): StoredDesign => {
-  if (!view) return { design: DEFAULT_DESIGN, artworkUrl: null, saved: false };
-  const { artworkUrl, ...design } = view;
-  return { design: { ...DEFAULT_DESIGN, ...design, artwork: design.artwork ?? null, layout: design.layout ?? null }, artworkUrl, saved: true };
+  if (!view) return { design: DEFAULT_DESIGN, artworkUrl: null, logoUrl: null, saved: false };
+  const { artworkUrl, logoUrl, ...design } = view;
+  return { design: { ...DEFAULT_DESIGN, ...design, artwork: design.artwork ?? null, layout: design.layout ?? null }, artworkUrl, logoUrl: logoUrl ?? null, saved: true };
 };
 
 /** The event's badge design, with a short-lived link to its artwork; the default until one is saved. */
@@ -67,9 +67,9 @@ export function useBadgeDesign(editionId: string) {
 export function useSaveBadgeDesign(editionId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ design, artworkUrl }: { design: BadgeDesign; artworkUrl: string | null }) => {
+    mutationFn: async ({ design, artworkUrl, logoUrl = null }: { design: BadgeDesign; artworkUrl: string | null; logoUrl?: string | null }) => {
       if (DEMO_MODE) {
-        const view = { ...design, artworkUrl: design.artwork ? artworkUrl : null };
+        const view = { ...design, artworkUrl: design.artwork ? artworkUrl : null, logoUrl: design.logo === 'custom' ? logoUrl : null };
         demoDesigns.set(editionId, view);
         return view;
       }
