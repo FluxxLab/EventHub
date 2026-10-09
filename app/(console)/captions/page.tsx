@@ -50,13 +50,18 @@ import { useBoard } from '@/lib/live/use-live';
 import type { Session } from '@/lib/programme/programme';
 import { useRooms } from '@/lib/venue/use-venue';
 import { cn } from '@/lib/utils';
-
-const hms = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+import { MicsPanel } from '@/components/captions/mics-panel';
 
 const TABS = [
   { key: 'monitor', label: 'Monitor', icon: TvIcon },
   { key: 'desk', label: 'Sound desk', icon: AdjustmentsVerticalIcon },
+  { key: 'mics', label: 'Mics', icon: MicrophoneIcon },
 ] as const;
+
+
+const hms = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+
 type Tab = (typeof TABS)[number]['key'];
 
 function Tabs({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void }) {
@@ -731,6 +736,11 @@ export default function CaptionsPage() {
           </div>
         </>
       )}
+                <div id="captions-panel-mics" role="tabpanel" aria-labelledby="captions-tab-mics" hidden={tab !== 'mics'}>
+            {tab === 'mics' && <MicsPanel />}
+          </div>
+
     </div>
+    
   );
 }
