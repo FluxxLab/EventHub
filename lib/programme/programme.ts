@@ -56,6 +56,7 @@ export type Session = {
   room: string;
   editionId: string | null;
   speakers: Speaker[];
+  mics?: {mic: number; speakerId: string | null; label: string | null}[];
 };
 
 /** The API accepts days 1 and 2 only. */
