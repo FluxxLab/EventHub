@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { useRealtimeEvents } from '@/lib/api/realtime';
 import { DEMO_MODE } from '@/lib/demo';
-import type { Session, toSessionBody } from '@/lib/programme/programme';
+import type { Session, SessionStatus, toSessionBody } from '@/lib/programme/programme';
 
 const key = (editionId: string | undefined) => ['admin', 'sessions', editionId ?? 'none'] as const;
 
@@ -83,6 +83,22 @@ export function useUpdateSession(editionId: string | undefined) {
       DEMO_MODE ? Promise.resolve<Session>({ ...session, ...body }) : api.patch<Session>(`/sessions/${session.id}`, body),
     onSuccess: (saved, { session }) => {
       client.setQueryData<Session[]>(key(editionId), (was) => was?.map((s) => (s.id === session.id ? { ...s, ...saved, speakers: saved.speakers ?? s.speakers } : s)));
+      if (!DEMO_MODE) void client.invalidateQueries({ queryKey: key(editionId) });
+    },
+  });
+}
+
+/**
+ * Sets a session's status at will (`PATCH /sessions/:id/status`): live starts its captions and
+ * tells delegates, completed ends them and asks for feedback.
+ */
+export function useSetSessionStatus(editionId: string | undefined) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ session, status }: { session: Session; status: SessionStatus }) =>
+      DEMO_MODE ? Promise.resolve<Session>({ ...session, status }) : api.patch<Session>(`/sessions/${session.id}/status`, { status }),
+    onSuccess: (_saved, { session, status }) => {
+      client.setQueryData<Session[]>(key(editionId), (was) => was?.map((s) => (s.id === session.id ? { ...s, status } : s)));
       if (!DEMO_MODE) void client.invalidateQueries({ queryKey: key(editionId) });
     },
   });

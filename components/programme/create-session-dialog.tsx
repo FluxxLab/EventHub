@@ -23,7 +23,9 @@ import {
   type CreateSessionForm,
   type Session,
 } from '@/lib/programme/programme';
-import { useCreateSession, useUpdateSession } from '@/lib/programme/use-sessions';
+import { STATUS_OPTIONS, statusEffect } from '@/components/programme/session-status';
+import type { SessionStatus } from '@/lib/programme/programme';
+import { useCreateSession, useSetSessionStatus, useUpdateSession } from '@/lib/programme/use-sessions';
 import { cn } from '@/lib/utils';
 
 type Errors = Partial<Record<keyof CreateSessionForm, string>>;
@@ -67,6 +69,9 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
   const [errors, setErrors] = useState<Errors>({});
   const create = useCreateSession(edition.id);
   const update = useUpdateSession(edition.id);
+  const setStatus = useSetSessionStatus(edition.id);
+  // editing only: Scheduled, Live or Completed, changed when the form is saved
+  const [status, setStatusChoice] = useState<SessionStatus>('scheduled');
   const pending = create.isPending || update.isPending;
   const failed = session ? update.error : create.error;
   // this event's tracks, then General Programme
@@ -91,6 +96,7 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
   if (open && session && editingId !== session.id) {
     setEditingId(session.id);
     setForm(sessionToForm(session));
+    setStatusChoice(session.status);
     setErrors({});
   }
 
@@ -127,6 +133,12 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
         { session, body },
         {
           onSuccess: (saved) => {
+            // the status after the details, so going live uses the room just saved
+            if (status !== session.status)
+              setStatus.mutate(
+                { session: { ...session, ...saved }, status },
+                { onError: (e) => toast.push({ title: 'Saved, but the status did not change', body: e.message }) },
+              );
             finish();
             toast.push({ title: 'Session saved', leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' }, body: `${saved.title ?? body.title} is up to date in the programme and the app.` });
           },
@@ -248,6 +260,12 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
                 aria-describedby={describedBy(id('room'), errors.room)}
               />
             </Field>
+            {session && (
+              <Field id={id('status')} label="Status" className="sm:col-span-2">
+                <Select id={id('status')} value={status} options={STATUS_OPTIONS} onChange={setStatusChoice} />
+                {status !== session.status && <p className="mt-1.5 text-xs text-[#7a5d00]">On save: {statusEffect({ room: form.room || session.room }, status)}</p>}
+              </Field>
+            )}
           </Section>
 
           {failed && (
