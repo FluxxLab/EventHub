@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MagnifyingGlassIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useMemo, useState } from 'react';
 
@@ -30,6 +30,7 @@ import {
   type SessionTrack,
 } from '@/lib/programme/programme';
 import { useDeleteSession, useSessions, useSessionsRealtime } from '@/lib/programme/use-sessions';
+import { useCallActions } from '@/lib/calls-to-action/use-calls-to-action';
 import { cn } from '@/lib/utils';
 
 
@@ -58,6 +59,8 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; day: nu
   const [pickedEdition, setPickedEdition] = useState<string | null>(initial.edition);
   // The edition the app shows is the natural default; otherwise the newest.
   const edition = editions.data?.find((e) => e.id === pickedEdition) ?? working.edition;
+  const callActions = useCallActions(edition?.id ?? '');
+  const toast = useToast();
   const sessions = useSessions(edition?.id);
 
   const [day, setDay] = useState(initial.day);
@@ -264,7 +267,25 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; day: nu
                         <SessionStatusPicker session={s} editionId={edition.id} className="w-36" />
                       </td>
                       <td className={cn(td, 'text-right')}>
-                        <RowActions name={s.title} onEdit={() => setEditingSession(s)} onDelete={() => setDeletingSession(s)} />
+                        <RowActions
+                          name={s.title}
+                          actions={[
+                            {
+                              label: callActions.analyse.isPending ? 'Analysing…' : 'Analyse for calls to action',
+                              icon: SparklesIcon,
+                              disabled: callActions.analyse.isPending,
+                              onSelect: () => {
+                                toast.push({ title: 'Analysing', body: `Reading “${s.title}”. This takes a minute or two.` });
+                                callActions.analyse.mutate(s.id, {
+                                  onSuccess: (r) => toast.push({ title: r.added.length ? 'Calls to action found' : 'Analysis done', body: `${r.message} Review them under Records › Calls to action.` }),
+                                  onError: (e) => toast.push({ title: 'Not analysed', body: e.message }),
+                                });
+                              },
+                            },
+                          ]}
+                          onEdit={() => setEditingSession(s)}
+                          onDelete={() => setDeletingSession(s)}
+                        />
                       </td>
                     </tr>
                   ))

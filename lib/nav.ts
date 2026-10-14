@@ -31,6 +31,7 @@ import {
   TrophyIcon,
   UserGroupIcon,
   UsersIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 
 import type { StaffTier } from '@/lib/auth/session';
@@ -117,6 +118,7 @@ export const NAV: NavGroup[] = [
     icon: BookOpenIcon,
     pages: [
       { href: '/certificates', label: 'Certificates & Purple Book', icon: BookOpenIcon, tiers: EVENTS },
+      { href: '/calls-to-action', label: 'Calls to action', icon: MegaphoneIcon, tiers: EVENTS },
       { href: '/analytics', label: 'Analytics', icon: PresentationChartLineIcon, tiers: ADMIN },
       { href: '/security', label: 'Security log', icon: ShieldCheckIcon, tiers: ADMIN },
     ],
