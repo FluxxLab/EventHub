@@ -17,6 +17,7 @@ import {
   seedFeed,
   sourceOptions,
   speakerLabel,
+  whoSaid,
   type Caption,
 } from '@/lib/captions/captions';
 
@@ -67,13 +68,26 @@ describe('paragraphs', () => {
       line(3, { speaker: 1 }),
       line(4, { speaker: 1, at: '2027-09-07T09:01:30Z' }),
     ];
-    expect(paragraphs(lines).map((p) => [p.speaker, p.lines.length])).toEqual([
-      [0, 2],
-      [1, 1],
-      [1, 1],
+    expect(paragraphs(lines).map((p) => [p.who, p.lines.length])).toEqual([
+      ['Speaker 1', 2],
+      ['Speaker 2', 1],
+      ['Speaker 2', 1],
     ]);
     expect(speakerLabel(0)).toBe('Speaker 1');
     expect(speakerLabel(null)).toBeNull();
+  });
+
+  it('names a line by its mic: the name on it, else the mic number', () => {
+    expect(whoSaid({ mic: 2, name: 'Dr Amina Bello', speaker: null })).toBe('Dr Amina Bello');
+    expect(whoSaid({ mic: 2, name: null })).toBe('Mic 2');
+    expect(whoSaid({ speaker: 0 })).toBe('Speaker 1');
+    expect(whoSaid({})).toBeNull();
+    // a new paragraph when the mic changes hands
+    const lines = [line(1, { mic: 1, name: 'Amina' }), line(2, { mic: 1, name: 'Amina' }), line(3, { mic: 2, name: 'Audience' })];
+    expect(paragraphs(lines).map((p) => [p.who, p.lines.length])).toEqual([
+      ['Amina', 2],
+      ['Audience', 1],
+    ]);
   });
 });
 

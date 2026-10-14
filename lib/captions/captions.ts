@@ -4,6 +4,10 @@ export type Caption = {
   isFinal: boolean;
   /** Diarised speaker number, when the room captures with speaker separation. */
   speaker?: number | null;
+  /** The mic it was said into (1-based), when the room sends one mic per channel. */
+  mic?: number | null;
+  /** Who is on that mic (Captions > Mics); null while nobody named it. */
+  name?: string | null;
   at: string;
   seq: number;
   /** Filled in after the fact (a gap the live stream missed). */
@@ -11,7 +15,7 @@ export type Caption = {
 };
 
 /** `GET /captions/:id/captions`: recent final lines, oldest first. */
-export type RecentCaption = { text: string; speaker: number | null; at: string; seq: number };
+export type RecentCaption = { text: string; speaker: number | null; mic?: number | null; name?: string | null; at: string; seq: number };
 
 export type Feed = { finals: Caption[]; interim: Caption | null };
 export const EMPTY_FEED: Feed = { finals: [], interim: null };
@@ -39,18 +43,21 @@ export function seedFeed(feed: Feed, recent: RecentCaption[]): Feed {
 /** "Speaker 1" from the zero-based diarised number, or null when not diarised. */
 export const speakerLabel = (speaker: number | null | undefined) => (speaker == null ? null : `Speaker ${speaker + 1}`);
 
+/** Who said a line: the name on its mic, else "Mic 2", else the diarised "Speaker 1", else null. */
+export const whoSaid = (line: Pick<Caption, 'name' | 'mic' | 'speaker'>): string | null => line.name ?? (line.mic != null ? `Mic ${line.mic}` : speakerLabel(line.speaker));
+
 /**
- * Consecutive lines by the same speaker, grouped into paragraphs for reading: a new paragraph
- * when the speaker changes or after a pause of more than `gapMs`.
+ * Consecutive lines by the same person, grouped into paragraphs for reading: a new paragraph
+ * when who is speaking changes or after a pause of more than `gapMs`.
  */
-export function paragraphs(lines: Caption[], gapMs = 8000): { speaker: number | null; at: string; lines: Caption[] }[] {
-  const out: { speaker: number | null; at: string; lines: Caption[] }[] = [];
+export function paragraphs(lines: Caption[], gapMs = 8000): { who: string | null; at: string; lines: Caption[] }[] {
+  const out: { who: string | null; at: string; lines: Caption[] }[] = [];
   for (const line of lines) {
     const last = out.at(-1);
     const prev = last?.lines.at(-1);
-    const speaker = line.speaker ?? null;
-    if (last && last.speaker === speaker && prev && Date.parse(line.at) - Date.parse(prev.at) <= gapMs) last.lines.push(line);
-    else out.push({ speaker, at: line.at, lines: [line] });
+    const who = whoSaid(line);
+    if (last && last.who === who && prev && Date.parse(line.at) - Date.parse(prev.at) <= gapMs) last.lines.push(line);
+    else out.push({ who, at: line.at, lines: [line] });
   }
   return out;
 }
