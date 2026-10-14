@@ -26,7 +26,7 @@ import { useToast } from '@/components/ui/toaster';
 import { Tooltip } from '@/components/ui/tooltip';
 import type { HeroIcon } from '@/lib/nav';
 import { runsEvents, useSession } from '@/lib/auth/session';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { KIND_LABEL, moveMaterial, sourceLabel, type Material, type MaterialKind } from '@/lib/materials/materials';
 import { useMaterialActions, useMaterials } from '@/lib/materials/use-materials';
 import type { Session } from '@/lib/programme/programme';
@@ -208,8 +208,9 @@ function SessionMaterials({ session, canUpload }: { session: Session; canUpload:
 export default function MaterialsPage() {
   const auth = useSession();
   const canUpload = auth.status === 'signed-in' && runsEvents(auth.user.tier);
-  const editions = useEditions();
-  const edition = editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  const edition = working.edition;
   const sessions = useSessions(edition?.id);
   const [picked, setPicked] = useState<string | null>(null);
   const [search, setSearch] = useState('');

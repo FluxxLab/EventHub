@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/select';
 import { Tag } from '@/components/ui/tag';
 import { useDashboard } from '@/lib/dashboard/use-dashboard';
 import type { Edition } from '@/lib/events/events';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { count, moneyCompact } from '@/lib/format';
 import { EXTRA_CURRENCIES, formatMoney, priceModeOf, remaining, soldShare, type TicketType } from '@/lib/ticketing/ticketing';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
@@ -289,10 +289,12 @@ function SalesPanel({ edition }: { edition: Edition }) {
 }
 
 export default function TicketingPage() {
-  const editions = useEditions();
-  const [picked, setPicked] = useState<string | null>(null);
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  // picking an event here switches every page to it
+  const setPicked = working.setEditionId;
   const [tab, setTab] = useState<Tab>('tiers');
-  const edition = editions.data?.find((e) => e.id === picked) ?? editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const edition = working.edition;
   const tiers = useTicketTypes(edition?.id);
 
   if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
