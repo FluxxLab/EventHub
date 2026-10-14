@@ -45,6 +45,7 @@ describe('navFor', () => {
       '/passport',
       '/exhibition',
       '/certificates',
+      '/calls-to-action',
     ]);
     for (const platform of ['/team', '/analytics', '/security', '/settings']) {
       expect(hrefs).not.toContain(platform);
