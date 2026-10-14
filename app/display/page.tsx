@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tag, type TagTone } from '@/components/ui/tag';
 import { useSession } from '@/lib/auth/session';
+import { whoSaid } from '@/lib/captions/captions';
 import { useCaptionFeed } from '@/lib/captions/use-captions';
 import { boardStatus, freshNotice, hhmm, lobbyPages, loadDisplay, mostLiked, roomReaction, wallComments, wallSession, PAGE_SECONDS, programmeDay, recentNotices, roomNow, roomRows, roomsOf, roomsPages, rowState, saveDisplay, timeLeft, topQuestions, type BoardStatus, type DisplayConfig, type DisplayKind, type RoomRow, type RoomsPage } from '@/lib/display/display';
 import type { ModComment } from '@/lib/discussions/discussions';
@@ -792,11 +793,15 @@ function PollCard({ poll }: { poll: OpenPoll }) {
 /** One line of live captions under the card. Labelled, since they are machine-made. */
 function CaptionLine({ sessionId }: { sessionId: string }) {
   const feed = useCaptionFeed(sessionId);
-  const line = feed.interim?.text ?? feed.finals.at(-1)?.text;
-  if (!line) return null;
+  const latest = feed.interim ?? feed.finals.at(-1);
+  if (!latest?.text) return null;
+  const who = whoSaid(latest);
   return (
     <div className="shrink-0 rounded-lg border border-border bg-surface px-4 py-2">
-      <p className="truncate text-sm text-ink">{line}</p>
+      <p className="truncate text-sm text-ink">
+        {who && <span className="font-medium text-primary">{who}: </span>}
+        {latest.text}
+      </p>
       <p className="text-xs text-muted">Live captions, generated automatically</p>
     </div>
   );

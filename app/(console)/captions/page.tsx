@@ -36,7 +36,6 @@ import {
   sameRoom,
   sourceKey,
   sourceOptions,
-  speakerLabel,
   uncaptioned,
   type DeskPatch,
 } from '@/lib/captions/captions';
@@ -181,7 +180,7 @@ function CaptionStream({ session }: { session: Session }) {
               <div key={p.lines[0]!.seq} className="flex gap-4">
                 <p className="w-16 shrink-0 pt-0.5 text-xs tabular-nums text-[#7c7c7c]">{hms(p.at)}</p>
                 <div className="min-w-0">
-                  {speakerLabel(p.speaker) && <p className="mb-0.5 text-xs font-medium text-primary">{speakerLabel(p.speaker)}</p>}
+                  {p.who && <p className="mb-0.5 text-xs font-medium text-primary">{p.who}</p>}
                   <p className="text-[15px] leading-7 text-ink">{p.lines.map((l) => l.text).join(' ')}</p>
                 </div>
               </div>
