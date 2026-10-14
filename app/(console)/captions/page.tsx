@@ -6,6 +6,7 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  BookOpenIcon,
   MicrophoneIcon,
   NoSymbolIcon,
   PlayCircleIcon,
@@ -50,11 +51,13 @@ import type { Session } from '@/lib/programme/programme';
 import { useRooms } from '@/lib/venue/use-venue';
 import { cn } from '@/lib/utils';
 import { MicsPanel } from '@/components/captions/mics-panel';
+import { VocabularyPanel } from '@/components/captions/vocabulary-panel';
 
 const TABS = [
   { key: 'monitor', label: 'Monitor', icon: TvIcon },
   { key: 'desk', label: 'Sound desk', icon: AdjustmentsVerticalIcon },
   { key: 'mics', label: 'Mics', icon: MicrophoneIcon },
+  { key: 'vocabulary', label: 'Vocabulary', icon: BookOpenIcon },
 ] as const;
 
 
@@ -769,6 +772,9 @@ export default function CaptionsPage() {
       )}
                 <div id="captions-panel-mics" role="tabpanel" aria-labelledby="captions-tab-mics" hidden={tab !== 'mics'}>
             {tab === 'mics' && <MicsPanel />}
+          </div>
+          <div id="captions-panel-vocabulary" role="tabpanel" aria-labelledby="captions-tab-vocabulary" hidden={tab !== 'vocabulary'}>
+            {tab === 'vocabulary' && <VocabularyPanel />}
           </div>
 
     </div>
