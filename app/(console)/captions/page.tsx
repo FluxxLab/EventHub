@@ -43,7 +43,7 @@ import type { RoomState } from '@/lib/captions/room-capture';
 import type { CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
 import { useCaptionActions, useCaptionFeed, useLiveSessions, useSoundDesk, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { currentDay } from '@/lib/live/live';
 import { useBoard } from '@/lib/live/use-live';
 import type { Session } from '@/lib/programme/programme';
@@ -413,8 +413,8 @@ type Confirm = { kind: 'room'; room: string } | { kind: 'all' } | { kind: 'disco
 function SoundDesk({ live }: { live: Session[] }) {
   const desk = useSoundDesk();
   const board = useBoard();
-  const editions = useEditions();
-  const edition = editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const working = useWorkingEdition();
+  const edition = working.edition;
   const venueRooms = useRooms(edition);
   // What the server sees: which rooms a venue stream or another desk is captioning.
   const server = useIngestRooms();

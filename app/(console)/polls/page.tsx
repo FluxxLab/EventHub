@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { ago, count } from '@/lib/format';
 import { elapsed, leaders, shares, type Poll } from '@/lib/polls/polls';
 import { usePollActions, usePolls, type PollBody } from '@/lib/polls/use-polls';
@@ -212,8 +212,9 @@ function Detail({
 type Pending = { kind: 'start'; poll: Poll } | { kind: 'delete'; poll: Poll };
 
 export default function PollsPage() {
-  const editions = useEditions();
-  const edition = editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  const edition = working.edition;
   const polls = usePolls(edition?.id);
   const sessions = useSessions(edition?.id);
   const { save, open, close, remove } = usePollActions(edition?.id);

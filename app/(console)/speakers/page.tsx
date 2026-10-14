@@ -14,7 +14,7 @@ import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useSession } from '@/lib/auth/session';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { timeRange } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
 import { searchSpeakers, sessionsBySpeaker, type Speaker } from '@/lib/speakers/speakers';
@@ -42,8 +42,8 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
   const speakers = useSpeakers();
   const reveal = useSpeakerReveal();
   const setReveal = useSetSpeakerReveal();
-  const editions = useEditions();
-  const current = editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const working = useWorkingEdition();
+  const current = working.edition;
   const sessions = useSessions(current?.id);
   const toast = useToast();
 

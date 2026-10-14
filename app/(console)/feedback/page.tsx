@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { runsEvents, useSession } from '@/lib/auth/session';
 import { toCsv } from '@/lib/discussions/discussions';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { FEW_RATINGS, formatAverage, overall, rankSessions, SORT_LABEL, STARS, type FeedbackRow, type SortMode, type Stars } from '@/lib/feedback/feedback';
 import { useFeedbackSummary, useSessionFeedback } from '@/lib/feedback/use-feedback';
 import { ago, count } from '@/lib/format';
@@ -166,8 +166,9 @@ function Detail({ row, session }: { row: FeedbackRow; session?: Session }) {
 export default function FeedbackPage() {
   const auth = useSession();
   const isAdmin = auth.status === 'signed-in' && runsEvents(auth.user.tier);
-  const editions = useEditions();
-  const edition = editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  const edition = working.edition;
   const summary = useFeedbackSummary(edition?.id, isAdmin);
   const sessions = useSessions(edition?.id);
   const [mode, setMode] = useState<SortMode>('best');

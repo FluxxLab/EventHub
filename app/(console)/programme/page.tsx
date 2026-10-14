@@ -18,7 +18,7 @@ import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { sessionTrackOptions, trackLabel } from '@/lib/catalog/topics';
 import { useTrackLibrary } from '@/lib/catalog/use-topics';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import {
   dayDate,
   durationMinutes,
@@ -53,10 +53,11 @@ export default function ProgrammePage() {
 
 function ProgrammeView({ initial }: { initial: { edition: string | null; day: number; q: string } }) {
   useSessionsRealtime();
-  const editions = useEditions();
+  const working = useWorkingEdition();
+  const editions = working.editions;
   const [pickedEdition, setPickedEdition] = useState<string | null>(initial.edition);
   // The edition the app shows is the natural default; otherwise the newest.
-  const edition = editions.data?.find((e) => e.id === pickedEdition) ?? editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const edition = editions.data?.find((e) => e.id === pickedEdition) ?? working.edition;
   const sessions = useSessions(edition?.id);
 
   const [day, setDay] = useState(initial.day);
@@ -110,6 +111,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; day: nu
                 options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))}
                 onChange={(v) => {
                   setPickedEdition(v);
+                  working.setEditionId(v);
                   setDay(1);
                 }}
               />

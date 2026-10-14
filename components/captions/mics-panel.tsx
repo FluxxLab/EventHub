@@ -9,7 +9,7 @@ import { TextInput } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
 import { AUDIENCE, MAX_MICS, nextMic, useSetSessionMics, type SessionMic } from '@/lib/captions/mics';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { timeRange, type Session } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
 import { cn } from '@/lib/utils';
@@ -34,9 +34,9 @@ const toMics = (rows: Row[]): SessionMic[] =>
  * session has in Programme (or the audience, or a name typed in).
  */
 export function MicsPanel() {
-  const editions = useEditions();
-  const [chosen, setChosen] = useState<string | null>(null);
-  const editionId = chosen ?? editions.data?.find((e) => e.isCurrent)?.id ?? editions.data?.[0]?.id;
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  const editionId = working.edition?.id;
   const sessions = useSessions(editionId);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -59,7 +59,7 @@ export function MicsPanel() {
               value={editionId ?? ''}
               options={(editions.data ?? []).map((e) => ({ value: e.id, label: e.shortName }))}
               onChange={(v) => {
-                setChosen(v);
+                working.setEditionId(v);
                 setOpenId(null);
               }}
             />

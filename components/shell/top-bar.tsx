@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 
 import { AccountMenu } from '@/components/shell/account-menu';
+import { EventSwitcher } from '@/components/shell/event-switcher';
 import { GlobalSearch } from '@/components/shell/global-search';
 import { NotificationsMenu } from '@/components/shell/notifications-menu';
 import type { StaffUser } from '@/lib/auth/session';
@@ -28,6 +29,7 @@ export function TopBar({ user, onMenu }: { user: StaffUser; onMenu: () => void }
 
       {/* Search sits with the other tools on the right, at half its former width. */}
       <div className="ml-auto flex items-center gap-2.5">
+        <EventSwitcher />
         <GlobalSearch user={user} />
         {isAdmin && <NotificationsMenu />}
         <AccountMenu user={user} />

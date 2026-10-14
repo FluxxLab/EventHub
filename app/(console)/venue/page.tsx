@@ -27,7 +27,7 @@ import { RoomDialog } from '@/components/venue/room-dialog';
 import { StreamDialog } from '@/components/venue/stream-dialog';
 import { runsEvents, useSession } from '@/lib/auth/session';
 import type { Edition } from '@/lib/events/events';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { INPUT_LABEL, SOURCE_LABEL, streamStatus, type IngestRoom, type StreamCredentials } from '@/lib/ingest/ingest';
 import { useIngestActions, useIngestRooms } from '@/lib/ingest/use-ingest';
 import { cn } from '@/lib/utils';
@@ -579,10 +579,12 @@ function Tabs({ tab, onChange, roomCount }: { tab: Tab; onChange: (tab: Tab) => 
 }
 
 export default function VenuePage() {
-  const editions = useEditions();
-  const [picked, setPicked] = useState<string | null>(null);
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  // picking an event here switches every page to it
+  const setPicked = working.setEditionId;
   const [tab, setTab] = useState<Tab>('venue');
-  const edition = editions.data?.find((e) => e.id === picked) ?? editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const edition = working.edition;
   // Shares the Rooms card's query (same key), so the tab count costs no extra request.
   const rooms = useRooms(edition);
 

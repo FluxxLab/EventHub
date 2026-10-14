@@ -1,18 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 
 /**
- * The event a page works on, with a picker: the current event if the signed-in person runs it
- * (the API lists an event organiser only their events), otherwise the first of theirs.
+ * The event a page works on, with a picker: the console's working event (picked in the top bar
+ * or on any page), else the app's current event, else the newest. The API lists an event
+ * organiser only their events. Picking one here switches every page to it.
  */
 export function usePageEdition() {
-  const editions = useEditions();
-  const [picked, setPicked] = useState<string | null>(null);
-  const list = editions.data ?? [];
-  const edition = list.find((e) => e.id === picked) ?? list.find((e) => e.isCurrent) ?? list[0];
+  const { editions, list, edition, setEditionId } = useWorkingEdition();
   const options = list.map((e) => ({ value: e.id, label: e.shortName }));
-  return { editions, list, edition, options, setEditionId: setPicked };
+  return { editions, list, edition, options, setEditionId };
 }

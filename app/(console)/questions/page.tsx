@@ -19,7 +19,7 @@ import { Select } from '@/components/ui/select';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { ago, count } from '@/lib/format';
 import type { Session } from '@/lib/programme/programme';
 import { useSessions, useSessionsRealtime } from '@/lib/programme/use-sessions';
@@ -328,8 +328,9 @@ function Queue({ session }: { session: Session }) {
 
 export default function QuestionsPage() {
   useSessionsRealtime();
-  const editions = useEditions();
-  const edition = editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  const edition = working.edition;
   const sessions = useSessions(edition?.id);
   const now = useNow(60_000).getTime();
   const [picked, setPicked] = useState<string | null>(null);

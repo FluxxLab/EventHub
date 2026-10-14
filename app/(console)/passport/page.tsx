@@ -13,7 +13,7 @@ import { TextInput } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toaster';
 import { runsEvents, useSession } from '@/lib/auth/session';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { count } from '@/lib/format';
 import { MAX_DRAW, passportTotals, signsHtml, stampLink, type Booth, type DrawEntry } from '@/lib/passport/passport';
 import { useBoothActions, useBooths } from '@/lib/passport/use-passport';
@@ -135,8 +135,9 @@ function PrizeDraw({ activeStands, onDraw, drawing, winners, error }: { activeSt
 export default function PassportPage() {
   const auth = useSession();
   const isAdmin = auth.status === 'signed-in' && runsEvents(auth.user.tier);
-  const editions = useEditions();
-  const edition = editions.data?.find((e) => e.isCurrent) ?? editions.data?.[0];
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  const edition = working.edition;
   const booths = useBooths(edition?.id, isAdmin);
   const { save, setActive, remove, draw } = useBoothActions(edition?.id);
   const toast = useToast();
