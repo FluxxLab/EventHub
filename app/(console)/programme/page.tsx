@@ -7,13 +7,14 @@ import { Suspense, useMemo, useState } from 'react';
 
 import { CreateSessionDialog } from '@/components/programme/create-session-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
+import { SessionStatusPicker } from '@/components/programme/session-status';
 import { Avatar } from '@/components/shell/avatar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
 import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
-import { Tag, type TagTone } from '@/components/ui/tag';
+import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { sessionTrackOptions, trackLabel } from '@/lib/catalog/topics';
 import { useTrackLibrary } from '@/lib/catalog/use-topics';
@@ -23,17 +24,14 @@ import {
   durationMinutes,
   filterSessions,
   MAX_DAY,
-  STATUS_LABEL,
   timeRange,
   typeLabel,
   type Session,
-  type SessionStatus,
   type SessionTrack,
 } from '@/lib/programme/programme';
 import { useDeleteSession, useSessions, useSessionsRealtime } from '@/lib/programme/use-sessions';
 import { cn } from '@/lib/utils';
 
-const STATUS_TONE: Record<SessionStatus, TagTone> = { scheduled: 'gray', live: 'green', completed: 'primary' };
 
 const th = 'h-15 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
 const td = 'border-b border-border px-4 py-3 text-sm text-ink align-middle';
@@ -261,9 +259,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; day: nu
                         )}
                       </td>
                       <td className={td}>
-                        <Tag tone={STATUS_TONE[s.status]} dot>
-                          {STATUS_LABEL[s.status]}
-                        </Tag>
+                        <SessionStatusPicker session={s} editionId={edition.id} className="w-36" />
                       </td>
                       <td className={cn(td, 'text-right')}>
                         <RowActions name={s.title} onEdit={() => setEditingSession(s)} onDelete={() => setDeletingSession(s)} />
