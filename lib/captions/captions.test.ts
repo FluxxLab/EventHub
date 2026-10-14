@@ -121,7 +121,9 @@ describe('sound desk', () => {
   });
 
   it('reads a saved patch, ignoring anything malformed', () => {
-    expect(readPatch('{"Hall A":{"source":"usb#0","diarise":true},"Bad":{"source":3},"Null":null}')).toEqual({ 'Hall A': { source: 'usb#0', diarise: true } });
+    expect(readPatch('{"Hall A":{"source":"usb#0","diarise":true},"Bad":{"source":3},"Null":null}')).toEqual({ 'Hall A': { source: 'usb#0', diarise: true, multi: false, mics: [] } });
+    // a multi-mic room keeps its channels, and drops anything that is not one
+    expect(readPatch('{"Hall B":{"source":"","diarise":false,"multi":true,"mics":["usb#2","usb#3",7]}}')).toEqual({ 'Hall B': { source: '', diarise: false, multi: true, mics: ['usb#2', 'usb#3'] } });
     expect(readPatch('not json')).toEqual({});
     expect(readPatch('[1]')).toEqual({});
     expect(readPatch(null)).toEqual({});
