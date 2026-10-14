@@ -119,7 +119,8 @@ export function deskRooms(...lists: string[][]): string[] {
 }
 
 /** Which channel feeds which room, remembered on this computer between days. */
-export type DeskPatch = Record<string, { source: string; diarise: boolean }>;
+/** A room's patch: one channel, or with `multi` one channel per mic (in `mics`, Mic 1 first). */
+export type DeskPatch = Record<string, { source: string; diarise: boolean; multi?: boolean; mics?: string[] }>;
 
 export function readPatch(raw: string | null): DeskPatch {
   try {
@@ -127,8 +128,14 @@ export function readPatch(raw: string | null): DeskPatch {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
     const out: DeskPatch = {};
     for (const [room, value] of Object.entries(parsed as Record<string, unknown>)) {
-      const v = value as { source?: unknown; diarise?: unknown } | null;
-      if (v && typeof v.source === 'string') out[room] = { source: v.source, diarise: v.diarise === true };
+      const v = value as { source?: unknown; diarise?: unknown; multi?: unknown; mics?: unknown } | null;
+      if (v && typeof v.source === 'string')
+        out[room] = {
+          source: v.source,
+          diarise: v.diarise === true,
+          multi: v.multi === true,
+          mics: Array.isArray(v.mics) ? v.mics.filter((m): m is string => typeof m === 'string') : [],
+        };
     }
     return out;
   } catch {

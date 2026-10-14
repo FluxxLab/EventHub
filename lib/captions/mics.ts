@@ -49,7 +49,7 @@ export function useSetSessionMics(editionId: string | undefined){
         mutationFn: ({ sessionId, mics}:{sessionId: string; mics: SessionMic[]} ) =>
             DEMO_MODE ? Promise.resolve(mics) : api.put<SessionMic[]>(`/sessions/${sessionId}/mics`, {mics}),
         onSuccess: (saved, {sessionId}) => {
-            client.setQueryData<Session[]>(['admin', 'session',  editionId ?? 'none'], (was) => was?.map((s) => (s.id === sessionId ? {...s, mics: saved} : s)))
+            client.setQueryData<Session[]>(['admin', 'sessions', editionId ?? 'none'], (was) => was?.map((s) => (s.id === sessionId ? {...s, mics: saved} : s)))
         },
     });
 }

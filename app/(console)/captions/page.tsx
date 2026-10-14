@@ -456,7 +456,11 @@ function SoundDesk({ live }: { live: Session[] }) {
   };
   const running = Object.keys(desk.rooms).filter((room) => desk.rooms[room]?.status !== 'error');
   const captioning = running.filter((room) => desk.rooms[room]?.status === 'capturing');
-  const startable = rooms.filter((room) => !desk.rooms[room] && patchedSource(room));
+  /** A multi-mic room's channels in matrix order (Mic 1 first), those still on the interface. */
+  const patchedMics = (room: string) => channels.filter((c) => patch[room]?.mics?.includes(c.value)).map((c) => c.value);
+  const isMulti = (room: string) => !!patch[room]?.multi;
+  const ready = (room: string) => (isMulti(room) ? patchedMics(room).length >= 2 : !!patchedSource(room));
+  const startable = rooms.filter((room) => !desk.rooms[room] && ready(room));
   const captionedAnywhere = rooms.filter((room) => captioning.some((r) => sameRoom(r, room)) || !!elsewhere(room));
   const missing = uncaptioned(live, [...captioning, ...captionedAnywhere]);
   const streamed = rooms.filter((room) => elsewhere(room) === 'ingest');
@@ -472,6 +476,11 @@ function SoundDesk({ live }: { live: Session[] }) {
   }, [running.length]);
 
   const startRoom = (room: string) => {
+    if (isMulti(room)) {
+      const mics = patchedMics(room);
+      if (mics.length >= 2) void desk.startMulti(room, mics);
+      return;
+    }
     const source = patchedSource(room);
     if (source) void desk.start(room, source, !!patch[room]?.diarise);
   };
@@ -602,7 +611,8 @@ function SoundDesk({ live }: { live: Session[] }) {
                         </p>
                       </th>
                       {channels.map((c, i) => {
-                        const patched = source === c.value;
+                        const micNo = isMulti(room) ? patchedMics(room).indexOf(c.value) + 1 : 0;
+                        const patched = isMulti(room) ? micNo > 0 : source === c.value;
                         const firstOfInput = parseSourceKey(c.value)?.channel === 0;
                         return (
                           <td key={c.value} className={cn('border-b border-border p-0 text-center group-hover:bg-[#fafafa]', firstOfInput && i > 0 && 'border-l', firstOfInput && i === 0 && 'border-l')}>
@@ -612,16 +622,25 @@ function SoundDesk({ live }: { live: Session[] }) {
                               aria-label={`${patched ? 'Unpatch' : 'Patch'} ${room} ${patched ? 'from' : 'to'} ${c.label}`}
                               title={busy ? 'Stop this room to change its channel' : c.label}
                               disabled={busy}
-                              onClick={() => updatePatch(room, { source: patched ? '' : c.value })}
+                              onClick={() =>
+                                isMulti(room)
+                                  ? updatePatch(room, {
+                                      mics: patched ? (patch[room]?.mics ?? []).filter((m) => m !== c.value) : [...(patch[room]?.mics ?? []), c.value],
+                                    })
+                                  : updatePatch(room, { source: patched ? '' : c.value })
+                              }
                               className="flex h-12 w-full items-center justify-center disabled:cursor-not-allowed"
                             >
                               <span
                                 className={cn(
-                                  'size-3.5 rounded-full border transition-colors',
+                                  'flex items-center justify-center rounded-full border text-[10px] font-medium text-white transition-colors',
+                                  micNo ? 'size-5' : 'size-3.5',
                                   patched ? (busy ? 'border-danger bg-danger' : 'border-primary bg-primary') : 'border-[#dcdcdc] group-hover:border-[#bdbdbd]',
                                   !busy && !patched && 'hover:!border-primary hover:bg-primary-soft',
                                 )}
-                              />
+                              >
+                                {micNo || null}
+                              </span>
                             </button>
                           </td>
                         );
@@ -629,7 +648,7 @@ function SoundDesk({ live }: { live: Session[] }) {
                       <td className="border-b md:sticky md:right-0 md:z-10 border-l border-border bg-surface px-4 py-2 group-hover:bg-[#fafafa]">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <RoomStatusTag state={state} patched={!!source} elsewhere={elsewhere(room)} />
+                            <RoomStatusTag state={state} patched={ready(room)} elsewhere={elsewhere(room)} />
                             {state?.message && (
                               <p className={cn('mt-0.5 max-w-44 truncate text-xs', state.status === 'error' ? 'text-danger' : 'text-[#7a5d00]')} title={state.message}>
                                 {state.message}
@@ -637,15 +656,28 @@ function SoundDesk({ live }: { live: Session[] }) {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-[#7c7c7c]" aria-hidden title="Label who is speaking, for panels. Adds a little delay.">
-                              Speakers
+                            <span className="text-xs text-[#7c7c7c]" aria-hidden title="One mic per channel: each mic captioned on its own, named in Captions › Mics.">
+                              Mics
                             </span>
                             <Switch
-                              checked={!!patch[room]?.diarise}
-                              onChange={(diarise) => updatePatch(room, { diarise })}
+                              checked={isMulti(room)}
+                              onChange={(multi) => updatePatch(room, { multi, mics: multi ? (patch[room]?.mics?.length ? patch[room]?.mics : source ? [source] : []) : [] })}
                               disabled={busy}
-                              label={`Label speakers in ${room} (for panels; adds a little delay)`}
+                              label={`One mic per channel in ${room}`}
                             />
+                            {!isMulti(room) && (
+                              <>
+                                <span className="text-xs text-[#7c7c7c]" aria-hidden title="Label who is speaking, for panels. Adds a little delay.">
+                                  Speakers
+                                </span>
+                                <Switch
+                                  checked={!!patch[room]?.diarise}
+                                  onChange={(diarise) => updatePatch(room, { diarise })}
+                                  disabled={busy}
+                                  label={`Label speakers in ${room} (for panels; adds a little delay)`}
+                                />
+                              </>
+                            )}
                             {busy ? (
                               <button
                                 type="button"
@@ -657,7 +689,7 @@ function SoundDesk({ live }: { live: Session[] }) {
                             ) : (
                               <button
                                 type="button"
-                                disabled={!source}
+                                disabled={!ready(room)}
                                 onClick={() => (state ? void desk.stop(room).then(() => startRoom(room)) : startRoom(room))}
                                 className={buttonClass({ style: 'soft', className: 'h-8 w-16' })}
                               >

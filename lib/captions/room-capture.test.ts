@@ -156,4 +156,19 @@ describe('RoomCapture', () => {
     expect(f.socket.disconnect).toHaveBeenCalled();
     expect(FakeRecorder.instances[0]!.state).toBe('inactive');
   });
+
+  it('sends a multi-mic room as raw PCM: says how many mics, then passes the chunks on', async () => {
+    const { socket, up, sent } = fakeSocket();
+    const port = { onmessage: null as ((event: MessageEvent<ArrayBuffer>) => void) | null } as unknown as MessagePort;
+    const capture = new RoomCapture('Hall A', false, { port, channels: 3 }, socket as never, (s) => states.push(s));
+    await capture.start();
+    up();
+    await flush();
+    expect(sent[0]).toEqual({ event: 'capture:start', payload: { room: 'Hall A', diarise: false, audio: { encoding: 'linear16', sampleRate: 16_000, channels: 3 } } });
+    expect(FakeRecorder.instances).toHaveLength(0); // nothing to record: the worklet makes the chunks
+    const chunk = new Int16Array([1, 2, 3]).buffer;
+    port.onmessage!({ data: chunk } as MessageEvent<ArrayBuffer>);
+    expect(sent.at(-1)).toEqual({ event: 'capture:audio', payload: chunk });
+    expect(last().status).toBe('capturing');
+  });
 });

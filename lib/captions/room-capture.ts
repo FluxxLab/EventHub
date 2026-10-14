@@ -7,6 +7,12 @@ export type RoomState = { status: RoomStatus; message: string | null };
 
 type Ack = { capturing?: string; diarise?: boolean; error?: string; message?: string };
 
+/** A multi-mic room's audio: interleaved 16 kHz PCM chunks from the pcm16 worklet, one channel per mic. */
+export type PcmSource = { port: MessagePort; channels: number };
+
+/** Multi-mic audio rather than a stream to record (no `instanceof MediaStream`: it is not defined everywhere). */
+const isPcm = (audio: MediaStream | PcmSource): audio is PcmSource => 'port' in audio;
+
 /**
  * One room's captions from one channel of the sound desk: its own socket (the server ties a
  * capture to a connection), and a MediaRecorder sending WebM/Opus chunks every 250 ms.
@@ -18,6 +24,8 @@ type Ack = { capturing?: string; diarise?: boolean; error?: string; message?: st
  */
 export class RoomCapture {
   private recorder: MediaRecorder | null = null;
+  /** Multi-mic: chunks go out only while this is set (the raw PCM needs no header to start). */
+  private sending = false;
   private stopped = false;
   private connectedOnce = false;
   private retry: ReturnType<typeof setTimeout> | null = null;
@@ -30,7 +38,7 @@ export class RoomCapture {
   constructor(
     readonly room: string,
     private readonly diarise: boolean,
-    private readonly audio: MediaStream,
+    private readonly audio: MediaStream | PcmSource,
     private readonly socket: Socket | null,
     private readonly onChange: (state: RoomState) => void,
   ) {}
@@ -95,7 +103,12 @@ export class RoomCapture {
     if (!s || this.stopped) return;
     let ack: Ack;
     try {
-      ack = (await s.timeout(10_000).emitWithAck('capture:start', { room: this.room, diarise: this.diarise })) as Ack;
+      const pcm = isPcm(this.audio) ? this.audio : null;
+      ack = (await s.timeout(10_000).emitWithAck('capture:start', {
+        room: this.room,
+        diarise: this.diarise,
+        ...(pcm ? { audio: { encoding: 'linear16', sampleRate: 16_000, channels: pcm.channels } } : {}),
+      })) as Ack;
     } catch {
       if (!this.stopped) this.onChange({ status: 'reconnecting', message: 'The server did not answer. Retrying.' });
       return;
@@ -128,6 +141,14 @@ export class RoomCapture {
     const s = this.socket;
     if (!s || this.stopped) return;
     this.stopRecorder();
+    if (isPcm(this.audio)) {
+      // raw PCM: no recorder and no header, just pass the worklet's chunks on
+      this.sending = true;
+      this.audio.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+        if (this.sending && s.connected) s.emit('capture:audio', event.data);
+      };
+      return;
+    }
     const mimeType = captureMimeType((t) => MediaRecorder.isTypeSupported(t));
     if (!mimeType) {
       this.fail('This browser cannot record WebM audio. Use Chrome or Edge.');
@@ -142,6 +163,7 @@ export class RoomCapture {
   }
 
   private stopRecorder() {
+    this.sending = false;
     const rec = this.recorder;
     this.recorder = null; // before stop(), so its last chunk (without a fresh header) is not sent
     if (rec && rec.state !== 'inactive') rec.stop();

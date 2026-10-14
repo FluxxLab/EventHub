@@ -123,7 +123,7 @@ export function useCaptionActions(sessionId: string) {
 /* -------------------------------------------------------------- sound desk */
 
 type OpenInput = { input: DeskInput; stream: MediaStream; splitter: ChannelSplitterNode; analysers: AnalyserNode[] };
-type Running = { capture: RoomCapture; tap: GainNode };
+type Running = { capture: RoomCapture; release: () => void };
 
 /** A channel on the meter: the current peak and the highest in the last moment, both in dBFS. */
 export type ChannelLevel = { db: number; hold: number };
@@ -171,6 +171,7 @@ export function useSoundDesk() {
   const opened = useRef(new Map<string, OpenInput>());
   const running = useRef(new Map<string, Running>());
   const frame = useRef(0);
+  const worklet = useRef(false);
 
   const setRoom = useCallback((room: string, state: RoomState | null) => {
     setRooms((all) => {
@@ -186,7 +187,7 @@ export function useSoundDesk() {
       const r = running.current.get(room);
       if (!r) return;
       running.current.delete(room);
-      r.tap.disconnect();
+      r.release();
       setRoom(room, null);
       await r.capture.stop();
     },
@@ -302,7 +303,55 @@ export function useSoundDesk() {
       const capture = new RoomCapture(room, diarise, out.stream, DEMO_MODE ? null : openCaptureSocket(), (state) => {
         if (running.current.get(room)?.capture === capture) setRoom(room, state);
       });
-      running.current.set(room, { capture, tap });
+      running.current.set(room, { capture, release: () => tap.disconnect() });
+      await capture.start();
+    },
+    [setRoom],
+  );
+
+  /** A room from several channels, one mic each (Mic 1 is the first), sent as one multi-channel stream. */
+  const startMulti = useCallback(
+    async (room: string, sources: string[]) => {
+      const audio = ctx.current;
+      if (!audio || sources.length < 2 || running.current.has(room)) return;
+      const picked = sources.map((s) => {
+        const key = parseSourceKey(s);
+        const input = key && opened.current.get(key.deviceId);
+        return key && input ? { channel: key.channel, splitter: input.splitter } : null;
+      });
+      if (picked.some((p) => !p)) return;
+      if (!worklet.current) {
+        await audio.audioWorklet.addModule('/pcm16-worklet.js');
+        worklet.current = true;
+      }
+      const merger = audio.createChannelMerger(sources.length);
+      picked.forEach((p, i) => p!.splitter.connect(merger, p!.channel, i));
+      const node = new AudioWorkletNode(audio, 'pcm16', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+        channelCount: sources.length,
+        channelCountMode: 'explicit',
+        channelInterpretation: 'discrete',
+        processorOptions: { channels: sources.length },
+      });
+      // the worklet only runs while it reaches the speakers; through silence, so nothing is heard
+      const mute = audio.createGain();
+      mute.gain.value = 0;
+      merger.connect(node);
+      node.connect(mute);
+      mute.connect(audio.destination);
+      const capture = new RoomCapture(room, false, { port: node.port, channels: sources.length }, DEMO_MODE ? null : openCaptureSocket(), (state) => {
+        if (running.current.get(room)?.capture === capture) setRoom(room, state);
+      });
+      const release = () => {
+        picked.forEach((p) => p!.splitter.disconnect(merger));
+        merger.disconnect();
+        node.disconnect();
+        mute.disconnect();
+        node.port.onmessage = null;
+      };
+      running.current.set(room, { capture, release });
       await capture.start();
     },
     [setRoom],
@@ -311,5 +360,5 @@ export function useSoundDesk() {
   // Leaving the page releases the interface and every room (the server lets a room go after 15 s).
   useEffect(() => () => void disconnect(), [disconnect]);
 
-  return { permission, inputs, connecting, error, levels, rooms, connect, disconnect, start, stop };
+  return { permission, inputs, connecting, error, levels, rooms, connect, disconnect, start, startMulti, stop };
 }
