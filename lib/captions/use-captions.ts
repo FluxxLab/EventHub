@@ -187,7 +187,12 @@ export function useSoundDesk() {
       const r = running.current.get(room);
       if (!r) return;
       running.current.delete(room);
-      r.release();
+      // a release that fails must never keep the room on air
+      try {
+        r.release();
+      } catch {
+        // the audio graph is gone with the page anyway
+      }
       setRoom(room, null);
       await r.capture.stop();
     },
@@ -345,11 +350,20 @@ export function useSoundDesk() {
         if (running.current.get(room)?.capture === capture) setRoom(room, state);
       });
       const release = () => {
-        picked.forEach((p) => p!.splitter.disconnect(merger));
+        // stop sending first, so nothing more goes out whatever happens below
+        node.port.onmessage = null;
+        // Each interface once: disconnect(merger) drops every one of its channels into the merger,
+        // and a second call for another mic on the same interface would throw "not connected".
+        for (const splitter of new Set(picked.map((p) => p!.splitter))) {
+          try {
+            splitter.disconnect(merger);
+          } catch {
+            // already disconnected
+          }
+        }
         merger.disconnect();
         node.disconnect();
         mute.disconnect();
-        node.port.onmessage = null;
       };
       running.current.set(room, { capture, release });
       await capture.start();
