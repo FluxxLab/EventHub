@@ -17,6 +17,7 @@ export function FormDialog({
   title,
   subtitle,
   pending,
+  pendingLabel = 'Saving…',
   submitLabel,
   error,
   onSubmit,
@@ -29,6 +30,8 @@ export function FormDialog({
   title: string;
   subtitle: string;
   pending: boolean;
+  /** The submit button's words while pending. */
+  pendingLabel?: string;
   submitLabel: string;
   error: string | null;
   onSubmit: (event: FormEvent) => void;
@@ -71,7 +74,7 @@ export function FormDialog({
             Cancel
           </button>
           <button type="submit" disabled={pending} className={buttonClass()}>
-            {pending ? 'Saving…' : submitLabel}
+            {pending ? pendingLabel : submitLabel}
           </button>
         </ModalActions>
       </form>

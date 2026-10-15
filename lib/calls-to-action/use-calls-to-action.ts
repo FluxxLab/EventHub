@@ -39,7 +39,7 @@ export function useCallActions(editionId: string) {
     mutationFn: ({ sessionId, fromStart = false }: { sessionId: string; fromStart?: boolean }) =>
       DEMO_MODE
         ? Promise.resolve<AnalyseResult>({ added: [], read: 0, message: 'Analysis needs the server.' })
-        : api.post<AnalyseResult>(`/sessions/${sessionId}/analyse${fromStart ? '?fromStart=true' : ''}`),
+        : api.postSlow<AnalyseResult>(`/sessions/${sessionId}/analyse${fromStart ? '?fromStart=true' : ''}`),
     onSuccess: refresh,
   });
   const create = useMutation({
