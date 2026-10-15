@@ -3,6 +3,7 @@
 import { PresentationChartBarIcon } from '@heroicons/react/24/outline';
 import { useId, useMemo, useState, type FormEvent } from 'react';
 
+import { DeckProgress } from '@/components/calls-to-action/deck-progress';
 import { Field } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Select } from '@/components/ui/select';
@@ -21,7 +22,7 @@ const dayLabel = (edition: Edition, day: number) =>
   new Date(`${dayDate(edition.startsAt, day)}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace('Sep ', 'Sept ');
 
 /**
- * Makes a calls-to-action deck, designed by Claude for the event: one session's slide (actor,
+ * Makes a calls-to-action deck, designed for the event (by Claude, on the server): one session's slide (actor,
  * commitment, timeline) when the session ends, or the end-of-day deck for a whole day. Only
  * approved calls go in.
  */
@@ -124,7 +125,7 @@ export function DeckDialog({
       open={open}
       icon={PresentationChartBarIcon}
       title="Make a deck"
-      subtitle={`Designed by Claude for ${edition.shortName}, from its colours, logo and cover. Only approved calls go in.`}
+      subtitle={`Designed for ${edition.shortName} from its colours, logo and cover. Only approved calls go in.`}
       pending={pending}
       pendingLabel="Designing… about a minute"
       submitLabel={`Download${count ? ` (${count} ${count === 1 ? 'call' : 'calls'})` : ''}`}
@@ -132,32 +133,38 @@ export function DeckDialog({
       onSubmit={submit}
       onClose={onClose}
     >
-      <div role="radiogroup" aria-label="What the deck covers" className="flex flex-col gap-2 sm:flex-row">
-        {choice('session', 'One session', 'A single slide: actor, commitment, timeline')}
-        {choice('day', 'End of day', "The full deck for the day's sessions")}
-      </div>
-      {kind === 'session' ? (
-        <Field id={`${id}-session`} label="Session">
-          <Select
-            id={`${id}-session`}
-            value={sessionId}
-            options={
-              withCalls.length
-                ? withCalls.map((s) => ({ value: s.id, label: `Day ${s.day} · ${s.title} · ${approved.filter((c) => c.sessionId === s.id).length} approved` }))
-                : [{ value: '', label: 'No session has approved calls yet' }]
-            }
-            onChange={setSessionId}
-          />
-        </Field>
+      {pending ? (
+        <DeckProgress colour={edition.brandColor ?? '#002D74'} kind={kind} />
       ) : (
-        <Field id={`${id}-day`} label="Day">
-          <Select
-            id={`${id}-day`}
-            value={day}
-            options={days.length ? days.map((d) => ({ value: String(d), label: `Day ${d} · ${dayLabel(edition, d)}` })) : [{ value: '', label: 'No day has approved calls yet' }]}
-            onChange={setDay}
-          />
-        </Field>
+        <>
+          <div role="radiogroup" aria-label="What the deck covers" className="flex flex-col gap-2 sm:flex-row">
+            {choice('session', 'One session', 'A single slide: actor, commitment, timeline')}
+            {choice('day', 'End of day', "The full deck for the day's sessions")}
+          </div>
+          {kind === 'session' ? (
+            <Field id={`${id}-session`} label="Session">
+              <Select
+                id={`${id}-session`}
+                value={sessionId}
+                options={
+                  withCalls.length
+                    ? withCalls.map((s) => ({ value: s.id, label: `Day ${s.day} · ${s.title} · ${approved.filter((c) => c.sessionId === s.id).length} approved` }))
+                    : [{ value: '', label: 'No session has approved calls yet' }]
+                }
+                onChange={setSessionId}
+              />
+            </Field>
+          ) : (
+            <Field id={`${id}-day`} label="Day">
+              <Select
+                id={`${id}-day`}
+                value={day}
+                options={days.length ? days.map((d) => ({ value: String(d), label: `Day ${d} · ${dayLabel(edition, d)}` })) : [{ value: '', label: 'No day has approved calls yet' }]}
+                onChange={setDay}
+              />
+            </Field>
+          )}
+        </>
       )}
     </FormDialog>
   );
