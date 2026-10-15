@@ -1,6 +1,17 @@
 'use client';
 
-import { ArrowDownTrayIcon, ArrowUturnLeftIcon, CheckIcon, MegaphoneIcon, PencilSquareIcon, PlusIcon, SparklesIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowDownTrayIcon,
+  ArrowUturnLeftIcon,
+  CheckIcon,
+  MegaphoneIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  PresentationChartBarIcon,
+  SparklesIcon,
+  Squares2X2Icon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { useMemo, useState } from 'react';
 
 import { CallDialog } from '@/components/calls-to-action/call-dialog';
@@ -10,19 +21,9 @@ import { Skeleton } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
-import {
-  callsCsv,
-  countByStatus,
-  filterCalls,
-  STATUS_LABEL,
-  STATUS_TABS,
-  TYPE_LABEL,
-  voices,
-  type CallToAction,
-  type StatusTab,
-} from '@/lib/calls-to-action/calls-to-action';
+import { callsCsv, countByStatus, filterCalls, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
 import { useCallActions, useCallsToAction, useCallTargets } from '@/lib/calls-to-action/use-calls-to-action';
-import type { Edition } from '@/lib/events/events';
+import { dateRange, type Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { timeRange } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
@@ -56,6 +57,7 @@ function Board({ edition }: { edition: Edition }) {
   const [editing, setEditing] = useState<{ call: CallToAction | null } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
+  const [building, setBuilding] = useState(false);
 
   const sessionList = useMemo(() => (sessions.data ?? []).filter((s) => s.type !== 'break').sort((a, b) => a.startsAt.localeCompare(b.startsAt)), [sessions.data]);
   const titleOf = (id: string | null) => sessionList.find((s) => s.id === id)?.title ?? (id ? 'A removed session' : 'No session');
@@ -104,6 +106,24 @@ function Board({ edition }: { edition: Edition }) {
     link.click();
     URL.revokeObjectURL(url);
   };
+  const deck = () => {
+    setBuilding(true);
+    void (async () => {
+      try {
+        const { downloadDeck, picLogo } = await import('@/lib/calls-to-action/deck');
+        await downloadDeck({
+          event: { name: edition.name, shortName: edition.shortName, when: dateRange(edition.startsAt, edition.endsAt), where: edition.city ?? edition.venue },
+          calls: items,
+          sessionTitle: titleOf,
+          logo: await picLogo(),
+        });
+      } catch (e) {
+        toast.push({ title: 'Deck not made', body: e instanceof Error ? e.message : 'Try again.' });
+      } finally {
+        setBuilding(false);
+      }
+    })();
+  };
   const merge = () => {
     const into = chosen.includes(keep) ? keep : chosen[0]!;
     actions.merge.mutate(
@@ -128,9 +148,16 @@ function Board({ edition }: { edition: Edition }) {
             <h2 id="analyse-title" className="text-base font-medium text-ink">
               Analyse a session
             </h2>
-            <p className="text-sm text-[#7c7c7c]">At a break or when it ends: reads what was said since the last analysis, with the names on the mics, and suggests its calls to action for you to review.</p>
+            <p className="text-sm text-[#7c7c7c]">
+              At a break or when it ends: reads what was said since the last analysis, with the names on the mics, and suggests its calls to action for you to review.
+            </p>
             <div className="mt-3 max-w-xl">
-              <Select label="Session to analyse" value={sessionToAnalyse || sessionList.find((s) => s.status === 'live')?.id || ''} options={[{ value: '', label: 'Choose a session' }, ...sessionOptions]} onChange={setSessionToAnalyse} />
+              <Select
+                label="Session to analyse"
+                value={sessionToAnalyse || sessionList.find((s) => s.status === 'live')?.id || ''}
+                options={[{ value: '', label: 'Choose a session' }, ...sessionOptions]}
+                onChange={setSessionToAnalyse}
+              />
             </div>
           </div>
           <button type="button" onClick={analyse} disabled={!aiReady || analysing || !(sessionToAnalyse || sessionList.some((s) => s.status === 'live'))} className={buttonClass()}>
@@ -138,7 +165,11 @@ function Board({ edition }: { edition: Edition }) {
             {analysing ? 'Analysing… a minute or two' : 'Analyse'}
           </button>
         </div>
-        {!aiReady && <p className="border-t border-border bg-gold-soft px-6 py-2.5 text-sm text-[#7a5d00]">Analyse is off until the AI is set up on the server (ANTHROPIC_API_KEY). You can still add, review and export calls to action.</p>}
+        {!aiReady && (
+          <p className="border-t border-border bg-gold-soft px-6 py-2.5 text-sm text-[#7a5d00]">
+            Analyse is off until the AI is set up on the server (ANTHROPIC_API_KEY). You can still add, review and export calls to action.
+          </p>
+        )}
       </section>
 
       {/* 2. Review */}
@@ -154,6 +185,10 @@ function Board({ edition }: { edition: Edition }) {
             <button type="button" onClick={exportCsv} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
               <ArrowDownTrayIcon className="size-4" />
               Export approved
+            </button>
+            <button type="button" onClick={deck} disabled={counts.approved === 0 || building} className={buttonClass({ style: 'outline', color: 'gray' })}>
+              <PresentationChartBarIcon className="size-4" />
+              {building ? 'Making the deck…' : 'Download deck'}
             </button>
             <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
               <PlusIcon className="size-4" />
@@ -171,7 +206,10 @@ function Board({ edition }: { edition: Edition }) {
                 role="tab"
                 aria-selected={tab === t}
                 onClick={() => setTab(t)}
-                className={cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm', tab === t ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm',
+                  tab === t ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink',
+                )}
               >
                 {TAB_LABEL[t]}
                 <span className="text-xs tabular-nums text-[#7c7c7c]">{counts[t]}</span>
@@ -179,11 +217,21 @@ function Board({ edition }: { edition: Edition }) {
             ))}
           </div>
           <div className="w-56">
-            <Select label="Session" value={sessionFilter} options={[{ value: 'all', label: 'Every session' }, ...sessionList.map((s) => ({ value: s.id, label: s.title }))]} onChange={setSessionFilter} />
+            <Select
+              label="Session"
+              value={sessionFilter}
+              options={[{ value: 'all', label: 'Every session' }, ...sessionList.map((s) => ({ value: s.id, label: s.title }))]}
+              onChange={setSessionFilter}
+            />
           </div>
           {targetOptions.length > 0 && (
             <div className="w-56">
-              <Select label="Directed at" value={targetFilter} options={[{ value: 'all', label: 'Everyone called on' }, ...targetOptions.map((t) => ({ value: t, label: t }))]} onChange={setTargetFilter} />
+              <Select
+                label="Directed at"
+                value={targetFilter}
+                options={[{ value: 'all', label: 'Everyone called on' }, ...targetOptions.map((t) => ({ value: t, label: t }))]}
+                onChange={setTargetFilter}
+              />
             </div>
           )}
         </div>
@@ -237,16 +285,10 @@ function Board({ edition }: { edition: Edition }) {
                   </p>
                   <p className="mt-1.5 text-[15px] font-medium text-ink">{c.shortText}</p>
                   {c.action !== c.shortText && <p className="mt-0.5 text-sm text-[#525252]">{c.action}</p>}
-                  <p className="mt-1 text-xs text-[#525252]">
-                    {[c.deadline && `By ${c.deadline.replace(/^by\s+/i, '')}`, c.amount, c.theme].filter(Boolean).join(' · ')}
-                  </p>
+                  <p className="mt-1 text-xs text-[#525252]">{[c.deadline && `By ${c.deadline.replace(/^by\s+/i, '')}`, c.amount, c.theme].filter(Boolean).join(' · ')}</p>
                   {c.quote && (
                     <blockquote className="mt-2 border-l-2 border-border pl-3 text-sm italic text-[#525252]">
-                      “{c.quote}”
-                      <span className="not-italic text-xs text-[#7c7c7c]">
-                        {' '}
-                        {[voices(c), titleOf(c.sessionId), c.saidAt && hm(c.saidAt)].filter(Boolean).join(' · ')}
-                      </span>
+                      “{c.quote}”<span className="not-italic text-xs text-[#7c7c7c]"> {[voices(c), titleOf(c.sessionId), c.saidAt && hm(c.saidAt)].filter(Boolean).join(' · ')}</span>
                     </blockquote>
                   )}
                   {!c.quote && voices(c) && <p className="mt-1 text-xs text-[#7c7c7c]">{voices(c)}</p>}
