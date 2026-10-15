@@ -166,12 +166,16 @@ const DEFAULT_STEPS = [
   { lead: 'Report', rest: 'progress at the next convening' },
 ];
 
-/** SVG markup as image data pptxgenjs embeds as vector art (`image/svg+xml;base64,…`). */
+/**
+ * SVG markup as image data pptxgenjs embeds as vector art. It must be a full data URL
+ * (`data:image/svg+xml;base64,…`): pptxgenjs loads it into the browser to draw the PNG copy older
+ * PowerPoint shows, and without `data:` the browser cannot load it.
+ */
 export function svgData(svg: string): string {
   const bytes = new TextEncoder().encode(svg);
   let binary = '';
   for (const b of bytes) binary += String.fromCharCode(b);
-  return `image/svg+xml;base64,${btoa(binary)}`;
+  return `data:image/svg+xml;base64,${btoa(binary)}`;
 }
 
 /** A slide's backdrop: Claude's SVG artwork over the whole slide, or the design's shapes without it. */
