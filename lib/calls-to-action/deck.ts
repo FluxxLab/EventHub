@@ -26,6 +26,8 @@ export type DeckDesign = {
   deckTitle: string;
   deckSubtitle: string;
   layouts: { cover: 'arch' | 'split' | 'band' | 'frame' | 'photo'; summary: 'stats' | 'statement'; section: 'cards' | 'list' | 'spotlight'; closing: 'circle' | 'split' | 'band' };
+  /** The slides' artwork as SVG (a 1600 × 900 canvas), drawn by Claude; null where the shapes stand in. */
+  art?: { cover: string | null; content: string | null; closing: string | null };
   decor: { cover: DeckShape[]; content: DeckShape[]; closing: DeckShape[] };
   summary: { headline: string; points: string[] };
   sections: { title: string; intro: string | null; callIds: string[] }[];
@@ -164,6 +166,21 @@ const DEFAULT_STEPS = [
   { lead: 'Report', rest: 'progress at the next convening' },
 ];
 
+/** SVG markup as image data pptxgenjs embeds as vector art (`image/svg+xml;base64,…`). */
+export function svgData(svg: string): string {
+  const bytes = new TextEncoder().encode(svg);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return `image/svg+xml;base64,${btoa(binary)}`;
+}
+
+/** A slide's backdrop: Claude's SVG artwork over the whole slide, or the design's shapes without it. */
+function backdrop(pres: PptxGenJS, d: DeckDesign, s: PptxGenJS.Slide, which: 'cover' | 'content' | 'closing', shapes: DeckShape[]) {
+  const art = d.art?.[which];
+  if (art) s.addImage({ data: svgData(art), x: 0, y: 0, w: W, h: H, altText: '' });
+  else drawShapes(pres, d.palette, s, shapes);
+}
+
 /** The design's decorative shapes, drawn in its palette. */
 function drawShapes(pres: PptxGenJS, p: DeckDesign['palette'], s: PptxGenJS.Slide, shapes: DeckShape[]) {
   for (const sh of shapes) {
@@ -250,7 +267,7 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
   const contentSlide = () => {
     const s = pres.addSlide();
     s.background = { color: c(p.background) };
-    drawShapes(pres, p, s, contentDecor);
+    backdrop(pres, d, s, 'content', contentDecor);
     page += 1;
     s.addText(String(page), { ...body, x: 0.5, y: 5.15, w: 0.8, h: 0.3, fontSize: 11, color: c(mutedBg) });
     return s;
@@ -290,18 +307,19 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
     };
     if (layout === 'arch') {
       s.background = { color: c(p.primary) };
-      drawShapes(pres, p, s, d.decor.cover);
-      s.addShape(pres.ShapeType.ellipse, { x: 2.0, y: -3.1, w: 6.0, h: 7.2, fill: { color: c(p.surface) }, line: { type: 'none' } });
+      backdrop(pres, d, s, 'cover', d.decor.cover);
+      s.addShape(pres.ShapeType.ellipse, { x: 1.6, y: -3.4, w: 6.8, h: 7.9, fill: { color: c(p.surface) }, line: { type: 'none' } });
       if (input.logo) place(s, input.logo, { x: 4.3, y: 0.2, w: 1.4, h: 1.0 }, 'contain', `${event.name} logo`);
-      lines(inkSurface, mutedSurface, 2.4, 1.3, 5.2, 'center');
+      lines(inkSurface, mutedSurface, 2.9, 1.25, 4.2, 'center');
     } else if (layout === 'split') {
       s.background = { color: c(p.background) };
       if (input.cover) place(s, input.cover, { x: 5, y: 0, w: 5, h: H }, 'cover', `${event.name} cover`);
       else
-        drawShapes(
+        backdrop(
           pres,
-          p,
+          d,
           s,
+          'cover',
           d.decor.cover.filter((sh) => sh.x + sh.w > 5),
         );
       s.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 5, h: H, fill: { color: c(p.primary) }, line: { type: 'none' } });
@@ -309,7 +327,7 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
       lines(onPrimary, onPrimary, 0.6, 1.9, 4.0, 'left');
     } else if (layout === 'band') {
       s.background = { color: c(p.background) };
-      drawShapes(pres, p, s, d.decor.cover);
+      backdrop(pres, d, s, 'cover', d.decor.cover);
       s.addShape(pres.ShapeType.rect, { x: 0, y: 1.45, w: W, h: 2.55, fill: { color: c(p.primary) }, line: { type: 'none' } });
       logoPlate({ x: 0.5, y: 0.22, w: 1.4, h: 1.0 });
       lines(onPrimary, onPrimary, 0.8, 1.55, 8.4, 'left');
@@ -317,7 +335,7 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
       // frame, and photo: a plate over the shapes or the cover image
       s.background = { color: c(p.primary) };
       if (layout === 'photo' && input.cover) place(s, input.cover, { x: 0, y: 0, w: W, h: H }, 'cover', `${event.name} cover`);
-      drawShapes(pres, p, s, d.decor.cover);
+      backdrop(pres, d, s, 'cover', d.decor.cover);
       const plate = layout === 'photo' ? { x: 0.6, y: 2.5, w: 6.2, h: 2.65 } : { x: 1.3, y: 0.75, w: 7.4, h: 4.1 };
       s.addShape(pres.ShapeType.roundRect, { ...plate, rectRadius: 0.15, fill: { color: c(p.surface) }, line: { type: 'none' } });
       if (layout === 'photo') {
@@ -522,31 +540,37 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
       );
     s.background = { color: c(p.background) };
     if (d.layouts.closing === 'split') {
-      drawShapes(
+      backdrop(
         pres,
-        p,
+        d,
         s,
+        'closing',
         d.decor.closing.filter((sh) => sh.x + sh.w > 5.4),
       );
       s.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 5.4, h: H, fill: { color: c(p.primary) }, line: { type: 'none' } });
       s.addText(title('Next steps'), { ...head, x: 0.6, y: 0.9, w: 4.4, h: 0.8, fontSize: 32, color: c(onPrimary) });
       list(onPrimary, 0.6, 1.9, 4.4);
     } else if (d.layouts.closing === 'band') {
-      drawShapes(pres, p, s, d.decor.closing);
+      backdrop(pres, d, s, 'closing', d.decor.closing);
       s.addShape(pres.ShapeType.rect, { x: 0, y: 0.9, w: W, h: 3.9, fill: { color: c(p.primary) }, line: { type: 'none' } });
       s.addText(title('Next steps'), { ...head, x: 0.8, y: 1.1, w: 8.4, h: 0.7, fontSize: 30, color: c(onPrimary) });
       list(onPrimary, 0.8, 1.95, 8.4);
     } else {
-      drawShapes(
+      backdrop(
         pres,
-        p,
+        d,
         s,
+        'closing',
         d.decor.closing.filter((sh) => sh.x >= 5.0),
       );
-      s.addText(title('Next steps'), { ...head, x: 0.6, y: 1.0, w: 4.6, h: 0.8, fontSize: 34, color: c(ink) });
-      list(ink, 0.6, 2.0, 4.6);
+      // over Claude's artwork the text sits on a plate, whatever colour the art is behind it
+      const plated = !!d.art?.closing;
+      const textInk = plated ? inkSurface : ink;
+      if (plated) s.addShape(pres.ShapeType.roundRect, { x: 0.35, y: 0.55, w: 5.25, h: 4.55, rectRadius: 0.15, fill: { color: c(p.surface) }, line: { type: 'none' } });
+      s.addText(title('Next steps'), { ...head, x: 0.6, y: 0.85, w: 4.75, h: 0.8, fontSize: 34, color: c(textInk) });
+      list(textInk, 0.6, 1.8, 4.75);
     }
-    if (input.logo && d.layouts.closing !== 'band') place(s, input.logo, { x: 0.6, y: 4.5, w: 1.2, h: 0.75 }, 'contain', `${event.name} logo`);
+    if (input.logo && d.layouts.closing !== 'band') place(s, input.logo, { x: 0.6, y: 4.35, w: 1.1, h: 0.65 }, 'contain', `${event.name} logo`);
   }
 }
 
@@ -558,7 +582,7 @@ export const actorOf = (call: Pick<CallToAction, 'directedAt'>) => call.directed
 export const timelineOf = (call: Pick<CallToAction, 'deadline'>) => call.deadline?.trim() || 'To be agreed';
 
 /** Rows on one session slide; a session with more runs onto a second. */
-export const ROWS_PER_SLIDE = 8;
+export const ROWS_PER_SLIDE = 6;
 
 /**
  * One session's calls on a single slide, as the design colours it: the session's name over a
@@ -574,10 +598,8 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
   const calls = input.calls.filter((x) => x.status === 'approved');
   const ink = readable(p.background, p.text, 7);
   const inkSurface = readable(p.surface, p.text, 7);
-  const mutedBg = readable(p.background, p.muted);
   const mutedSurface = readable(p.surface, p.muted);
   const strong = readable(p.background, p.primary);
-  const onPrimary = readable(p.primary, p.surface);
   const head = { fontFace: d.headingFont, bold: !/Black/.test(d.headingFont), margin: 0, isTextBox: true } as const;
   const body = { fontFace: d.bodyFont, margin: 0, isTextBox: true } as const;
   const pages = spread(calls, ROWS_PER_SLIDE);
@@ -585,10 +607,11 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
   pages.forEach((rows, pg) => {
     const s = pres.addSlide();
     s.background = { color: c(p.background) };
-    drawShapes(
+    backdrop(
       pres,
-      p,
+      d,
       s,
+      'content',
       d.decor.content.filter((sh) => !overText(sh)),
     );
     const textX = input.logo ? 1.85 : 0.6;
@@ -596,7 +619,9 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
       s.addShape(pres.ShapeType.roundRect, { x: 0.6, y: 0.3, w: 1.05, h: 0.7, rectRadius: 0.08, fill: { color: c(p.surface) }, line: { type: 'none' } });
       place(s, input.logo, { x: 0.66, y: 0.34, w: 0.93, h: 0.62 }, 'contain', `${event.name} logo`);
     }
-    const label = [d.uppercaseTitles ? d.deckTitle.toUpperCase() : d.deckTitle, event.shortName, session.when].filter(Boolean).join(' · ');
+    const label = [d.uppercaseTitles ? d.deckTitle.toUpperCase() : d.deckTitle, event.shortName, session.when, d.uppercaseTitles ? plural(calls.length, 'CALL', 'CALLS') : plural(calls.length, 'call')]
+      .filter(Boolean)
+      .join(' · ');
     s.addText(label, { ...head, x: textX, y: 0.3, w: 8.55 - textX, h: 0.3, fontSize: 11, color: c(strong), charSpacing: 1, fit: 'shrink' });
     s.addText(`${session.title}${pages.length > 1 ? ` (${pg + 1} of ${pages.length})` : ''}`, {
       ...head,
@@ -610,33 +635,57 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
       fit: 'shrink',
     });
 
-    const many = rows.length > 6;
-    const size = many ? 11 : 13;
-    const cell = (text: string, opts: PptxGenJS.TableCellProps = {}) => ({ text, options: { fontFace: d.bodyFont, fontSize: size, color: c(inkSurface), valign: 'middle' as const, ...opts } });
-    const header = ['Actor', 'Commitment', 'Timeline'].map((t) => cell(t, { bold: true, color: c(onPrimary), fill: { color: c(p.primary) }, border: { type: 'none' } }));
-    const table = rows.map((call, i) => {
-      const fill = { color: c(i % 2 === 0 ? p.surface : tint(p.primary, 0.92)) };
-      return [
-        {
-          text: [
-            { text: actorOf(call), options: { bold: true, breakLine: call.type === 'pledge' } },
-            ...(call.type === 'pledge' ? [{ text: 'pledged', options: { fontSize: size - 2, color: c(mutedSurface) } }] : []),
-          ],
-          options: { fontFace: d.bodyFont, fontSize: size, color: c(inkSurface), valign: 'middle' as const, fill, border: { type: 'none' as const } },
-        },
-        cell(call.shortText || call.action, { fill, border: { type: 'none' } }),
-        cell(timelineOf(call), { fill, border: { type: 'none' }, color: c(call.deadline ? inkSurface : mutedSurface), italic: !call.deadline }),
-      ];
+    // the calls as designed rows on a panel: actor in the brand colour, the commitment, a timeline pill
+    const size = rows.length > 6 ? 12 : 13;
+    const lineH = (size / 72) * 1.15;
+    // a line of commitment at this size holds about this many characters in its 4.3 in column
+    const perLine = Math.round(4.3 * (size === 13 ? 13.5 : 14.6));
+    const heights = rows.map((call) => {
+      const lines = Math.max(Math.ceil((call.shortText || call.action).length / perLine), Math.ceil(actorOf(call).length / 24), 1);
+      return Math.max(0.46, lines * lineH + 0.18);
     });
-    s.addTable([header, ...table], { x: 0.6, y: 1.5, w: 7.95, colW: [2.2, 4.4, 1.35], rowH: many ? 0.4 : 0.48, margin: [0.05, 0.1, 0.05, 0.1] });
-    s.addText(`${plural(calls.length, 'call')} to action from this session${calls.some((x) => x.type === 'pledge') ? `, ${plural(calls.filter((x) => x.type === 'pledge').length, 'pledge')}` : ''}`, {
-      ...body,
-      x: 0.6,
-      y: 5.15,
-      w: 7.9,
-      h: 0.3,
-      fontSize: 11,
-      color: c(mutedBg),
+    const top = 1.4;
+    const panelH = 0.42 + heights.reduce((a, b) => a + b, 0) + 0.12;
+    s.addShape(pres.ShapeType.roundRect, { x: 0.45, y: top, w: 8.25, h: panelH, rectRadius: 0.12, fill: { color: c(p.surface) }, line: { color: c(tint(p.primary, 0.85)), width: 0.75 } });
+    const column = (text: string, x: number, w: number, align: 'left' | 'right' = 'left') =>
+      s.addText(text, { ...body, x, y: top + 0.12, w, h: 0.25, fontSize: 9, bold: true, charSpacing: 2, color: c(mutedSurface), align });
+    column('ACTOR', 0.7, 2.0);
+    column('COMMITMENT', 2.85, 4.3);
+    column('TIMELINE', 7.2, 1.3, 'right');
+    s.addShape(pres.ShapeType.line, { x: 0.7, y: top + 0.42, w: 7.75, h: 0, line: { color: c(strong), width: 1.5 } });
+
+    let y = top + 0.48;
+    rows.forEach((call, i) => {
+      const h = heights[i]!;
+      s.addText(
+        [
+          { text: actorOf(call), options: { bold: true, color: c(readable(p.surface, p.primary)), breakLine: call.type === 'pledge' } },
+          ...(call.type === 'pledge' ? [{ text: 'Pledged', options: { fontSize: size - 3, color: c(mutedSurface) } }] : []),
+        ],
+        { ...body, x: 0.7, y, w: 2.0, h, fontSize: size, valign: 'middle' },
+      );
+      s.addText(call.shortText || call.action, { ...body, x: 2.85, y, w: 4.3, h, fontSize: size, color: c(inkSurface), valign: 'middle' });
+      const agreed = !!call.deadline?.trim();
+      const pill = { x: 7.3, y: y + h / 2 - 0.17, w: 1.15, h: 0.34 };
+      s.addShape(pres.ShapeType.roundRect, {
+        ...pill,
+        rectRadius: 0.17,
+        fill: agreed ? { color: c(tint(p.primary, 0.86)) } : { type: 'none' },
+        line: agreed ? { type: 'none' } : { color: c(tint(p.primary, 0.6)), width: 0.75, dashType: 'dash' },
+      });
+      s.addText(timelineOf(call), {
+        ...body,
+        ...pill,
+        fontSize: 10,
+        bold: agreed,
+        italic: !agreed,
+        color: c(agreed ? readable(tint(p.primary, 0.86), p.primary) : mutedSurface),
+        align: 'center',
+        valign: 'middle',
+        fit: 'shrink',
+      });
+      if (i < rows.length - 1) s.addShape(pres.ShapeType.line, { x: 0.7, y: y + h, w: 7.75, h: 0, line: { color: c(tint(p.primary, 0.85)), width: 0.75 } });
+      y += h;
     });
     s.addNotes(rows.map((call, i) => [`${i + 1}. ${call.action}`, call.quote && `Said: "${call.quote}"`, byline(call) && `Proposed by ${byline(call)}`].filter(Boolean).join('\n')).join('\n\n'));
   });
