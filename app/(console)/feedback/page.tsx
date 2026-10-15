@@ -1,10 +1,11 @@
 'use client';
 
-import { ArrowDownTrayIcon, ExclamationTriangleIcon, StarIcon as StarOutline } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, CalendarDaysIcon, ChatBubbleBottomCenterTextIcon, DocumentArrowDownIcon, ExclamationTriangleIcon, StarIcon as StarOutline } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
@@ -30,16 +31,6 @@ function StarRow({ value, size = 'sm' }: { value: number; size?: 'sm' | 'md' }) 
     <span className="inline-flex" aria-hidden>
       {[1, 2, 3, 4, 5].map((i) => (i <= Math.round(value) ? <StarIcon key={i} className={cn(cls, 'text-gold')} /> : <StarOutline key={i} className={cn(cls, 'text-[#bdbdbd]')} />))}
     </span>
-  );
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface px-5 py-4">
-      <p className="text-sm text-[#525252]">{label}</p>
-      <p className="mt-1 text-2xl font-medium tabular-nums text-ink">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-[#7c7c7c]">{hint}</p>}
-    </div>
   );
 }
 
@@ -134,9 +125,7 @@ function Detail({ row, session }: { row: FeedbackRow; session?: Session }) {
           </div>
 
           <div className="flex items-center justify-between px-6 pt-4">
-            <p className="text-sm text-ink">
-              Comments {stars !== 'all' && <span className="text-[#7c7c7c]">· {stars} stars</span>}
-            </p>
+            <p className="text-sm text-ink">Comments {stars !== 'all' && <span className="text-[#7c7c7c]">· {stars} stars</span>}</p>
             {stars !== 'all' && (
               <button type="button" onClick={() => setStars('all')} className="text-xs text-primary hover:underline">
                 Show all
@@ -224,17 +213,16 @@ export default function FeedbackPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <Stat label="Average rating" value={formatAverage(totals.average)} hint="Across every rating" />
-        <Stat label="Ratings" value={count(totals.ratings)} />
-        <Stat label="Sessions rated" value={`${totals.rated} of ${totals.sessions}`} />
-        <div className="flex flex-col justify-between rounded-lg border border-border bg-surface px-5 py-4">
-          <p className="text-sm text-[#525252]">All sessions</p>
-          <button type="button" onClick={exportCsv} disabled={!rows.length} className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9 self-start' })}>
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+        <FigureCard label="Average rating" icon={StarOutline} value={formatAverage(totals.average)} note="Across every rating" />
+        <FigureCard label="Ratings" icon={ChatBubbleBottomCenterTextIcon} value={count(totals.ratings)} />
+        <FigureCard label="Sessions rated" icon={CalendarDaysIcon} value={`${totals.rated} of ${totals.sessions}`} />
+        <FigureCard label="All sessions" icon={DocumentArrowDownIcon} hint="Every session's average, ratings and comments as a spreadsheet">
+          <button type="button" onClick={exportCsv} disabled={!rows.length} className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9' })}>
             <ArrowDownTrayIcon className="size-4" />
             Download CSV
           </button>
-        </div>
+        </FigureCard>
       </div>
 
       {rows.length === 0 ? (

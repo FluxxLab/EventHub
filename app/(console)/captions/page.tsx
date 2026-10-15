@@ -4,13 +4,16 @@ import {
   AdjustmentsVerticalIcon,
   ArrowDownTrayIcon,
   ArrowPathIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
   BookOpenIcon,
+  BuildingOffice2Icon,
+  CheckCircleIcon,
+  CloudIcon,
+  ExclamationTriangleIcon,
   MicrophoneIcon,
   NoSymbolIcon,
   PlayCircleIcon,
   SignalIcon,
+  SignalSlashIcon,
   StopCircleIcon,
   TrashIcon,
   TvIcon,
@@ -18,6 +21,7 @@ import {
 import Link from 'next/link';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 
+import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -26,20 +30,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
-import {
-  deskRooms,
-  FLOOR_DB,
-  meterFraction,
-  meterZone,
-  paragraphs,
-  parseSourceKey,
-  readPatch,
-  sameRoom,
-  sourceKey,
-  sourceOptions,
-  uncaptioned,
-  type DeskPatch,
-} from '@/lib/captions/captions';
+import { deskRooms, FLOOR_DB, meterFraction, meterZone, paragraphs, parseSourceKey, readPatch, sameRoom, sourceKey, sourceOptions, uncaptioned, type DeskPatch } from '@/lib/captions/captions';
 import type { RoomState } from '@/lib/captions/room-capture';
 import type { CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
@@ -60,9 +51,7 @@ const TABS = [
   { key: 'vocabulary', label: 'Vocabulary', icon: BookOpenIcon },
 ] as const;
 
-
 const hms = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
 
 type Tab = (typeof TABS)[number]['key'];
 
@@ -107,10 +96,7 @@ function ConnectionDot() {
   return (
     <p className="flex items-center gap-2 text-xs text-[#7c7c7c]" aria-live="polite">
       <span
-        className={cn(
-          'size-2 rounded-full',
-          connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder',
-        )}
+        className={cn('size-2 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
         aria-hidden
       />
       {label}
@@ -245,13 +231,7 @@ function Monitor({ sessions }: { sessions: Session[] }) {
   return (
     <div className="flex flex-col gap-4">
       {sessions.length > 1 && (
-        <Select
-          label="Live session"
-          value={session.id}
-          options={sessions.map((s) => ({ value: s.id, label: `${s.room} · ${s.title}` }))}
-          onChange={setPicked}
-          className="max-w-md"
-        />
+        <Select label="Live session" value={session.id} options={sessions.map((s) => ({ value: s.id, label: `${s.room} · ${s.title}` }))} onChange={setPicked} className="max-w-md" />
       )}
       {/* Keyed so switching sessions starts a fresh feed. */}
       <CaptionStream key={session.id} session={session} />
@@ -303,7 +283,12 @@ function RoomStatusTag({ state, patched, elsewhere }: { state: RoomState | undef
       </span>
     );
   }
-  if (state.status === 'error') return <Tag tone="danger" dot>Stopped</Tag>;
+  if (state.status === 'error')
+    return (
+      <Tag tone="danger" dot>
+        Stopped
+      </Tag>
+    );
   return (
     <Tag tone="gold" dot>
       {{ starting: 'Starting…', waiting: elsewhere === 'ingest' ? 'Standing by' : 'Waiting', reconnecting: 'Reconnecting' }[state.status]}
@@ -337,16 +322,14 @@ function DeskSetup({
       {streamed.length > 0 && (
         <p className="mb-6 flex items-start gap-2 rounded-lg bg-success-soft px-4 py-3 text-sm text-success">
           <SignalIcon className="mt-0.5 size-4 shrink-0" />
-          {streamed.length === 1 ? `${streamed[0]} is` : `${streamed.length} rooms are`} captioned from the venue stream, with no desk needed. Set this desk up as a
-          backup: a room on stand-by takes over by itself if its stream stops.
+          {streamed.length === 1 ? `${streamed[0]} is` : `${streamed.length} rooms are`} captioned from the venue stream, with no desk needed. Set this desk up as a backup: a room on stand-by takes
+          over by itself if its stream stops.
         </p>
       )}
       <h2 id="desk-setup" className="text-lg font-medium text-ink">
         Caption every room from the sound desk
       </h2>
-      <p className="mt-1 max-w-2xl text-sm text-[#525252]">
-        One computer next to the venue mixer takes each room&apos;s audio on its own channel, so no room needs an operator with a microphone.
-      </p>
+      <p className="mt-1 max-w-2xl text-sm text-[#525252]">One computer next to the venue mixer takes each room&apos;s audio on its own channel, so no room needs an operator with a microphone.</p>
 
       <ol className="mt-6 grid gap-3 md:grid-cols-3">
         {SETUP_STEPS.map((step, i) => (
@@ -396,16 +379,6 @@ function DeskSetup({
   );
 }
 
-function Summary({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'danger' | 'success' }) {
-  return (
-    <div className={cn('rounded-lg border bg-surface px-5 py-4', tone === 'danger' ? 'border-danger/40' : 'border-border')}>
-      <p className="text-sm text-[#525252]">{label}</p>
-      <p className={cn('mt-1 text-2xl font-medium tabular-nums', tone === 'danger' ? 'text-danger' : tone === 'success' ? 'text-success' : 'text-ink')}>{value}</p>
-      {hint && <p className="mt-0.5 truncate text-xs text-[#7c7c7c]" title={hint}>{hint}</p>}
-    </div>
-  );
-}
-
 type Confirm = { kind: 'room'; room: string } | { kind: 'all' } | { kind: 'disconnect' };
 
 /**
@@ -421,8 +394,7 @@ function SoundDesk({ live }: { live: Session[] }) {
   const venueRooms = useRooms(edition);
   // What the server sees: which rooms a venue stream or another desk is captioning.
   const server = useIngestRooms();
-  const elsewhere = (room: string): CaptureSource | null =>
-    server.disabled ? null : (server.data?.find((r) => sameRoom(r.room, room))?.captioning ?? null);
+  const elsewhere = (room: string): CaptureSource | null => (server.disabled ? null : (server.data?.find((r) => sameRoom(r.room, room))?.captioning ?? null));
   // Remembered on this computer, so the desk is ready the next morning. (The desk renders only
   // once live sessions have loaded in the browser, so reading storage here is safe.)
   const [patch, setPatch] = useState<DeskPatch>(() => {
@@ -450,7 +422,11 @@ function SoundDesk({ live }: { live: Session[] }) {
     const { day } = currentDay(sessions);
     return sessions.filter((s) => s.day === day).map((s) => s.room);
   }, [board.data]);
-  const rooms = deskRooms((venueRooms.data ?? []).map((r) => r.name), programmeRooms, live.map((s) => s.room));
+  const rooms = deskRooms(
+    (venueRooms.data ?? []).map((r) => r.name),
+    programmeRooms,
+    live.map((s) => s.room),
+  );
   const channels = useMemo(() => sourceOptions(desk.inputs ?? []), [desk.inputs]);
   const patchedSource = (room: string) => {
     const source = patch[room]?.source;
@@ -502,36 +478,41 @@ function SoundDesk({ live }: { live: Session[] }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Summary
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+        <FigureCard
           label="Live without captions"
+          icon={SignalSlashIcon}
           value={String(missing.length)}
-          hint={missing.length ? missing.map((s) => s.room).join(', ') : live.length ? 'Every live room is captioned' : 'Nothing live right now'}
+          note={missing.length ? missing.map((s) => s.room).join(', ') : live.length ? 'Every live room is captioned' : 'Nothing live right now'}
           tone={missing.length ? 'danger' : live.length ? 'success' : undefined}
         />
-        <Summary
+        <FigureCard
           label="Rooms captioned"
+          icon={BuildingOffice2Icon}
           value={`${captionedAnywhere.length} of ${rooms.length}`}
-          hint={[
-            captioning.length ? `${captioning.length} from this desk` : '',
-            streamed.length ? `${streamed.length} from venue streams` : '',
-            running.length > captioning.length ? `${running.length - captioning.length} standing by or reconnecting` : '',
-          ]
-            .filter(Boolean)
-            .join(' · ') || undefined}
+          note={
+            [
+              captioning.length ? `${captioning.length} from this desk` : '',
+              streamed.length ? `${streamed.length} from venue streams` : '',
+              running.length > captioning.length ? `${running.length - captioning.length} standing by or reconnecting` : '',
+            ]
+              .filter(Boolean)
+              .join(' · ') || undefined
+          }
         />
-        <Summary label="Channels" value={String(channelCount)} hint={inputs.map((i) => i.label).join(', ')} />
-        <div className="flex flex-col justify-between rounded-lg border border-border bg-surface px-5 py-4">
-          <p className="text-sm text-[#525252]">Caption service</p>
-          <ConnectionDot />
-          <button
-            type="button"
-            onClick={() => (running.length ? setConfirm({ kind: 'disconnect' }) : void desk.disconnect())}
-            className="self-start text-xs text-[#7c7c7c] underline-offset-2 hover:text-ink hover:underline"
-          >
-            Disconnect interface
-          </button>
-        </div>
+        <FigureCard label="Channels" icon={AdjustmentsVerticalIcon} value={String(channelCount)} note={inputs.map((i) => i.label).join(', ')} />
+        <FigureCard label="Caption service" icon={CloudIcon} hint="The link from this desk to the caption service">
+          <div className="flex flex-col gap-2">
+            <ConnectionDot />
+            <button
+              type="button"
+              onClick={() => (running.length ? setConfirm({ kind: 'disconnect' }) : void desk.disconnect())}
+              className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9 self-start' })}
+            >
+              Disconnect interface
+            </button>
+          </div>
+        </FigureCard>
       </div>
 
       <section aria-label="Patch" className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -569,7 +550,11 @@ function SoundDesk({ live }: { live: Session[] }) {
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr>
-                  <th rowSpan={2} scope="col" className="sticky left-0 z-10 min-w-36 border-b border-border bg-surface px-3 md:min-w-56 md:px-5 py-2 text-left align-bottom text-xs font-normal text-[#7c7c7c]">
+                  <th
+                    rowSpan={2}
+                    scope="col"
+                    className="sticky left-0 z-10 min-w-36 border-b border-border bg-surface px-3 md:min-w-56 md:px-5 py-2 text-left align-bottom text-xs font-normal text-[#7c7c7c]"
+                  >
                     Room
                   </th>
                   {inputs.map((input) => (
@@ -579,7 +564,11 @@ function SoundDesk({ live }: { live: Session[] }) {
                       </span>
                     </th>
                   ))}
-                  <th rowSpan={2} scope="col" className="min-w-64 md:sticky md:right-0 md:z-10 border-b border-l border-border bg-surface px-4 py-2 text-left align-bottom text-xs font-normal text-[#7c7c7c]">
+                  <th
+                    rowSpan={2}
+                    scope="col"
+                    className="min-w-64 md:sticky md:right-0 md:z-10 border-b border-l border-border bg-surface px-4 py-2 text-left align-bottom text-xs font-normal text-[#7c7c7c]"
+                  >
                     Captions
                   </th>
                 </tr>
@@ -606,7 +595,13 @@ function SoundDesk({ live }: { live: Session[] }) {
                   const alarm = !!session && !captionedAnywhere.some((r) => sameRoom(r, room));
                   return (
                     <tr key={room} className="group">
-                      <th scope="row" className={cn('sticky left-0 z-10 max-w-36 border-b border-border bg-surface px-3 py-2.5 md:max-w-none md:px-5 text-left font-normal group-hover:bg-[#fafafa]', alarm && 'shadow-[inset_3px_0_0_var(--color-danger)]')}>
+                      <th
+                        scope="row"
+                        className={cn(
+                          'sticky left-0 z-10 max-w-36 border-b border-border bg-surface px-3 py-2.5 md:max-w-none md:px-5 text-left font-normal group-hover:bg-[#fafafa]',
+                          alarm && 'shadow-[inset_3px_0_0_var(--color-danger)]',
+                        )}
+                      >
                         <p className="truncate text-sm font-medium text-ink">{room}</p>
                         <p className={cn('max-w-56 truncate text-xs', session ? 'text-success' : 'text-[#7c7c7c]')} title={session?.title}>
                           {session ? `Live · ${session.title}` : 'Nothing on air'}
@@ -617,7 +612,10 @@ function SoundDesk({ live }: { live: Session[] }) {
                         const patched = isMulti(room) ? micNo > 0 : source === c.value;
                         const firstOfInput = parseSourceKey(c.value)?.channel === 0;
                         return (
-                          <td key={c.value} className={cn('border-b border-border p-0 text-center group-hover:bg-[#fafafa]', firstOfInput && i > 0 && 'border-l', firstOfInput && i === 0 && 'border-l')}>
+                          <td
+                            key={c.value}
+                            className={cn('border-b border-border p-0 text-center group-hover:bg-[#fafafa]', firstOfInput && i > 0 && 'border-l', firstOfInput && i === 0 && 'border-l')}
+                          >
                             <button
                               type="button"
                               aria-pressed={patched}
@@ -711,9 +709,15 @@ function SoundDesk({ live }: { live: Session[] }) {
 
         <footer className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-border bg-[#f6f6f6] px-5 py-3 text-xs text-[#7c7c7c]">
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-success" /> below −12 dBFS</span>
-            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-gold" /> −12 to −3, good for speech</span>
-            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-danger" /> above −3, turn the send down</span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-sm bg-success" /> below −12 dBFS
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-sm bg-gold" /> −12 to −3, good for speech
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-sm bg-danger" /> above −3, turn the send down
+            </span>
           </p>
           <Link href="/venue" className="text-primary hover:underline">
             Room missing? Add it in Venue &amp; rooms
@@ -770,14 +774,12 @@ export default function CaptionsPage() {
           </div>
         </>
       )}
-                <div id="captions-panel-mics" role="tabpanel" aria-labelledby="captions-tab-mics" hidden={tab !== 'mics'}>
-            {tab === 'mics' && <MicsPanel />}
-          </div>
-          <div id="captions-panel-vocabulary" role="tabpanel" aria-labelledby="captions-tab-vocabulary" hidden={tab !== 'vocabulary'}>
-            {tab === 'vocabulary' && <VocabularyPanel />}
-          </div>
-
+      <div id="captions-panel-mics" role="tabpanel" aria-labelledby="captions-tab-mics" hidden={tab !== 'mics'}>
+        {tab === 'mics' && <MicsPanel />}
+      </div>
+      <div id="captions-panel-vocabulary" role="tabpanel" aria-labelledby="captions-tab-vocabulary" hidden={tab !== 'vocabulary'}>
+        {tab === 'vocabulary' && <VocabularyPanel />}
+      </div>
     </div>
-    
   );
 }

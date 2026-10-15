@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { ChartBarIcon, PencilSquareIcon, PlusIcon, TicketIcon } from '@heroicons/react/24/outline';
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import { BanknotesIcon, ChartBarIcon, PencilSquareIcon, PlusIcon, QrCodeIcon, ShoppingCartIcon, TicketIcon } from '@heroicons/react/24/outline';
+import { useState, type KeyboardEvent } from 'react';
 
 import { OrdersCard } from '@/components/dashboard/orders-card';
+import { FigureCard } from '@/components/dashboard/stat-card';
 import { TierDialog } from '@/components/ticketing/tier-dialog';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
@@ -18,8 +19,7 @@ import { EXTRA_CURRENCIES, formatMoney, priceModeOf, remaining, soldShare, type 
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { cn } from '@/lib/utils';
 
-const cardClass =
-  'overflow-hidden rounded-2xl border border-border bg-surface shadow-lg';
+const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface shadow-lg';
 const th = 'h-15 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 
@@ -213,25 +213,13 @@ function TiersPanel({ edition }: { edition: Edition }) {
           </table>
           {tiers.data?.onSaleOnly && (
             // Shown only while the API lacks the organiser route that lists off-sale tiers too.
-            <p className="border-t border-border bg-[#f6f6f6] px-6 py-3 text-xs text-[#7c7c7c]">
-              Only tiers on sale are listed. A tier taken off sale drops out of this list; its tickets stay valid.
-            </p>
+            <p className="border-t border-border bg-[#f6f6f6] px-6 py-3 text-xs text-[#7c7c7c]">Only tiers on sale are listed. A tier taken off sale drops out of this list; its tickets stay valid.</p>
           )}
         </div>
       )}
 
       <TierDialog open={!!editing} onClose={() => setEditing(null)} editionId={edition.id} tier={editing?.tier ?? null} />
     </section>
-  );
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface px-5 py-4">
-      <p className="text-sm text-[#525252]">{label}</p>
-      <p className="mt-1 text-2xl font-medium tabular-nums text-ink">{value}</p>
-      {hint && <p className="mt-1 text-xs text-[#7c7c7c]">{hint}</p>}
-    </div>
   );
 }
 
@@ -266,24 +254,26 @@ function SalesPanel({ edition }: { edition: Edition }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Tickets issued" value={count(o.ticketsIssued)} hint={`${count(o.unclaimedHolders)} holders yet to sign in`} />
-        <Stat label="Revenue" value={moneyCompact(data.kpis.revenue.current, data.currency)} hint={data.kpis.revenue.currentLabel} />
-        <Stat label="Paid orders" value={count(o.paid)} hint={`${count(o.pending)} awaiting payment · ${count(o.cancelled)} cancelled`} />
-        <div className="rounded-lg border border-border bg-surface px-5 py-4">
-          <p className="text-sm text-[#525252]">Checked in</p>
-          <p className="mt-1 text-2xl font-medium tabular-nums text-ink">
-            {count(o.admitted)} <span className="text-sm font-normal text-[#7c7c7c]">of {count(o.ticketsIssued)}</span>
-          </p>
-          <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-[#ececec]" aria-hidden>
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+        <FigureCard label="Tickets issued" icon={TicketIcon} value={count(o.ticketsIssued)} note={`${count(o.unclaimedHolders)} holders yet to sign in`} />
+        <FigureCard label="Revenue" icon={BanknotesIcon} value={moneyCompact(data.kpis.revenue.current, data.currency)} note={data.kpis.revenue.currentLabel} />
+        <FigureCard label="Paid orders" icon={ShoppingCartIcon} value={count(o.paid)} note={`${count(o.pending)} awaiting payment · ${count(o.cancelled)} cancelled`} />
+        <FigureCard
+          label="Checked in"
+          icon={QrCodeIcon}
+          value={
+            <>
+              {count(o.admitted)} <span className="text-sm font-normal text-[#7c7c7c]">of {count(o.ticketsIssued)}</span>
+            </>
+          }
+        >
+          <span className="block h-1.5 overflow-hidden rounded-full bg-[#ececec]" aria-hidden>
             <span className="block h-full rounded-full bg-success" style={{ width: `${admittedShare * 100}%` }} />
           </span>
-        </div>
+        </FigureCard>
       </div>
       <OrdersCard orders={data.recentOrders} />
-      <p className="text-xs text-[#7c7c7c]">
-        These are the latest orders. A full order list, refunds and re-sending tickets need endpoints the API does not have yet.
-      </p>
+      <p className="text-xs text-[#7c7c7c]">These are the latest orders. A full order list, refunds and re-sending tickets need endpoints the API does not have yet.</p>
     </div>
   );
 }
@@ -318,12 +308,7 @@ export default function TicketingPage() {
           <p className="mt-0.5 text-sm text-[#7c7c7c]">Ticket tiers and sales for this event.</p>
         </div>
         <div className="w-80 max-w-full">
-          <Select
-            label="Event"
-            value={edition.id}
-            options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))}
-            onChange={setPicked}
-          />
+          <Select label="Event" value={edition.id} options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))} onChange={setPicked} />
         </div>
       </header>
       <Tabs tab={tab} onChange={setTab} tierCount={tiers.data?.tiers.length} />
