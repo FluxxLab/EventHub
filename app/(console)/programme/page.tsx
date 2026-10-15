@@ -276,7 +276,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; day: nu
                               disabled: callActions.analyse.isPending,
                               onSelect: () => {
                                 toast.push({ title: 'Analysing', body: `Reading “${s.title}”. This takes a minute or two.` });
-                                callActions.analyse.mutate(s.id, {
+                                callActions.analyse.mutate({ sessionId: s.id }, {
                                   onSuccess: (r) => toast.push({ title: r.added.length ? 'Calls to action found' : 'Analysis done', body: `${r.message} Review them under Records › Calls to action.` }),
                                   onError: (e) => toast.push({ title: 'Not analysed', body: e.message }),
                                 });

@@ -58,6 +58,7 @@ function Board({ edition }: { edition: Edition }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
   const [building, setBuilding] = useState(false);
+  const [fromStart, setFromStart] = useState(false);
 
   const sessionList = useMemo(() => (sessions.data ?? []).filter((s) => s.type !== 'break').sort((a, b) => a.startsAt.localeCompare(b.startsAt)), [sessions.data]);
   const titleOf = (id: string | null) => sessionList.find((s) => s.id === id)?.title ?? (id ? 'A removed session' : 'No session');
@@ -86,13 +87,17 @@ function Board({ edition }: { edition: Edition }) {
   const analyse = () => {
     const sessionId = sessionToAnalyse || sessionList.find((s) => s.status === 'live')?.id;
     if (!sessionId) return;
-    actions.analyse.mutate(sessionId, {
-      onSuccess: (result) => {
-        toast.push({ title: result.added.length ? 'Calls to action found' : 'Analysis done', body: result.message, leading: { kind: 'icon', icon: SparklesIcon, tone: 'success' } });
-        if (result.added.length) setTab('suggested');
+    actions.analyse.mutate(
+      { sessionId, fromStart },
+      {
+        onSuccess: (result) => {
+          toast.push({ title: result.added.length ? 'Calls to action found' : 'Analysis done', body: result.message, leading: { kind: 'icon', icon: SparklesIcon, tone: 'success' } });
+          if (result.added.length) setTab('suggested');
+          setFromStart(false);
+        },
+        onError: (e) => toast.push({ title: 'Not analysed', body: e.message }),
       },
-      onError: (e) => toast.push({ title: 'Not analysed', body: e.message }),
-    });
+    );
   };
   const setStatus = (c: CallToAction, status: 'suggested' | 'approved' | 'rejected') =>
     actions.update.mutate({ id: c.id, body: { status } }, { onError: (e) => toast.push({ title: 'Not changed', body: e.message }) });
@@ -159,6 +164,13 @@ function Board({ edition }: { edition: Edition }) {
                 onChange={setSessionToAnalyse}
               />
             </div>
+            {runsOf(sessionToAnalyse || sessionList.find((s) => s.status === 'live')?.id || '') && (
+              <label className="mt-3 flex w-fit items-center gap-2 text-sm text-ink">
+                <input type="checkbox" checked={fromStart} onChange={(e) => setFromStart(e.target.checked)} className="size-4 accent-primary" />
+                Read the whole session again
+                <span className="text-[#7c7c7c]">· not only what is new; calls already listed are not suggested twice</span>
+              </label>
+            )}
           </div>
           <button type="button" onClick={analyse} disabled={!aiReady || analysing || !(sessionToAnalyse || sessionList.some((s) => s.status === 'live'))} className={buttonClass()}>
             <SparklesIcon className="size-4" />
