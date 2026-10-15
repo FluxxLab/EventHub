@@ -1,11 +1,26 @@
 'use client';
 
-import { ArrowDownTrayIcon, CheckIcon, ClipboardDocumentIcon, DevicePhoneMobileIcon, GiftIcon, PencilSquareIcon, PlusIcon, PrinterIcon, QrCodeIcon, TrashIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowDownTrayIcon,
+  BuildingStorefrontIcon,
+  CheckBadgeIcon,
+  CheckIcon,
+  ClipboardDocumentIcon,
+  DevicePhoneMobileIcon,
+  FireIcon,
+  GiftIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  PrinterIcon,
+  QrCodeIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 import QRCode from 'qrcode';
 import { useId, useMemo, useState } from 'react';
 
 import { BoothDialog } from '@/components/passport/booth-dialog';
 import { LeadLinkDialog } from '@/components/passport/lead-link-dialog';
+import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -37,16 +52,6 @@ async function printSigns(booths: Booth[], event: string): Promise<boolean> {
   win.focus();
   setTimeout(() => win.print(), 300);
   return true;
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface px-5 py-4">
-      <p className="text-sm text-[#525252]">{label}</p>
-      <p className="mt-1 truncate text-2xl font-medium tabular-nums text-ink">{value}</p>
-      {hint && <p className="mt-0.5 truncate text-xs text-[#7c7c7c]">{hint}</p>}
-    </div>
-  );
 }
 
 function CopyCode({ code }: { code: string }) {
@@ -154,11 +159,16 @@ export default function PassportPage() {
   const event = edition?.shortName ?? 'PIC Events';
   const exportLeads = () =>
     leadLinks.exportAll.mutate(undefined, {
-      onSuccess: (leads) => downloadCsv(`${event}-exhibition-leads.csv`, leadsCsv(leads, (id) => all.find((b) => b.id === id)?.name ?? 'Removed stand')),
+      onSuccess: (leads) =>
+        downloadCsv(
+          `${event}-exhibition-leads.csv`,
+          leadsCsv(leads, (id) => all.find((b) => b.id === id)?.name ?? 'Removed stand'),
+        ),
       onError: (e) => toast.push({ title: 'Leads not exported', body: e.message }),
     });
   const print = async (list: Booth[]) => {
-    if (!(await printSigns(list, event))) toast.push({ title: 'Printing blocked', body: 'Allow pop-ups for the console, then try again.', leading: { kind: 'icon', icon: PrinterIcon, tone: 'danger' } });
+    if (!(await printSigns(list, event)))
+      toast.push({ title: 'Printing blocked', body: 'Allow pop-ups for the console, then try again.', leading: { kind: 'icon', icon: PrinterIcon, tone: 'danger' } });
   };
 
   if (!isAdmin) {
@@ -184,10 +194,10 @@ export default function PassportPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
-        <Stat label="Active stands" value={`${totals.active} of ${totals.total}`} hint="A full passport means every active stand" />
-        <Stat label="Stamps collected" value={count(totals.stamps)} />
-        <Stat label="Busiest stand" value={totals.busiest?.name ?? '–'} hint={totals.busiest ? `${count(totals.busiest.stamps)} stamps` : undefined} />
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+        <FigureCard label="Active stands" icon={BuildingStorefrontIcon} value={`${totals.active} of ${totals.total}`} note="A full passport means every active stand" />
+        <FigureCard label="Stamps collected" icon={CheckBadgeIcon} value={count(totals.stamps)} />
+        <FigureCard label="Busiest stand" icon={FireIcon} value={totals.busiest?.name ?? '–'} note={totals.busiest ? `${count(totals.busiest.stamps)} stamps` : undefined} />
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -271,13 +281,31 @@ export default function PassportPage() {
                       </td>
                       <td className={cn(td, 'text-right')}>
                         <div className="flex justify-end">
-                          <button type="button" onClick={() => setScanner(b)} aria-label={`Lead scanner for ${b.name}`} title="Lead scanner" className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}>
+                          <button
+                            type="button"
+                            onClick={() => setScanner(b)}
+                            aria-label={`Lead scanner for ${b.name}`}
+                            title="Lead scanner"
+                            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}
+                          >
                             <DevicePhoneMobileIcon className="size-4" />
                           </button>
-                          <button type="button" onClick={() => void print([b])} aria-label={`Print the sign for ${b.name}`} title="Print sign" className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}>
+                          <button
+                            type="button"
+                            onClick={() => void print([b])}
+                            aria-label={`Print the sign for ${b.name}`}
+                            title="Print sign"
+                            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}
+                          >
                             <PrinterIcon className="size-4" />
                           </button>
-                          <button type="button" onClick={() => setEditing({ booth: b })} aria-label={`Edit ${b.name}`} title="Edit" className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}>
+                          <button
+                            type="button"
+                            onClick={() => setEditing({ booth: b })}
+                            aria-label={`Edit ${b.name}`}
+                            title="Edit"
+                            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}
+                          >
                             <PencilSquareIcon className="size-4" />
                           </button>
                           <button
@@ -302,13 +330,7 @@ export default function PassportPage() {
           )}
         </section>
 
-        <PrizeDraw
-          activeStands={totals.active}
-          drawing={draw.isPending}
-          winners={draw.data ?? null}
-          error={draw.error?.message ?? null}
-          onDraw={(n) => draw.mutate(n)}
-        />
+        <PrizeDraw activeStands={totals.active} drawing={draw.isPending} winners={draw.data ?? null} error={draw.error?.message ?? null} onDraw={(n) => draw.mutate(n)} />
       </div>
 
       <LeadLinkDialog
@@ -340,7 +362,8 @@ export default function PassportPage() {
               onSuccess: (saved) => {
                 setEditing(null);
                 save.reset();
-                if (!editing?.booth) toast.push({ title: 'Stand added', body: `${saved.name} has the code ${saved.code}. Print its sign from the list.`, leading: { kind: 'icon', icon: QrCodeIcon, tone: 'success' } });
+                if (!editing?.booth)
+                  toast.push({ title: 'Stand added', body: `${saved.name} has the code ${saved.code}. Print its sign from the list.`, leading: { kind: 'icon', icon: QrCodeIcon, tone: 'success' } });
               },
             },
           )
@@ -358,10 +381,7 @@ export default function PassportPage() {
         pending={remove.isPending}
         tone="danger"
         onCancel={() => setDeleting(null)}
-        onConfirm={() =>
-          deleting &&
-          remove.mutate({ id: deleting.id }, { onSuccess: () => setDeleting(null), onError: (e) => toast.push({ title: 'Not deleted', body: e.message }) })
-        }
+        onConfirm={() => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => setDeleting(null), onError: (e) => toast.push({ title: 'Not deleted', body: e.message }) })}
       >
         {deleting?.stamps
           ? `Its ${count(deleting.stamps)} stamps are deleted too, and passports that counted it change. To stop it counting but keep the record, switch it off instead.`

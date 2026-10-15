@@ -3,14 +3,19 @@
 import {
   ArrowUturnLeftIcon,
   ChatBubbleLeftRightIcon,
+  CheckCircleIcon,
   CheckIcon,
   ChevronUpIcon,
+  HandThumbUpIcon,
   MagnifyingGlassIcon,
   NoSymbolIcon,
+  QuestionMarkCircleIcon,
   TrashIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useMemo, useState, type KeyboardEvent } from 'react';
 
+import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -32,26 +37,12 @@ const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2
 
 /** The session a moderator most likely wants: the live one, else the next to start, else the first. */
 function defaultSession(sessions: Session[], now: number): Session | undefined {
-  return (
-    sessions.find((s) => s.status === 'live') ??
-    sessions.find((s) => s.status === 'scheduled' && Date.parse(s.endsAt) > now) ??
-    sessions[0]
-  );
+  return sessions.find((s) => s.status === 'live') ?? sessions.find((s) => s.status === 'scheduled' && Date.parse(s.endsAt) > now) ?? sessions[0];
 }
 
 function sessionLabel(s: Session): string {
   const when = s.status === 'live' ? 'Live now' : `Day ${s.day} · ${hm(s.startsAt)}`;
   return `${when} · ${s.room} · ${s.title}`;
-}
-
-function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface px-5 py-4">
-      <p className="text-sm text-[#525252]">{label}</p>
-      <p className="mt-1 text-2xl font-medium tabular-nums text-ink">{count(value)}</p>
-      {hint && <p className="mt-0.5 text-xs text-[#7c7c7c]">{hint}</p>}
-    </div>
-  );
 }
 
 function ConnectionDot() {
@@ -60,10 +51,7 @@ function ConnectionDot() {
   return (
     <p className="flex items-center gap-2 text-xs text-[#7c7c7c]" aria-live="polite">
       <span
-        className={cn(
-          'size-2 rounded-full',
-          connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder',
-        )}
+        className={cn('size-2 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
         aria-hidden
       />
       {label}
@@ -131,46 +119,46 @@ function QuestionRow({ question, now, onStatus, onDelete }: { question: Question
       <Votes value={question.upvotes} />
       {/* Actions sit beside the question on wider screens, below it on a phone. */}
       <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:gap-4">
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] leading-6 text-ink">
-          {question.text}
-          {isNew(question, now) && question.status === 'open' && (
-            <Tag tone="primary" className="ml-2 align-middle">
-              New
-            </Tag>
-          )}
-        </p>
-        <div className="mt-0.5">
-          <Asker question={question} now={now} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] leading-6 text-ink">
+            {question.text}
+            {isNew(question, now) && question.status === 'open' && (
+              <Tag tone="primary" className="ml-2 align-middle">
+                New
+              </Tag>
+            )}
+          </p>
+          <div className="mt-0.5">
+            <Asker question={question} now={now} />
+          </div>
         </div>
-      </div>
-      <div className="flex shrink-0 items-start gap-1">
-        {question.status === 'open' ? (
-          <>
-            <button type="button" onClick={() => onStatus(question, 'answered')} className={buttonClass({ style: 'soft', color: 'green', className: 'h-8' })}>
-              <CheckIcon className="size-4" />
-              Answered
+        <div className="flex shrink-0 items-start gap-1">
+          {question.status === 'open' ? (
+            <>
+              <button type="button" onClick={() => onStatus(question, 'answered')} className={buttonClass({ style: 'soft', color: 'green', className: 'h-8' })}>
+                <CheckIcon className="size-4" />
+                Answered
+              </button>
+              <button type="button" onClick={() => onStatus(question, 'dismissed')} className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8' })}>
+                Dismiss
+              </button>
+            </>
+          ) : (
+            <button type="button" onClick={() => onStatus(question, 'open')} className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8' })}>
+              <ArrowUturnLeftIcon className="size-4" />
+              Reopen
             </button>
-            <button type="button" onClick={() => onStatus(question, 'dismissed')} className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8' })}>
-              Dismiss
-            </button>
-          </>
-        ) : (
-          <button type="button" onClick={() => onStatus(question, 'open')} className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8' })}>
-            <ArrowUturnLeftIcon className="size-4" />
-            Reopen
+          )}
+          <button
+            type="button"
+            onClick={() => onDelete(question)}
+            aria-label={`Delete “${question.text.slice(0, 40)}”`}
+            title="Delete"
+            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8 hover:text-danger' })}
+          >
+            <TrashIcon className="size-4" />
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onDelete(question)}
-          aria-label={`Delete “${question.text.slice(0, 40)}”`}
-          title="Delete"
-          className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8 hover:text-danger' })}
-        >
-          <TrashIcon className="size-4" />
-        </button>
-      </div>
+        </div>
       </div>
     </li>
   );
@@ -204,7 +192,10 @@ function Tabs({ tab, counts, onChange }: { tab: QuestionStatus; counts: Record<Q
             aria-controls="questions-panel"
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(t.key)}
-            className={cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm', selected ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm',
+              selected ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink',
+            )}
           >
             {t.label}
             <span className="text-xs tabular-nums text-[#7c7c7c]">{counts[t.key]}</span>
@@ -261,11 +252,11 @@ function Queue({ session }: { session: Session }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <Stat label="Open" value={totals.open} hint={totals.open ? 'Waiting for the panel' : undefined} />
-        <Stat label="Answered" value={totals.answered} />
-        <Stat label="Upvotes" value={totals.upvotes} />
-        <Stat label="People asking" value={totals.askers} />
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+        <FigureCard label="Open" icon={QuestionMarkCircleIcon} value={count(totals.open)} note={totals.open ? 'Waiting for the panel' : undefined} />
+        <FigureCard label="Answered" icon={CheckCircleIcon} value={count(totals.answered)} />
+        <FigureCard label="Upvotes" icon={HandThumbUpIcon} value={count(totals.upvotes)} />
+        <FigureCard label="People asking" icon={UserGroupIcon} value={count(totals.askers)} />
       </div>
 
       {featured && <NextUp question={featured} now={now} onStatus={onStatus} />}
@@ -319,8 +310,7 @@ function Queue({ session }: { session: Session }) {
           )
         }
       >
-        “{deleting?.text}” is removed for everyone, with its upvotes, including the delegate who asked. To take it off the queue but keep the
-        record, dismiss it instead.
+        “{deleting?.text}” is removed for everyone, with its upvotes, including the delegate who asked. To take it off the queue but keep the record, dismiss it instead.
       </ConfirmDialog>
     </div>
   );
@@ -337,10 +327,7 @@ export default function QuestionsPage() {
 
   // Live sessions first, then the programme in order; breaks have no questions.
   const options = useMemo(
-    () =>
-      (sessions.data ?? [])
-        .filter((s) => s.type !== 'break')
-        .sort((a, b) => Number(b.status === 'live') - Number(a.status === 'live') || Date.parse(a.startsAt) - Date.parse(b.startsAt)),
+    () => (sessions.data ?? []).filter((s) => s.type !== 'break').sort((a, b) => Number(b.status === 'live') - Number(a.status === 'live') || Date.parse(a.startsAt) - Date.parse(b.startsAt)),
     [sessions.data],
   );
   const session = options.find((s) => s.id === picked) ?? defaultSession(options, now);
