@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
 import { z } from 'zod';
 
+import { Spinner } from '@/components/ui/spinner';
+import { TransitionScreen } from '@/components/ui/transition-screen';
 import { session, useSession } from '@/lib/auth/session';
 import { requestResetCode, RESEND_AFTER_S, resetPassword, resetSchema } from '@/lib/auth/password-reset';
 import { cn } from '@/lib/utils';
@@ -21,7 +23,7 @@ type Mode = 'sign-in' | 'request' | 'reset';
 const inputClass =
   'h-12 w-full rounded-[10px] border bg-[#fdfdfd] px-5 text-sm text-ink outline-none transition-colors placeholder:text-[#7c7c7c] focus:border-primary focus:ring-4 focus:ring-primary-soft';
 const primaryClass =
-  'h-12 w-full rounded-[10px] bg-primary px-5 text-base font-medium text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-60';
+  'flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-primary px-5 text-base font-medium text-on-primary transition-[background-color,transform] duration-150 hover:bg-primary/90 motion-safe:active:scale-[0.98] disabled:opacity-60';
 
 /** Taller screens get the design's full spacing; shorter ones tighten so nothing scrolls. */
 const FORM = 'flex w-full max-w-[404px] flex-col gap-5 [@media(min-height:800px)]:gap-[25px]';
@@ -117,6 +119,8 @@ export default function SignInPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // signed in: the screen stays up while the console opens
+  const [entering, setEntering] = useState(false);
   const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
@@ -156,6 +160,7 @@ export default function SignInPage() {
     setErrors({});
     void run(async () => {
       await session.signIn(parsed.data.email, parsed.data.password);
+      setEntering(true);
       router.replace('/');
     });
   };
@@ -190,6 +195,7 @@ export default function SignInPage() {
 
   return (
     <main className="grid h-dvh overflow-hidden bg-white lg:grid-cols-[minmax(0,1fr)_minmax(0,45%)]">
+      {entering && <TransitionScreen label="Signing you in…" />}
       <section className={'flex h-dvh min-h-0 flex-col px-6 py-6 sm:px-12 lg:px-[clamp(3rem,8vw,135px)] [@media(min-height:800px)]:py-10'}>
         <Image src="/pic-logo.png" alt="Policy Innovation Centre" width={64} height={64} priority className={'h-auto w-11 shrink-0 [@media(min-height:800px)]:w-14'} />
 
@@ -218,6 +224,7 @@ export default function SignInPage() {
               </div>
               {formError && <Alert tone="danger">{formError}</Alert>}
               <button type="submit" disabled={pending} className={primaryClass}>
+                {pending && <Spinner />}
                 {pending ? 'Signing in…' : 'Sign in'}
               </button>
             </form>
@@ -228,6 +235,7 @@ export default function SignInPage() {
               <Field id={`${id}-reset-email`} label="Email" type="email" autoComplete="username" placeholder="you@policyinnovationcentre.org" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} autoFocus />
               {formError && <Alert tone="danger">{formError}</Alert>}
               <button type="submit" disabled={pending} className={primaryClass}>
+                {pending && <Spinner />}
                 {pending ? 'Sending…' : 'Send code'}
               </button>
             </form>
@@ -259,6 +267,7 @@ export default function SignInPage() {
               </div>
               {formError && <Alert tone="danger">{formError}</Alert>}
               <button type="submit" disabled={pending} className={primaryClass}>
+                {pending && <Spinner />}
                 {pending ? 'Saving…' : 'Set new password'}
               </button>
             </form>

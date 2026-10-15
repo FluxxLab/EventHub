@@ -99,7 +99,7 @@ export function useCreateEdition() {
 }
 
 /** Branding changes for one event: a new file uploads and replaces, null removes, undefined leaves it. */
-export type BrandingChange = { cover?: File | null; logo?: File | null; brandColor?: string | null };
+export type BrandingChange = { cover?: File | null; logo?: File | null; brandColor?: string | null; logoDark?: File | null; guide?: File | null };
 
 /**
  * Saves an event's cover, logo and button colour. Files upload straight to storage on a signed URL
@@ -129,6 +129,25 @@ export function useSaveBranding() {
         const key = await uploadFile(file, { presignPath: `/editions/${editionId}/${kind}-upload`, contentType: file.type }, () => undefined);
         const saved = await api.put<{ coverUrl?: string | null; logoUrl?: string | null }>(`/editions/${editionId}/${kind}`, kind === 'cover' ? { coverImage: key } : { logoImage: key });
         patch[`${kind}Url`] = saved[`${kind}Url`] ?? null;
+      }
+      // the brand kit: the logo for dark backgrounds, and the brand guide
+      for (const [field, asset, label] of [
+        ['logoDark', 'logo-dark', 'Uploading the dark-background logo…'],
+        ['guide', 'guide', 'Uploading the brand guide…'],
+      ] as const) {
+        const file = change[field];
+        if (file === undefined) continue;
+        if (file === null) {
+          await api.delete(`/editions/${editionId}/brand/${asset}`);
+          if (field === 'guide') Object.assign(patch, { brandGuideUrl: null, brandGuideName: null });
+          else patch.logoDarkUrl = null;
+          continue;
+        }
+        onProgress?.(label);
+        const key = await uploadFile(file, { presignPath: `/editions/${editionId}/brand-upload/${asset}`, contentType: file.type }, () => undefined);
+        const saved = await api.put<{ url: string | null; name: string | null }>(`/editions/${editionId}/brand/${asset}`, { key, ...(field === 'guide' ? { name: file.name } : {}) });
+        if (field === 'guide') Object.assign(patch, { brandGuideUrl: saved.url, brandGuideName: saved.name });
+        else patch.logoDarkUrl = saved.url;
       }
       if (change.brandColor !== undefined) {
         await api.patch(`/editions/${editionId}`, { brandColor: change.brandColor });

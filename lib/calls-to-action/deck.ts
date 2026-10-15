@@ -36,7 +36,17 @@ export type DeckDesign = {
 
 /** An image as the server sends it: the event's logo or cover, base64. */
 export type DeckImageSource = { label: 'logo' | 'cover'; mediaType: string; data: string };
-export type DeckDesignResponse = { design: DeckDesign | null; reason: string | null; brandColor: string | null; logo: DeckImageSource | null; cover: DeckImageSource | null };
+export type DeckDesignResponse = {
+  design: DeckDesign | null;
+  reason: string | null;
+  brandColor: string | null;
+  logo: DeckImageSource | null;
+  /** The logo drawn for dark backgrounds, when the event has one. */
+  logoDark?: DeckImageSource | null;
+  cover: DeckImageSource | null;
+  /** Whether the event's brand guide was read for this design. */
+  guided?: boolean;
+};
 
 /** An image ready for the slide: PNG data (`image/png;base64,…`) and its size in pixels. */
 export type DeckImage = { data: string; w: number; h: number };
@@ -48,6 +58,8 @@ export type DeckInput = {
   calls: CallToAction[];
   sessionTitle: (sessionId: string | null) => string;
   logo: DeckImage | null;
+  /** The logo for dark backgrounds; without it a dark ground gets the usual logo on a light plate. */
+  logoDark?: DeckImage | null;
   cover: DeckImage | null;
 };
 
@@ -236,6 +248,32 @@ function place(s: PptxGenJS.Slide, img: DeckImage, box: { x: number; y: number; 
   else s.addImage({ data: img.data, x: box.x, y: box.y, w, h, sizing: { type: 'cover', w: box.w, h: box.h }, altText: alt });
 }
 
+/**
+ * The right logo for a ground: the dark-background version on a dark one, the usual one on a light
+ * one, each straight on the slide. Only when the matching version is missing does the other sit on
+ * a plate of the opposite tone, so it still reads. `plate: true` always plates the usual logo
+ * (over a photo, whose tone is unknown).
+ */
+export function logoFor(bg: string, logo: DeckImage | null, logoDark: DeckImage | null, platePhoto = false): { img: DeckImage; plate: string | null } | null {
+  if (platePhoto) return logo ? { img: logo, plate: '#FFFFFF' } : logoDark ? { img: logoDark, plate: null } : null;
+  const dark = luminance(bg) < 0.35;
+  if (dark) return logoDark ? { img: logoDark, plate: null } : logo ? { img: logo, plate: '#FFFFFF' } : null;
+  return logo ? { img: logo, plate: null } : logoDark ? { img: logoDark, plate: '#1A1A1A' } : null;
+}
+
+/** Draws the logo for its ground inside `box`; returns whether one was drawn. */
+function putLogo(pres: PptxGenJS, s: PptxGenJS.Slide, input: DeckInput, box: { x: number; y: number; w: number; h: number }, bg: string, platePhoto = false): boolean {
+  const chosen = logoFor(bg, input.logo, input.logoDark ?? null, platePhoto);
+  if (!chosen) return false;
+  if (chosen.plate) {
+    s.addShape(pres.ShapeType.roundRect, { ...box, rectRadius: 0.1, fill: { color: c(chosen.plate) }, line: { type: 'none' } });
+    place(s, chosen.img, { x: box.x + 0.1, y: box.y + 0.08, w: box.w - 0.2, h: box.h - 0.16 }, 'contain', `${input.event.name} logo`);
+  } else {
+    place(s, chosen.img, box, 'contain', `${input.event.name} logo`);
+  }
+  return true;
+}
+
 /* ----------------------------------------------------------------- slides */
 
 /** Adds the deck's slides to a fresh presentation. */
@@ -304,16 +342,11 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
         fit: 'shrink',
       });
     };
-    const logoPlate = (box: { x: number; y: number; w: number; h: number }) => {
-      if (!input.logo) return;
-      s.addShape(pres.ShapeType.roundRect, { ...box, rectRadius: 0.1, fill: { color: c(p.surface) }, line: { type: 'none' } });
-      place(s, input.logo, { x: box.x + 0.1, y: box.y + 0.08, w: box.w - 0.2, h: box.h - 0.16 }, 'contain', `${event.name} logo`);
-    };
     if (layout === 'arch') {
       s.background = { color: c(p.primary) };
       backdrop(pres, d, s, 'cover', d.decor.cover);
       s.addShape(pres.ShapeType.ellipse, { x: 1.6, y: -3.4, w: 6.8, h: 7.9, fill: { color: c(p.surface) }, line: { type: 'none' } });
-      if (input.logo) place(s, input.logo, { x: 4.3, y: 0.2, w: 1.4, h: 1.0 }, 'contain', `${event.name} logo`);
+      putLogo(pres, s, input, { x: 4.3, y: 0.2, w: 1.4, h: 1.0 }, p.surface);
       lines(inkSurface, mutedSurface, 2.9, 1.25, 4.2, 'center');
     } else if (layout === 'split') {
       s.background = { color: c(p.background) };
@@ -327,13 +360,13 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
           d.decor.cover.filter((sh) => sh.x + sh.w > 5),
         );
       s.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 5, h: H, fill: { color: c(p.primary) }, line: { type: 'none' } });
-      logoPlate({ x: 0.55, y: 0.45, w: 1.5, h: 1.05 });
+      putLogo(pres, s, input, { x: 0.55, y: 0.45, w: 1.5, h: 1.05 }, p.primary);
       lines(onPrimary, onPrimary, 0.6, 1.9, 4.0, 'left');
     } else if (layout === 'band') {
       s.background = { color: c(p.background) };
       backdrop(pres, d, s, 'cover', d.decor.cover);
       s.addShape(pres.ShapeType.rect, { x: 0, y: 1.45, w: W, h: 2.55, fill: { color: c(p.primary) }, line: { type: 'none' } });
-      logoPlate({ x: 0.5, y: 0.22, w: 1.4, h: 1.0 });
+      putLogo(pres, s, input, { x: 0.5, y: 0.22, w: 1.4, h: 1.0 }, p.background);
       lines(onPrimary, onPrimary, 0.8, 1.55, 8.4, 'left');
     } else {
       // frame, and photo: a plate over the shapes or the cover image
@@ -343,10 +376,10 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
       const plate = layout === 'photo' ? { x: 0.6, y: 2.5, w: 6.2, h: 2.65 } : { x: 1.3, y: 0.75, w: 7.4, h: 4.1 };
       s.addShape(pres.ShapeType.roundRect, { ...plate, rectRadius: 0.15, fill: { color: c(p.surface) }, line: { type: 'none' } });
       if (layout === 'photo') {
-        logoPlate({ x: 0.6, y: 0.45, w: 1.6, h: 1.1 });
+        putLogo(pres, s, input, { x: 0.6, y: 0.45, w: 1.6, h: 1.1 }, p.surface, true);
         lines(inkSurface, mutedSurface, 0.9, 2.6, 5.6, 'left');
       } else {
-        if (input.logo) place(s, input.logo, { x: 4.3, y: 0.9, w: 1.4, h: 0.85 }, 'contain', `${event.name} logo`);
+        putLogo(pres, s, input, { x: 4.3, y: 0.9, w: 1.4, h: 0.85 }, p.surface);
         lines(inkSurface, mutedSurface, 1.7, 1.9, 6.6, 'center');
       }
     }
@@ -574,7 +607,7 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
       s.addText(title('Next steps'), { ...head, x: 0.6, y: 0.85, w: 4.75, h: 0.8, fontSize: 34, color: c(textInk) });
       list(textInk, 0.6, 1.8, 4.75);
     }
-    if (input.logo && d.layouts.closing !== 'band') place(s, input.logo, { x: 0.6, y: 4.35, w: 1.1, h: 0.65 }, 'contain', `${event.name} logo`);
+    if (d.layouts.closing !== 'band') putLogo(pres, s, input, { x: 0.6, y: 4.35, w: 1.1, h: 0.65 }, d.layouts.closing === 'split' ? p.primary : d.art?.closing ? p.surface : p.background);
   }
 }
 
@@ -617,11 +650,7 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
       'content',
       d.decor.content.filter((sh) => !overText(sh)),
     );
-    const textX = input.logo ? 1.85 : 0.6;
-    if (input.logo) {
-      s.addShape(pres.ShapeType.roundRect, { x: 0.6, y: 0.3, w: 1.05, h: 0.7, rectRadius: 0.08, fill: { color: c(p.surface) }, line: { type: 'none' } });
-      place(s, input.logo, { x: 0.66, y: 0.34, w: 0.93, h: 0.62 }, 'contain', `${event.name} logo`);
-    }
+    const textX = putLogo(pres, s, input, { x: 0.6, y: 0.3, w: 1.05, h: 0.7 }, p.background) ? 1.85 : 0.6;
     const label = [d.uppercaseTitles ? d.deckTitle.toUpperCase() : d.deckTitle, event.shortName, session.when, d.uppercaseTitles ? plural(calls.length, 'CALL', 'CALLS') : plural(calls.length, 'call')]
       .filter(Boolean)
       .join(' · ');
@@ -686,20 +715,56 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
 
 /* ------------------------------------------------------------ in the browser */
 
-/** A server image as PNG, with its size: PowerPoint does not take every format a logo comes in. */
+/**
+ * A server image as PNG, with its size: PowerPoint does not take every format a logo comes in.
+ * Transparent margins are trimmed away (brand kits often ship a logo in the middle of a large empty
+ * square), so the logo fills the space it is given on the slide.
+ */
 export async function toDeckImage(source: DeckImageSource | null): Promise<DeckImage | null> {
   if (!source) return null;
   try {
     const blob = await (await fetch(`data:${source.mediaType};base64,${source.data}`)).blob();
     const bitmap = await createImageBitmap(blob);
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
-    return { data: canvas.toDataURL('image/png').replace(/^data:/, ''), w: bitmap.width, h: bitmap.height };
+    const full = document.createElement('canvas');
+    full.width = bitmap.width;
+    full.height = bitmap.height;
+    const ctx = full.getContext('2d')!;
+    ctx.drawImage(bitmap, 0, 0);
+    const box = opaqueBounds(ctx.getImageData(0, 0, full.width, full.height));
+    if (!box) return { data: full.toDataURL('image/png').replace(/^data:/, ''), w: full.width, h: full.height };
+    const cut = document.createElement('canvas');
+    cut.width = box.w;
+    cut.height = box.h;
+    cut.getContext('2d')!.drawImage(full, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+    return { data: cut.toDataURL('image/png').replace(/^data:/, ''), w: box.w, h: box.h };
   } catch {
     return null;
   }
+}
+
+/** The box around an image's visible pixels with a small margin, or null when nothing is transparent to trim. */
+export function opaqueBounds(img: { width: number; height: number; data: Uint8ClampedArray }): { x: number; y: number; w: number; h: number } | null {
+  let x1 = img.width;
+  let y1 = img.height;
+  let x2 = -1;
+  let y2 = -1;
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      if (img.data[(y * img.width + x) * 4 + 3]! > 12) {
+        if (x < x1) x1 = x;
+        if (x > x2) x2 = x;
+        if (y < y1) y1 = y;
+        if (y > y2) y2 = y;
+      }
+    }
+  }
+  if (x2 < 0) return null; // wholly transparent: leave it
+  const pad = Math.round(Math.max(x2 - x1, y2 - y1) * 0.02);
+  const x = Math.max(0, x1 - pad);
+  const y = Math.max(0, y1 - pad);
+  const w = Math.min(img.width, x2 + pad + 1) - x;
+  const h = Math.min(img.height, y2 + pad + 1) - y;
+  return w === img.width && h === img.height ? null : { x, y, w, h };
 }
 
 /** Builds the deck and hands it to the browser to save. */

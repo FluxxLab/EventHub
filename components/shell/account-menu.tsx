@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 
 import { Avatar } from '@/components/shell/avatar';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { TransitionScreen } from '@/components/ui/transition-screen';
 import { session, type StaffUser, TIER_LABEL } from '@/lib/auth/session';
 import { PROFILE_HREF } from '@/lib/nav';
 import { dropdownItem, dropdownPanel } from '@/components/ui/use-anchored';
@@ -121,8 +122,9 @@ export function AccountMenu({ user }: { user: StaffUser }) {
         </div>
       )}
 
+      {signingOut && <TransitionScreen label="Signing out…" />}
       <ConfirmDialog
-        open={confirming}
+        open={confirming && !signingOut}
         title="Log out?"
         confirmLabel="Log out"
         pendingLabel="Logging out…"

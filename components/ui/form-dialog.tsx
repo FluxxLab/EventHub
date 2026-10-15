@@ -3,6 +3,7 @@
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { useEffect, useId, useRef, type FormEvent, type ReactNode } from 'react';
 
+import { Spinner } from '@/components/ui/spinner';
 import { buttonClass } from '@/components/ui/button';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import type { HeroIcon } from '@/lib/nav';
@@ -74,6 +75,7 @@ export function FormDialog({
             Cancel
           </button>
           <button type="submit" disabled={pending} className={buttonClass()}>
+            {pending && <Spinner />}
             {pending ? pendingLabel : submitLabel}
           </button>
         </ModalActions>
