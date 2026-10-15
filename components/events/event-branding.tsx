@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircleIcon, CheckIcon, PaintBrushIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, CheckIcon, DocumentTextIcon, PaintBrushIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { Field } from '@/components/ui/field';
@@ -12,7 +12,94 @@ import { useSaveBranding, type BrandingChange } from '@/lib/events/use-editions'
 import { cn } from '@/lib/utils';
 
 /** What the event has now, for the previews. */
-type Current = Pick<Edition, 'name' | 'shortName'> & { coverUrl?: string | null; logoUrl?: string | null; brandColor?: string | null };
+type Current = Pick<Edition, 'name' | 'shortName'> & {
+  coverUrl?: string | null;
+  logoUrl?: string | null;
+  brandColor?: string | null;
+  logoDarkUrl?: string | null;
+  brandGuideUrl?: string | null;
+  brandGuideName?: string | null;
+};
+
+/** The largest brand guide accepted: the decks' designer reads guides up to about this size. */
+const MAX_GUIDE_MB = 24;
+
+/** The brand guide: a PDF the call-to-action decks are designed from. Shown by name. */
+function GuidePick({
+  id,
+  file,
+  current,
+  onChange,
+}: {
+  id: string;
+  file: File | null | undefined;
+  current: { url?: string | null; name?: string | null };
+  onChange: (file: File | null | undefined) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const name = file === undefined ? (current.url ? (current.name ?? 'Brand guide.pdf') : null) : (file?.name ?? null);
+  const pick = (f: File | undefined) => {
+    if (!f) return;
+    const why = f.type !== 'application/pdf' ? 'Choose a PDF.' : f.size > MAX_GUIDE_MB * 1024 * 1024 ? `The guide must be ${MAX_GUIDE_MB} MB or smaller.` : null;
+    setProblem(why);
+    if (!why) onChange(f);
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div
+        className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-surface-soft px-4 py-3"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          pick(e.dataTransfer.files[0]);
+        }}
+      >
+        <DocumentTextIcon className="size-6 shrink-0 text-placeholder" aria-hidden />
+        <div className="min-w-0 flex-1">
+          {name ? (
+            current.url && file === undefined ? (
+              <a href={current.url} target="_blank" rel="noreferrer" className="block truncate text-sm text-primary hover:underline">
+                {name}
+              </a>
+            ) : (
+              <p className="truncate text-sm text-ink">{name}</p>
+            )
+          ) : (
+            <p className="text-sm text-placeholder">No brand guide yet</p>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <button type="button" onClick={() => input.current?.click()} className="font-medium text-primary hover:underline">
+          {name ? 'Replace' : 'Choose the PDF'}
+        </button>
+        {name && (
+          <button type="button" onClick={() => onChange(null)} className="text-[#525252] hover:underline">
+            Remove
+          </button>
+        )}
+        {file !== undefined && (
+          <button type="button" onClick={() => onChange(undefined)} className="text-[#525252] hover:underline">
+            Undo
+          </button>
+        )}
+      </div>
+      <input
+        ref={input}
+        id={id}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="sr-only"
+        onChange={(e) => {
+          pick(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      {problem && <p className="text-sm text-danger">{problem}</p>}
+    </div>
+  );
+}
 
 /** A picked file's preview URL, released when it changes or the form closes. */
 function useFileUrl(file: File | null | undefined): string | null {
@@ -27,7 +114,22 @@ function useShown(file: File | null | undefined, current: string | null | undefi
   return file === undefined ? (current ?? null) : picked;
 }
 
-function ImagePick({ id, kind, file, shown, onChange }: { id: string; kind: 'cover' | 'logo'; file: File | null | undefined; shown: string | null; onChange: (file: File | null | undefined) => void }) {
+function ImagePick({
+  id,
+  kind,
+  file,
+  shown,
+  onChange,
+  dark = false,
+}: {
+  id: string;
+  kind: 'cover' | 'logo';
+  file: File | null | undefined;
+  shown: string | null;
+  onChange: (file: File | null | undefined) => void;
+  /** Preview on a dark ground: the logo for dark backgrounds. */
+  dark?: boolean;
+}) {
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const pick = (f: File | undefined) => {
@@ -39,7 +141,11 @@ function ImagePick({ id, kind, file, shown, onChange }: { id: string; kind: 'cov
   return (
     <div className="flex flex-col gap-2">
       <div
-        className={cn('relative flex items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-surface-soft', kind === 'cover' ? 'aspect-[16/9] w-full' : 'size-24')}
+        className={cn(
+          'relative flex items-center justify-center overflow-hidden rounded-lg border border-dashed border-border',
+          dark ? 'bg-[#1a1f36]' : 'bg-surface-soft',
+          kind === 'cover' ? 'aspect-[16/9] w-full' : 'size-24',
+        )}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
@@ -175,6 +281,7 @@ function AppPreview({ current, cover, logo, colour }: { current: Current; cover:
 export function EventBrandingFields({ id, current, value, onChange }: { id: string; current: Current; value: BrandingChange; onChange: (next: BrandingChange) => void }) {
   const cover = useShown(value.cover, current.coverUrl);
   const logo = useShown(value.logo, current.logoUrl);
+  const logoDark = useShown(value.logoDark, current.logoDarkUrl);
   const colour = (value.brandColor === undefined ? current.brandColor : value.brandColor) ?? PIC_NAVY;
   return (
     <>
@@ -183,6 +290,18 @@ export function EventBrandingFields({ id, current, value, onChange }: { id: stri
       </Field>
       <Field id={`${id}-logo`} label="Logo" optional hint="Square, with a transparent or white background; up to 2 MB.">
         <ImagePick id={`${id}-logo`} kind="logo" file={value.logo} shown={logo} onChange={(logo) => onChange({ ...value, logo })} />
+      </Field>
+      <Field id={`${id}-logo-dark`} label="Logo for dark backgrounds" optional hint="The version for dark slides and panels (usually a white wordmark). Used in the call-to-action decks.">
+        <ImagePick id={`${id}-logo-dark`} kind="logo" dark file={value.logoDark} shown={logoDark} onChange={(logoDark) => onChange({ ...value, logoDark })} />
+      </Field>
+      <Field
+        id={`${id}-guide`}
+        label="Brand guide"
+        optional
+        className="sm:col-span-2"
+        hint={`The event's brand guidelines as a PDF, up to ${MAX_GUIDE_MB} MB. Call-to-action decks are designed from it: its colours, fonts and logo rules.`}
+      >
+        <GuidePick id={`${id}-guide`} file={value.guide} current={{ url: current.brandGuideUrl, name: current.brandGuideName }} onChange={(guide) => onChange({ ...value, guide })} />
       </Field>
       <Field id={`${id}-colour`} label="Button colour" hint="For the event’s buttons and highlights in the app. The text on it turns white or black to stay readable.">
         <ColourPick id={`${id}-colour`} value={colour} onChange={(hex) => onChange({ ...value, brandColor: hex === PIC_NAVY && !current.brandColor ? undefined : hex })} />
@@ -196,7 +315,8 @@ export function EventBrandingFields({ id, current, value, onChange }: { id: stri
 }
 
 /** Nothing to save: every field left as it was. */
-export const brandingUnchanged = (change: BrandingChange) => change.cover === undefined && change.logo === undefined && change.brandColor === undefined;
+export const brandingUnchanged = (change: BrandingChange) =>
+  change.cover === undefined && change.logo === undefined && change.brandColor === undefined && change.logoDark === undefined && change.guide === undefined;
 
 /** The Events table's Branding dialog: the same fields, saved on their own. */
 export function EventBrandingDialog({ edition, onClose }: { edition: Edition | null; onClose: () => void }) {

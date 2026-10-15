@@ -43,6 +43,10 @@ export type Edition = {
   /** The cover and logo as URLs the console can show (uploads are stored as keys). */
   coverUrl?: string | null;
   logoUrl?: string | null;
+  /** The logo drawn for dark backgrounds, and the brand guide (a PDF) the decks are designed from. */
+  logoDarkUrl?: string | null;
+  brandGuideUrl?: string | null;
+  brandGuideName?: string | null;
   /** The event's button colour in the app, #rrggbb, or null for PIC navy. */
   brandColor?: string | null;
   createdAt: string;

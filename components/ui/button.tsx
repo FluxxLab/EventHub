@@ -46,7 +46,7 @@ export function buttonClass({
   className,
 }: { style?: ButtonStyle; color?: ButtonColor; iconOnly?: boolean; className?: string } = {}) {
   return cn(
-    'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded text-sm font-normal whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50',
+    'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded text-sm font-normal whitespace-nowrap transition-[color,background-color,border-color,transform] duration-150 motion-safe:active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50',
     iconOnly ? 'w-9' : 'px-3',
     COLORS[style][color],
     className,

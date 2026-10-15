@@ -3,6 +3,7 @@
 import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from 'react';
 
+import { Spinner } from '@/components/ui/spinner';
 import { buttonClass } from '@/components/ui/button';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 
@@ -75,6 +76,7 @@ export function ConfirmDialog({
             Cancel
           </button>
           <button type="button" onClick={onConfirm} disabled={pending} className={buttonClass({ color: tone === 'danger' ? 'danger' : 'primary' })}>
+            {pending && <Spinner />}
             {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
           </button>
         </ModalActions>

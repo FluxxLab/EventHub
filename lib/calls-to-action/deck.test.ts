@@ -6,7 +6,25 @@ import PptxGenJS from 'pptxgenjs';
 import { describe, expect, it } from 'vitest';
 
 import type { CallToAction } from './calls-to-action';
-import { actorOf, addDeckSlides, addSessionSlides, byline, chunk, contrast, fallbackDesign, groupCalls, overText, readable, spread, svgData, timelineOf, type DeckDesign } from './deck';
+import {
+  actorOf,
+  addDeckSlides,
+  addSessionSlides,
+  byline,
+  chunk,
+  contrast,
+  fallbackDesign,
+  groupCalls,
+  overText,
+  readable,
+  spread,
+  svgData,
+  timelineOf,
+  logoFor,
+  opaqueBounds,
+  type DeckDesign,
+  type DeckImage,
+} from './deck';
 
 let n = 0;
 const call = (over: Partial<CallToAction>): CallToAction => {
@@ -67,6 +85,12 @@ const SAMPLE: CallToAction[] = [
 const TITLES: Record<string, string> = { s1: 'Opening plenary: data for inclusion', s2: 'Financing women-led enterprise', s3: 'Ending GBV: from law to practice' };
 const EVENT = { name: 'GS-26 Gender and Inclusion Summit', shortName: 'GS-26', when: '8 – 9 Sept 2026', where: 'Abuja' };
 
+/** A PNG on disk as a deck image: "path|width|height". */
+const fileImage = (spec: string): DeckImage => {
+  const [path, w, h] = spec.split('|');
+  return { data: `image/png;base64,${readFileSync(path!).toString('base64')}`, w: Number(w), h: Number(h) };
+};
+
 /** Builds a deck from a design; with `out`, also saves it there (for looking at it in PowerPoint). */
 async function build(design: DeckDesign, out?: string) {
   const pres = new PptxGenJS();
@@ -75,7 +99,8 @@ async function build(design: DeckDesign, out?: string) {
     design,
     calls: SAMPLE,
     sessionTitle: (id) => (id ? (TITLES[id] ?? 'A removed session') : 'No session'),
-    logo: { data: `image/png;base64,${readFileSync(join(process.cwd(), 'public/pic-logo.png')).toString('base64')}`, w: 428, h: 467 },
+    logo: process.env.LOGO_LIGHT ? fileImage(process.env.LOGO_LIGHT) : { data: `image/png;base64,${readFileSync(join(process.cwd(), 'public/pic-logo.png')).toString('base64')}`, w: 428, h: 467 },
+    logoDark: process.env.LOGO_DARK ? fileImage(process.env.LOGO_DARK) : null,
     cover: null,
   });
   const file = (await pres.write({ outputType: 'nodebuffer' })) as Buffer;
@@ -113,6 +138,26 @@ describe('calls-to-action deck', () => {
     const data = svgData('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><rect fill="#7a1f5c"/></svg>');
     expect(data.startsWith('data:image/svg+xml;base64,')).toBe(true);
     expect(atob(data.split(',')[1]!)).toContain('#7a1f5c');
+  });
+
+  it('puts the right logo on each ground, and a plate only when it must', () => {
+    const light: DeckImage = { data: 'light', w: 10, h: 3 };
+    const dark: DeckImage = { data: 'dark', w: 10, h: 3 };
+    expect(logoFor('#1533DF', light, dark)).toEqual({ img: dark, plate: null }); // Build blue: the white wordmark
+    expect(logoFor('#FFFFFF', light, dark)).toEqual({ img: light, plate: null });
+    expect(logoFor('#1533DF', light, null)).toEqual({ img: light, plate: '#FFFFFF' }); // no dark version: on a plate
+    expect(logoFor('#FFFFFF', null, null)).toBeNull();
+  });
+
+  it("trims a logo's transparent margins, and leaves a full picture alone", () => {
+    const img = (w: number, h: number, on: (x: number, y: number) => boolean) => {
+      const data = new Uint8ClampedArray(w * h * 4);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) data[(y * w + x) * 4 + 3] = on(x, y) ? 255 : 0;
+      return { width: w, height: h, data };
+    };
+    expect(opaqueBounds(img(100, 100, (x, y) => x >= 20 && x < 80 && y >= 45 && y < 55))).toEqual({ x: 19, y: 44, w: 62, h: 12 });
+    expect(opaqueBounds(img(10, 10, () => true))).toBeNull();
+    expect(opaqueBounds(img(10, 10, () => false))).toBeNull();
   });
 
   it('keeps decoration off the text of content slides', () => {

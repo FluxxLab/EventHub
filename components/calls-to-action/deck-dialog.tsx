@@ -88,6 +88,7 @@ export function DeckDialog({
             calls,
             sessionTitle: titleOf,
             logo: await toDeckImage(answer?.logo ?? null),
+            logoDark: await toDeckImage(answer?.logoDark ?? null),
             cover: await toDeckImage(answer?.cover ?? null),
             ...(kind === 'session' ? { session: { title: session!.title, when } } : {}),
           },
@@ -95,7 +96,9 @@ export function DeckDialog({
         );
         toast.push({
           title: kind === 'session' ? 'Session slide downloaded' : 'End-of-day deck downloaded',
-          body: answer?.design ? `Designed for ${edition.shortName}: ${design.rationale}` : `Drawn in ${edition.shortName}'s colours${answer?.reason ? ` (${answer.reason})` : ''}.`,
+          body: answer?.design
+            ? `Designed for ${edition.shortName}${answer.guided ? ', following its brand guide' : ''}: ${design.rationale}`
+            : `Drawn in ${edition.shortName}'s colours${answer?.reason ? ` (${answer.reason})` : ''}.`,
           leading: { kind: 'icon', icon: PresentationChartBarIcon, tone: 'success' },
         });
         onClose();

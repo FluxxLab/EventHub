@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDownIcon, ArrowDownTrayIcon, ArrowUpIcon, ArrowsUpDownIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownIcon, ArrowDownTrayIcon, ArrowUpIcon, ArrowsUpDownIcon, PlusIcon, SwatchIcon, TagIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useMemo, useState } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
@@ -24,8 +24,6 @@ import {
   type SortKey,
 } from '@/lib/events/events';
 import { useSession } from '@/lib/auth/session';
-import { activeValues, topicsSummary } from '@/lib/catalog/topics';
-import { useInterestLibrary, useTrackLibrary } from '@/lib/catalog/use-topics';
 import { useEditions, useDeleteEdition } from '@/lib/events/use-editions';
 import { cn } from '@/lib/utils';
 
@@ -100,8 +98,6 @@ export default function EventsPage() {
       },
     });
   };
-  const tracks = useTrackLibrary();
-  const interests = useInterestLibrary();
   const toast = useToast();
   const rows = useMemo(() => sortEditions(editions.data ?? [], sort), [editions.data, sort]);
 
@@ -154,27 +150,12 @@ export default function EventsPage() {
           </div>
         ) : (
           <div className="relative overflow-x-auto">
-            <table className="w-full min-w-[64rem] border-collapse">
+            <table className="w-full min-w-[40rem] border-collapse">
               <thead>
                 <tr>
                   <SortHeader label="Event" sortKey="name" sort={sort} onSort={onSort} />
-                  <SortHeader label="Dates" sortKey="startsAt" sort={sort} onSort={onSort} />
-                  <th scope="col" className={th}>
-                    Venue
-                  </th>
-                  <th scope="col" className={th}>
-                    Category
-                  </th>
+                  <SortHeader label="Dates & venue" sortKey="startsAt" sort={sort} onSort={onSort} />
                   <SortHeader label="Status" sortKey="status" sort={sort} onSort={onSort} />
-                  <th scope="col" className={th}>
-                    Registration
-                  </th>
-                  <th scope="col" className={th}>
-                    Tracks &amp; interests
-                  </th>
-                  <th scope="col" className={th}>
-                    Branding
-                  </th>
                   <th scope="col" className={cn(th, 'w-24')}>
                     <span className="sr-only">Actions</span>
                   </th>
@@ -184,14 +165,14 @@ export default function EventsPage() {
                 {editions.isPending ? (
                   [0, 1, 2, 3].map((i) => (
                     <tr key={i} className="even:bg-[#f6f6f6]">
-                      <td colSpan={9} className={td}>
+                      <td colSpan={4} className={td}>
                         <Skeleton className="h-6" />
                       </td>
                     </tr>
                   ))
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted">
+                    <td colSpan={4} className="px-4 py-12 text-center text-sm text-muted">
                       {canCreate ? (
                         <>
                           No events yet.{' '}
@@ -214,62 +195,31 @@ export default function EventsPage() {
                           <div className="min-w-0 leading-tight">
                             <p className="truncate text-sm text-[#525252]">{edition.name}</p>
                             <p className="truncate text-xs text-placeholder">
-                              {edition.shortName}
+                              {edition.shortName} · {categoryLabel(edition.category)}
                               {edition.isCurrent && ' · Live in the app'}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className={cn(td, 'whitespace-nowrap')}>{dateRange(edition.startsAt, edition.endsAt)}</td>
-                      <td className={cn(td, 'max-w-56 truncate')}>{placeOf(edition) || <span className="text-placeholder">Not set</span>}</td>
-                      <td className={td}>{categoryLabel(edition.category)}</td>
                       <td className={td}>
-                        <Tag tone={STATUS_TONE[edition.status]} dot>
-                          {STATUS_LABEL[edition.status]}
-                        </Tag>
+                        <p className="whitespace-nowrap text-sm text-[#525252]">{dateRange(edition.startsAt, edition.endsAt)}</p>
+                        <p className="max-w-64 truncate text-xs text-placeholder">{placeOf(edition) || 'Venue not set'}</p>
                       </td>
                       <td className={td}>
-                        <Tag tone={edition.registrationOpen ? 'green' : 'gray'} dot>
-                          {edition.registrationOpen ? 'Open' : 'Closed'}
-                        </Tag>
-                      </td>
-                      <td className={td}>
-                        <button
-                          type="button"
-                          onClick={() => setTopicsFor(edition)}
-                          aria-label={`Tracks and interests for ${edition.name}`}
-                          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded text-sm text-primary hover:underline"
-                        >
-                          {edition.trackValues || edition.interestValues
-                            ? topicsSummary(edition.trackValues?.length ?? 0, edition.interestValues?.length ?? 0)
-                            : tracks.data && interests.data
-                              ? topicsSummary(activeValues(tracks.data).length, activeValues(interests.data).length)
-                              : 'Choose'}
-                          <PencilSquareIcon className="size-4" />
-                        </button>
-                      </td>
-                      <td className={td}>
-                        {canCreate ? (
-                          <button
-                            type="button"
-                            onClick={() => setBrandingFor(edition)}
-                            aria-label={`Branding for ${edition.name}`}
-                            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded text-sm text-primary hover:underline"
-                          >
-                            <span className="size-3.5 rounded-full border border-black/10" style={{ background: edition.brandColor ?? '#002d74' }} aria-hidden />
-                            {edition.coverUrl || edition.logoUrl || edition.brandColor ? 'Edit' : 'Add'}
-                            <PencilSquareIcon className="size-4" />
-                          </button>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-sm text-[#525252]">
-                            <span className="size-3.5 rounded-full border border-black/10" style={{ background: edition.brandColor ?? '#002d74' }} aria-hidden />
-                            {edition.brandColor ? edition.brandColor.toUpperCase() : 'PIC navy'}
-                          </span>
-                        )}
+                        <div className="flex flex-col items-start gap-1">
+                          <Tag tone={STATUS_TONE[edition.status]} dot>
+                            {STATUS_LABEL[edition.status]}
+                          </Tag>
+                          <span className="text-xs text-placeholder">Registration {edition.registrationOpen ? 'open' : 'closed'}</span>
+                        </div>
                       </td>
                       <td className={cn(td, 'text-right')}>
                         <RowActions
                           name={edition.name}
+                          actions={[
+                            { label: 'Tracks & interests', icon: TagIcon, onSelect: () => setTopicsFor(edition) },
+                            ...(canCreate ? [{ label: 'Branding', icon: SwatchIcon, onSelect: () => setBrandingFor(edition) }] : []),
+                          ]}
                           onEdit={() => setEditing(edition)}
                           onDelete={
                             canCreate
