@@ -6,7 +6,7 @@ import PptxGenJS from 'pptxgenjs';
 import { describe, expect, it } from 'vitest';
 
 import type { CallToAction } from './calls-to-action';
-import { actorOf, addDeckSlides, addSessionSlides, byline, chunk, contrast, fallbackDesign, groupCalls, overText, readable, spread, timelineOf, type DeckDesign } from './deck';
+import { actorOf, addDeckSlides, addSessionSlides, byline, chunk, contrast, fallbackDesign, groupCalls, overText, readable, spread, svgData, timelineOf, type DeckDesign } from './deck';
 
 let n = 0;
 const call = (over: Partial<CallToAction>): CallToAction => {
@@ -107,6 +107,12 @@ describe('calls-to-action deck', () => {
     expect(readable('#FFFFFF', '#F5C400')).toBe('#1A1A1A'); // yellow on white does not read
     expect(readable('#002D74', '#FFFFFF')).toBe('#FFFFFF');
     expect(contrast(readable('#6B2C91', '#7A3AA0'), '#6B2C91')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('hands SVG artwork over as a full data URL, which the browser can load', () => {
+    const data = svgData('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><rect fill="#7a1f5c"/></svg>');
+    expect(data.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    expect(atob(data.split(',')[1]!)).toContain('#7a1f5c');
   });
 
   it('keeps decoration off the text of content slides', () => {
