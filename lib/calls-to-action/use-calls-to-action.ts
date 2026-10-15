@@ -35,8 +35,11 @@ export function useCallActions(editionId: string) {
 
   /** Reads what the session said since its last analysis; a minute or two for a long session. */
   const analyse = useMutation({
-    mutationFn: (sessionId: string) =>
-      DEMO_MODE ? Promise.resolve<AnalyseResult>({ added: [], read: 0, message: 'Analysis needs the server.' }) : api.post<AnalyseResult>(`/sessions/${sessionId}/analyse`),
+    /** `fromStart` reads the whole session again, not only what was said since the last analysis. */
+    mutationFn: ({ sessionId, fromStart = false }: { sessionId: string; fromStart?: boolean }) =>
+      DEMO_MODE
+        ? Promise.resolve<AnalyseResult>({ added: [], read: 0, message: 'Analysis needs the server.' })
+        : api.post<AnalyseResult>(`/sessions/${sessionId}/analyse${fromStart ? '?fromStart=true' : ''}`),
     onSuccess: refresh,
   });
   const create = useMutation({
