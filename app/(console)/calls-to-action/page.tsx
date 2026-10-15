@@ -15,6 +15,7 @@ import {
 import { useMemo, useState } from 'react';
 
 import { CallDialog } from '@/components/calls-to-action/call-dialog';
+import { DeckDialog } from '@/components/calls-to-action/deck-dialog';
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
@@ -23,7 +24,7 @@ import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { callsCsv, countByStatus, filterCalls, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
 import { useCallActions, useCallsToAction, useCallTargets } from '@/lib/calls-to-action/use-calls-to-action';
-import { dateRange, type Edition } from '@/lib/events/events';
+import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { timeRange } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
@@ -57,7 +58,7 @@ function Board({ edition }: { edition: Edition }) {
   const [editing, setEditing] = useState<{ call: CallToAction | null } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
-  const [building, setBuilding] = useState(false);
+  const [deckOpen, setDeckOpen] = useState(false);
   const [fromStart, setFromStart] = useState(false);
 
   const sessionList = useMemo(() => (sessions.data ?? []).filter((s) => s.type !== 'break').sort((a, b) => a.startsAt.localeCompare(b.startsAt)), [sessions.data]);
@@ -110,24 +111,6 @@ function Board({ edition }: { edition: Edition }) {
     link.download = `${edition.shortName}-calls-to-action.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  };
-  const deck = () => {
-    setBuilding(true);
-    void (async () => {
-      try {
-        const { downloadDeck, picLogo } = await import('@/lib/calls-to-action/deck');
-        await downloadDeck({
-          event: { name: edition.name, shortName: edition.shortName, when: dateRange(edition.startsAt, edition.endsAt), where: edition.city ?? edition.venue },
-          calls: items,
-          sessionTitle: titleOf,
-          logo: await picLogo(),
-        });
-      } catch (e) {
-        toast.push({ title: 'Deck not made', body: e instanceof Error ? e.message : 'Try again.' });
-      } finally {
-        setBuilding(false);
-      }
-    })();
   };
   const merge = () => {
     const into = chosen.includes(keep) ? keep : chosen[0]!;
@@ -198,9 +181,9 @@ function Board({ edition }: { edition: Edition }) {
               <ArrowDownTrayIcon className="size-4" />
               Export approved
             </button>
-            <button type="button" onClick={deck} disabled={counts.approved === 0 || building} className={buttonClass({ style: 'outline', color: 'gray' })}>
+            <button type="button" onClick={() => setDeckOpen(true)} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
               <PresentationChartBarIcon className="size-4" />
-              {building ? 'Making the deck…' : 'Download deck'}
+              Make a deck
             </button>
             <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
               <PlusIcon className="size-4" />
@@ -336,6 +319,8 @@ function Board({ edition }: { edition: Edition }) {
           </ul>
         )}
       </section>
+
+      {deckOpen && <DeckDialog open edition={edition} items={items} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setDeckOpen(false)} />}
 
       {editing && (
         <CallDialog

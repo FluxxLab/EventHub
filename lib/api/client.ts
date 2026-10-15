@@ -198,6 +198,8 @@ export const api = {
   /** A binary file (PDF) as a Blob, same auth and errors. */
   getBlob: (path: string, params?: Params) => request<Blob>(path, { params, expect: 'blob', timeoutMs: 60_000 }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
+  /** A POST the server takes minutes over (an AI analysis or design): waits up to five minutes. */
+  postSlow: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body, timeoutMs: 300_000 }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   delete: <T>(path: string, body?: unknown) => request<T>(path, { method: 'DELETE', body }),

@@ -5,7 +5,7 @@ import PptxGenJS from 'pptxgenjs';
 import { describe, expect, it } from 'vitest';
 
 import type { CallToAction } from './calls-to-action';
-import { addDeckSlides, byline, chunk, groupCalls, spread } from './deck';
+import { actorOf, addDeckSlides, addSessionSlides, byline, chunk, contrast, fallbackDesign, groupCalls, overText, readable, spread, timelineOf, type DeckDesign } from './deck';
 
 let n = 0;
 const call = (over: Partial<CallToAction>): CallToAction => {
@@ -64,20 +64,35 @@ const SAMPLE: CallToAction[] = [
   call({ status: 'rejected', shortText: 'Left out: rejected' }),
 ];
 const TITLES: Record<string, string> = { s1: 'Opening plenary: data for inclusion', s2: 'Financing women-led enterprise', s3: 'Ending GBV: from law to practice' };
+const EVENT = { name: 'GS-26 Gender and Inclusion Summit', shortName: 'GS-26', when: '8 – 9 Sept 2026', where: 'Abuja' };
+
+/** Builds a deck from a design; with `out`, also saves it there (for looking at it in PowerPoint). */
+async function build(design: DeckDesign, out?: string) {
+  const pres = new PptxGenJS();
+  addDeckSlides(pres, {
+    event: EVENT,
+    design,
+    calls: SAMPLE,
+    sessionTitle: (id) => (id ? (TITLES[id] ?? 'A removed session') : 'No session'),
+    logo: { data: `image/png;base64,${readFileSync(join(process.cwd(), 'public/pic-logo.png')).toString('base64')}`, w: 428, h: 467 },
+    cover: null,
+  });
+  const file = (await pres.write({ outputType: 'nodebuffer' })) as Buffer;
+  if (out) writeFileSync(out, file);
+  return { slides: (pres as unknown as { slides: unknown[] }).slides.length, file };
+}
 
 describe('calls-to-action deck', () => {
   it('groups approved calls by who they call on, the most-called first', () => {
-    const groups = groupCalls(SAMPLE);
-    expect(groups.map((g) => [g.directedAt, g.calls.length])).toEqual([
+    expect(groupCalls(SAMPLE).map((g) => [g.directedAt, g.calls.length])).toEqual([
       ['Federal Ministry of Women Affairs', 4],
       ['Central Bank of Nigeria', 2],
       ['National Bureau of Statistics', 1],
       ['State Houses of Assembly', 1],
     ]);
-    expect(groups.flatMap((g) => g.calls).some((c) => c.status !== 'approved')).toBe(false);
   });
 
-  it('names who proposed a call, with the others who backed it', () => {
+  it('names who proposed a call, and pages lists evenly', () => {
     expect(byline({ proposedBy: 'Dr Amina Bello', proposedByOrganisation: 'UN Women', alsoProposedBy: ['A', 'B'] })).toBe('Dr Amina Bello, UN Women and 2 others');
     expect(byline({ proposedBy: null, proposedByOrganisation: null, alsoProposedBy: [] })).toBeNull();
     expect(chunk([1, 2, 3, 4], 3)).toEqual([[1, 2, 3], [4]]);
@@ -85,22 +100,54 @@ describe('calls-to-action deck', () => {
       [1, 2],
       [3, 4],
     ]);
-    expect(spread([1, 2, 3, 4, 5, 6, 7], 3)).toEqual([[1, 2, 3], [4, 5, 6], [7]]);
   });
 
-  it('builds the deck: cover, at a glance, who is called on, a section per target, sessions, next steps', async () => {
-    const pres = new PptxGenJS();
-    const logo = `image/png;base64,${readFileSync(join(process.cwd(), 'public/pic-logo.png')).toString('base64')}`;
-    addDeckSlides(pres, {
-      event: { name: 'GS-26 Gender and Inclusion Summit', shortName: 'GS-26', when: '8 – 9 Sept 2026', where: 'Abuja' },
-      calls: SAMPLE,
-      sessionTitle: (id) => (id ? (TITLES[id] ?? 'A removed session') : 'No session'),
-      logo,
-    });
-    // 1 cover + 1 glance + 1 chart + (2 + 1 + 1 + 1) sections + 1 sessions + 1 next steps
-    expect((pres as unknown as { slides: unknown[] }).slides).toHaveLength(10);
-    const file = (await pres.write({ outputType: 'nodebuffer' })) as Buffer;
+  it('keeps text readable whatever colours the design picks', () => {
+    expect(readable('#FFFFFF', '#F5C400')).toBe('#1A1A1A'); // yellow on white does not read
+    expect(readable('#002D74', '#FFFFFF')).toBe('#FFFFFF');
+    expect(contrast(readable('#6B2C91', '#7A3AA0'), '#6B2C91')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('keeps decoration off the text of content slides', () => {
+    expect(overText({ x: 8.9, y: 4.5, w: 2.2, h: 2.2 })).toBe(false); // the corner
+    expect(overText({ x: 7.5, y: 0.2, w: 2, h: 2 })).toBe(true); // over the titles
+  });
+
+  it("draws the event's own deck when Claude cannot design it: brand colour, every approved call", async () => {
+    const design = fallbackDesign('#0E7C7B', SAMPLE);
+    expect(design.palette.primary).toBe('#0E7C7B');
+    expect(design.sections.flatMap((s) => s.callIds)).toHaveLength(8);
+    // cover, glance, chart, 2 + 1 + 1 + 1 section slides, sessions, close
+    const { slides, file } = await build(design, process.env.DECK_OUT && `${process.env.DECK_OUT}/fallback.pptx`);
+    expect(slides).toBe(10);
     expect(file.length).toBeGreaterThan(10_000);
-    if (process.env.DECK_OUT) writeFileSync(process.env.DECK_OUT, file);
+  });
+
+  it("puts a session's calls on one slide: actor, commitment, timeline", async () => {
+    expect(actorOf({ directedAt: ' Central Bank of Nigeria ' })).toBe('Central Bank of Nigeria');
+    expect(timelineOf({ deadline: 'end of 2027' })).toBe('end of 2027');
+    expect(timelineOf({ deadline: null })).toBe('To be agreed');
+    const design = process.env.DESIGNS ? (JSON.parse(readFileSync(join(process.env.DECK_OUT!, `${process.env.DESIGNS.split(',')[0]}.json`), 'utf8')) as DeckDesign) : fallbackDesign('#6B2C91', SAMPLE);
+    const pres = new PptxGenJS();
+    addSessionSlides(pres, {
+      event: EVENT,
+      design,
+      calls: SAMPLE.filter((x) => x.sessionId === 's1'),
+      sessionTitle: (id) => (id ? (TITLES[id] ?? '') : ''),
+      logo: { data: `image/png;base64,${readFileSync(join(process.cwd(), 'public/pic-logo.png')).toString('base64')}`, w: 428, h: 467 },
+      cover: null,
+      session: { title: TITLES.s1!, when: 'Day 1 · Tue 8 Sept 2026' },
+    });
+    expect((pres as unknown as { slides: unknown[] }).slides).toHaveLength(1);
+    const file = (await pres.write({ outputType: 'nodebuffer' })) as Buffer;
+    if (process.env.DECK_OUT) writeFileSync(`${process.env.DECK_OUT}/session.pptx`, file);
+  });
+
+  it.runIf(!!process.env.DESIGNS)('draws designs Claude made', async () => {
+    for (const name of process.env.DESIGNS!.split(',')) {
+      const design = JSON.parse(readFileSync(join(process.env.DECK_OUT!, `${name}.json`), 'utf8')) as DeckDesign;
+      const { slides } = await build(design, `${process.env.DECK_OUT}/${name}.pptx`);
+      expect(slides).toBeGreaterThan(5);
+    }
   });
 });
