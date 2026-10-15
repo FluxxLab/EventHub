@@ -19,7 +19,7 @@ import { useId, useMemo, useState, type ComponentType, type ReactNode, type SVGP
 
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
-import { Card, Skeleton } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Tag } from '@/components/ui/tag';
@@ -77,14 +77,13 @@ function Notice({ tone, icon: Icon, children }: { tone: 'danger' | 'gold'; icon:
   );
 }
 
-/** One of the live session's figures, as a row: what it is on the left, the figure on the right. */
+/** One of the live session's figures, inline: icon, figure, what it counts. */
 function RoomFigure({ icon: Icon, label, children }: { icon: Icon; label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <dt className="flex items-center gap-2 text-sm text-[#525252]">
-        <Icon className="size-4 text-[#7c7c7c]" /> {label}
-      </dt>
-      <dd className="text-sm font-medium tabular-nums text-ink">{children}</dd>
+    <div className="flex items-center gap-2">
+      <dt className="sr-only">{label}</dt>
+      <Icon className="size-4 text-[#7c7c7c]" aria-hidden />
+      <dd className="flex items-center gap-1.5 text-sm text-[#525252]">{children}</dd>
     </div>
   );
 }
@@ -148,140 +147,144 @@ function RoomCard({
     <Tag>Idle</Tag>
   );
 
+  const actions = canControl && (live || state.next) && (
+    <div className="flex flex-wrap items-center gap-2">
+      {live && (
+        <button type="button" onClick={() => onEnd(live)} className={buttonClass({ style: 'outline', color: 'danger' })}>
+          <StopCircleIcon className="size-4" />
+          End
+        </button>
+      )}
+      {state.next && (
+        <button type="button" onClick={() => onStart(state.next!)} className={buttonClass()}>
+          <PlayCircleIcon className="size-4" />
+          {live ? 'Start next' : 'Go live'}
+        </button>
+      )}
+    </div>
+  );
+
+  const next = state.next ? (
+    <p className="truncate text-sm text-[#525252]" title={state.next.title}>
+      <span className="text-[#7c7c7c]">Next · {slot(state.next)} · </span>
+      {state.next.title}
+    </p>
+  ) : (
+    <p className="text-sm text-[#7c7c7c]">No more sessions here today.</p>
+  );
+
   return (
-    <Card title={state.room} action={status} className={cn('h-full', live && (onBreak ? 'border-gold/60' : 'border-success/60'))}>
-      <div className="flex flex-1 flex-col gap-4">
-        {state.conflict && (
-          <Notice tone="danger" icon={ExclamationTriangleIcon}>
-            Two sessions are live in this room; captions go to only one. End the one that is over.
-          </Notice>
-        )}
+    <section aria-label={state.room} className={cn('rounded-lg border bg-surface', live ? (onBreak ? 'border-gold/60' : 'border-success/60') : 'border-border')}>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <h2 className="truncate text-xl font-medium text-ink">{state.room}</h2>
+          {status}
+        </div>
+        {actions}
+      </header>
 
-        {late > 0 && state.next && (
-          <Notice tone="gold" icon={ClockIcon}>
-            “{state.next.title}” was due at {hm(state.next.startsAt)} and is not live. Captions start once it is.
-          </Notice>
-        )}
-
-        {overrun > 0 && (
-          <Notice tone="gold" icon={ClockIcon}>
-            Still live {overrunLabel(overrun)} past its {hm(live!.endsAt)} end. End it if it is over: captions keep running until it is.
-          </Notice>
-        )}
-
-        {streamProblem && (
-          <Notice tone="danger" icon={SignalSlashIcon}>
-            {streamProblem}
-          </Notice>
+      <div className="flex flex-col gap-4 px-5 py-4">
+        {(state.conflict || late > 0 || overrun > 0 || streamProblem) && (
+          <div className="flex flex-col gap-2">
+            {state.conflict && (
+              <Notice tone="danger" icon={ExclamationTriangleIcon}>
+                Two sessions are live in this room; captions go to only one. End the one that is over.
+              </Notice>
+            )}
+            {late > 0 && state.next && (
+              <Notice tone="gold" icon={ClockIcon}>
+                “{state.next.title}” was due at {hm(state.next.startsAt)} and is not live. Captions start once it is.
+              </Notice>
+            )}
+            {overrun > 0 && (
+              <Notice tone="gold" icon={ClockIcon}>
+                Still live {overrunLabel(overrun)} past its {hm(live!.endsAt)} end. End it if it is over: captions keep running until it is.
+              </Notice>
+            )}
+            {streamProblem && (
+              <Notice tone="danger" icon={SignalSlashIcon}>
+                {streamProblem}
+              </Notice>
+            )}
+          </div>
         )}
 
         {live ? (
-          <div>
-            <p className="text-sm text-[#7c7c7c]">On air · {slot(live)}</p>
-            <p className="mt-0.5 line-clamp-2 text-base font-medium text-ink">{live.title}</p>
-            {m && (
-              <dl className="mt-3 divide-y divide-border border-y border-border">
-                <RoomFigure icon={EyeIcon} label="Watching in the app">
-                  {count(m.viewers)}
-                </RoomFigure>
-                <RoomFigure icon={MicrophoneIcon} label="Following captions">
-                  {count(m.captionListeners)}
-                </RoomFigure>
-                <RoomFigure icon={feedDown ? SignalSlashIcon : SignalIcon} label="Audio">
-                  <Tag tone={feedDown ? 'danger' : 'green'} dot>
-                    {feedDown ? 'No feed' : source ? SOURCE_LABEL[source] : 'Receiving'}
-                  </Tag>
-                </RoomFigure>
-              </dl>
+          <div className={cn('grid gap-x-10 gap-y-4', m && canControl && 'lg:grid-cols-[minmax(0,1fr)_22rem]')}>
+            <div className="flex min-w-0 flex-col gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-[#7c7c7c]">On air · {slot(live)}</p>
+                <p className="mt-1 line-clamp-2 text-lg font-medium text-ink">{live.title}</p>
+              </div>
+              {m && (
+                <dl className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <RoomFigure icon={EyeIcon} label="Watching in the app">
+                    <span className="font-medium tabular-nums text-ink">{count(m.viewers)}</span> watching
+                  </RoomFigure>
+                  <RoomFigure icon={MicrophoneIcon} label="Following captions">
+                    <span className="font-medium tabular-nums text-ink">{count(m.captionListeners)}</span> following captions
+                  </RoomFigure>
+                  <RoomFigure icon={feedDown ? SignalSlashIcon : SignalIcon} label="Audio">
+                    Audio
+                    <Tag tone={feedDown ? 'danger' : 'green'} dot>
+                      {feedDown ? 'No feed' : source ? SOURCE_LABEL[source] : 'Receiving'}
+                    </Tag>
+                  </RoomFigure>
+                </dl>
+              )}
+              {feedDown && !streamProblem && <p className="text-sm text-danger">No audio has reached captions from this room in the last 30 seconds. Check the Sound desk.</p>}
+              <div className="mt-auto border-t border-border pt-3">{next}</div>
+            </div>
+
+            {m && canControl && (
+              <div className="divide-y divide-border lg:border-l lg:border-border lg:pl-6">
+                <ToggleRow label="Cut to break" hint={onBreak ? 'Delegates see the break screen.' : 'Show the break screen in the app.'}>
+                  {(labelId) => (
+                    <Switch
+                      checked={onBreak}
+                      tone="gold"
+                      labelledBy={labelId}
+                      disabled={setBreak.isPending}
+                      onChange={(active) =>
+                        setBreak.mutate(
+                          { sessionId: live.id, active },
+                          { onError: (e) => toast.push({ title: 'Break not changed', leading: { kind: 'icon', icon: ExclamationTriangleIcon, tone: 'danger' }, body: e.message }) },
+                        )
+                      }
+                    />
+                  )}
+                </ToggleRow>
+                <ToggleRow label="Captions overlay" hint="Captions over the stream.">
+                  {(labelId) => (
+                    <Switch checked={m.flags.captionsOverlay} labelledBy={labelId} disabled={setOverlays.isPending} onChange={(captions) => setOverlays.mutate({ sessionId: live.id, captions })} />
+                  )}
+                </ToggleRow>
+                <ToggleRow label="Sign language" hint="The interpreter window.">
+                  {(labelId) => (
+                    <Switch
+                      checked={m.flags.signLanguageOverlay}
+                      labelledBy={labelId}
+                      disabled={setOverlays.isPending}
+                      onChange={(signLanguage) => setOverlays.mutate({ sessionId: live.id, signLanguage })}
+                    />
+                  )}
+                </ToggleRow>
+              </div>
             )}
-            {feedDown && !streamProblem && <p className="mt-2 text-sm text-danger">No audio has reached captions from this room in the last 30 seconds. Check the Sound desk.</p>}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-border px-4 py-6 text-center">
-            <PauseCircleIcon className="size-7 text-[#7c7c7c]" />
-            <p className="text-sm text-ink">Nothing on air</p>
-            {!state.next && <p className="text-xs text-[#7c7c7c]">No more sessions here today.</p>}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="flex items-center gap-2 text-sm text-ink">
+              <PauseCircleIcon className="size-5 text-[#7c7c7c]" /> Nothing on air
+            </p>
+            <span className="text-[#bdbdbd]" aria-hidden>
+              ·
+            </span>
+            {next}
           </div>
         )}
-
-        {live && m && canControl && (
-          <div className="divide-y divide-border border-y border-border">
-            <ToggleRow label="Cut to break" hint={onBreak ? 'Delegates see the break screen.' : 'Show the break screen in the app.'}>
-              {(labelId) => (
-                <Switch
-                  checked={onBreak}
-                  tone="gold"
-                  labelledBy={labelId}
-                  disabled={setBreak.isPending}
-                  onChange={(active) =>
-                    setBreak.mutate(
-                      { sessionId: live.id, active },
-                      {
-                        onError: (e) =>
-                          toast.push({
-                            title: 'Break not changed',
-                            leading: {
-                              kind: 'icon',
-                              icon: ExclamationTriangleIcon,
-                              tone: 'danger',
-                            },
-                            body: e.message,
-                          }),
-                      },
-                    )
-                  }
-                />
-              )}
-            </ToggleRow>
-            <ToggleRow label="Captions overlay" hint="Captions over the stream.">
-              {(labelId) => (
-                <Switch checked={m.flags.captionsOverlay} labelledBy={labelId} disabled={setOverlays.isPending} onChange={(captions) => setOverlays.mutate({ sessionId: live.id, captions })} />
-              )}
-            </ToggleRow>
-            <ToggleRow label="Sign language" hint="The interpreter window.">
-              {(labelId) => (
-                <Switch
-                  checked={m.flags.signLanguageOverlay}
-                  labelledBy={labelId}
-                  disabled={setOverlays.isPending}
-                  onChange={(signLanguage) => setOverlays.mutate({ sessionId: live.id, signLanguage })}
-                />
-              )}
-            </ToggleRow>
-          </div>
-        )}
-
-        <div className="mt-auto">
-          {state.next ? (
-            <div className="rounded-lg border border-border bg-surface-soft px-3 py-2.5">
-              <p className="text-xs text-[#7c7c7c]">Next · {slot(state.next)}</p>
-              <p className="truncate text-sm text-[#525252]" title={state.next.title}>
-                {state.next.title}
-              </p>
-            </div>
-          ) : (
-            live && <p className="text-xs text-[#7c7c7c]">No more sessions here today.</p>
-          )}
-        </div>
       </div>
-
-      {canControl && (live || state.next) && (
-        <footer className="-mx-5 -mb-4 mt-4 flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3">
-          {live && (
-            <button type="button" onClick={() => onEnd(live)} className={buttonClass({ style: 'outline', color: 'danger' })}>
-              <StopCircleIcon className="size-4" />
-              End
-            </button>
-          )}
-          {state.next && (
-            <button type="button" onClick={() => onStart(state.next!)} className={buttonClass()}>
-              <PlayCircleIcon className="size-4" />
-              {live ? 'Start next' : 'Go live'}
-            </button>
-          )}
-        </footer>
-      )}
-    </Card>
+    </section>
   );
 }
 
@@ -359,9 +362,9 @@ export default function LiveOpsPage() {
 
   if (board.isPending) {
     return (
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+      <div className="flex flex-col gap-5" aria-busy="true">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-80" />
+          <Skeleton key={i} className="h-56" />
         ))}
       </div>
     );
@@ -434,7 +437,7 @@ export default function LiveOpsPage() {
           No sessions on Day {day}. Add them on the Programme page.
         </div>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-5">
           {rooms.map((r) => (
             <RoomCard
               key={r.room}
