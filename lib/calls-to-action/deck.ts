@@ -605,7 +605,6 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
   const mutedSurface = readable(p.surface, p.muted);
   const strong = readable(p.background, p.primary);
   const head = { fontFace: d.headingFont, bold: !/Black/.test(d.headingFont), margin: 0, isTextBox: true } as const;
-  const body = { fontFace: d.bodyFont, margin: 0, isTextBox: true } as const;
   const pages = spread(calls, ROWS_PER_SLIDE);
 
   pages.forEach((rows, pg) => {
@@ -639,58 +638,48 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
       fit: 'shrink',
     });
 
-    // the calls as designed rows on a panel: actor in the brand colour, the commitment, a timeline pill
-    const size = rows.length > 6 ? 12 : 13;
-    const lineH = (size / 72) * 1.15;
-    // a line of commitment at this size holds about this many characters in its 4.3 in column
-    const perLine = Math.round(4.3 * (size === 13 ? 13.5 : 14.6));
-    const heights = rows.map((call) => {
-      const lines = Math.max(Math.ceil((call.shortText || call.action).length / perLine), Math.ceil(actorOf(call).length / 24), 1);
-      return Math.max(0.46, lines * lineH + 0.18);
+    // a real PowerPoint table, so it can be edited, extended and resized; each row grows to fit its text
+    const size = rows.length > 4 ? 12 : 13;
+    type Border = PptxGenJS.BorderProps;
+    const rule = (color: string, pt: number): Border => ({ type: 'solid', pt, color: c(color) });
+    const none: Border = { type: 'none' };
+    const edges = (bottom: Border): [Border, Border, Border, Border] => [none, none, bottom, none];
+    const fill = { color: c(p.surface) };
+    const pad: [number, number, number, number] = [0.09, 0.14, 0.09, 0.14];
+    const headCell = (text: string, align: 'left' | 'right') => ({
+      text,
+      options: {
+        fontFace: d.bodyFont,
+        fontSize: 9,
+        bold: true,
+        charSpacing: 2,
+        color: c(mutedSurface),
+        fill,
+        align,
+        valign: 'bottom' as const,
+        margin: pad,
+        border: edges(rule(strong, 1.5)),
+      },
     });
-    const top = 1.4;
-    const panelH = 0.42 + heights.reduce((a, b) => a + b, 0) + 0.12;
-    s.addShape(pres.ShapeType.roundRect, { x: 0.45, y: top, w: 8.25, h: panelH, rectRadius: 0.12, fill: { color: c(p.surface) }, line: { color: c(tint(p.primary, 0.85)), width: 0.75 } });
-    const column = (text: string, x: number, w: number, align: 'left' | 'right' = 'left') =>
-      s.addText(text, { ...body, x, y: top + 0.12, w, h: 0.25, fontSize: 9, bold: true, charSpacing: 2, color: c(mutedSurface), align });
-    column('ACTOR', 0.7, 2.0);
-    column('COMMITMENT', 2.85, 4.3);
-    column('TIMELINE', 7.2, 1.3, 'right');
-    s.addShape(pres.ShapeType.line, { x: 0.7, y: top + 0.42, w: 7.75, h: 0, line: { color: c(strong), width: 1.5 } });
-
-    let y = top + 0.48;
-    rows.forEach((call, i) => {
-      const h = heights[i]!;
-      s.addText(
-        [
-          { text: actorOf(call), options: { bold: true, color: c(readable(p.surface, p.primary)), breakLine: call.type === 'pledge' } },
-          ...(call.type === 'pledge' ? [{ text: 'Pledged', options: { fontSize: size - 3, color: c(mutedSurface) } }] : []),
-        ],
-        { ...body, x: 0.7, y, w: 2.0, h, fontSize: size, valign: 'middle' },
-      );
-      s.addText(call.shortText || call.action, { ...body, x: 2.85, y, w: 4.3, h, fontSize: size, color: c(inkSurface), valign: 'middle' });
+    const header = [headCell('ACTOR', 'left'), headCell('COMMITMENT', 'left'), headCell('TIMELINE', 'right')];
+    const cells = rows.map((call, i) => {
+      const last = i === rows.length - 1;
+      const border = edges(last ? none : rule(tint(p.primary, 0.82), 0.75));
+      const base = { fontFace: d.bodyFont, fontSize: size, fill, valign: 'middle' as const, margin: pad, border };
       const agreed = !!call.deadline?.trim();
-      const pill = { x: 7.3, y: y + h / 2 - 0.17, w: 1.15, h: 0.34 };
-      s.addShape(pres.ShapeType.roundRect, {
-        ...pill,
-        rectRadius: 0.17,
-        fill: agreed ? { color: c(tint(p.primary, 0.86)) } : { type: 'none' },
-        line: agreed ? { type: 'none' } : { color: c(tint(p.primary, 0.6)), width: 0.75, dashType: 'dash' },
-      });
-      s.addText(timelineOf(call), {
-        ...body,
-        ...pill,
-        fontSize: 10,
-        bold: agreed,
-        italic: !agreed,
-        color: c(agreed ? readable(tint(p.primary, 0.86), p.primary) : mutedSurface),
-        align: 'center',
-        valign: 'middle',
-        fit: 'shrink',
-      });
-      if (i < rows.length - 1) s.addShape(pres.ShapeType.line, { x: 0.7, y: y + h, w: 7.75, h: 0, line: { color: c(tint(p.primary, 0.85)), width: 0.75 } });
-      y += h;
+      return [
+        {
+          text: [
+            { text: actorOf(call), options: { bold: true, color: c(readable(p.surface, p.primary)), breakLine: call.type === 'pledge' } },
+            ...(call.type === 'pledge' ? [{ text: 'Pledged', options: { fontSize: size - 3, color: c(mutedSurface) } }] : []),
+          ],
+          options: base,
+        },
+        { text: call.shortText || call.action, options: { ...base, color: c(inkSurface) } },
+        { text: timelineOf(call), options: { ...base, fontSize: size - 1, align: 'right' as const, bold: agreed, italic: !agreed, color: c(agreed ? readable(p.surface, p.primary) : mutedSurface) } },
+      ];
     });
+    s.addTable([header, ...cells], { x: 0.6, y: 1.45, w: 7.95, colW: [2.25, 4.3, 1.4], rowH: [0.4, ...rows.map(() => 0.5)] });
     s.addNotes(rows.map((call, i) => [`${i + 1}. ${call.action}`, call.quote && `Said: "${call.quote}"`, byline(call) && `Proposed by ${byline(call)}`].filter(Boolean).join('\n')).join('\n\n'));
   });
 }
