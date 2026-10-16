@@ -54,16 +54,88 @@ const DEMO_REPORT: RapporteurReport = {
   synthesis: 'A demo report: in the live console this is written from the session’s transcript.',
 };
 
+/** The template's navy and gold. */
+const NAVY = '#1F3864';
+const GOLD = '#BF8F00';
+
+/**
+ * The report writing itself, in the same stages as the steps: the transcript's lines come in on
+ * the left, then the page on the right fills, the header and insights, the perspectives, the
+ * opportunities and challenges, the recommendations and commitments, and a tick as it is filled
+ * in. Parts still to come are a faint outline, the current stage draws itself over and over,
+ * finished parts hold still (the deck's motion, see .deck-art in globals.css).
+ */
+function ReportArt({ current }: { current: number }) {
+  const part = (step: number, motion: 'deck-draw' | 'deck-grow' | 'deck-line') => (step === current ? motion : step > current ? 'deck-ghost' : undefined);
+  // a table on the page: a navy head, then shaded and plain rows
+  const table = (step: number, y: number, rows: number, cols: number[]) => (
+    <g>
+      <rect className={part(step, 'deck-line')} x={170} y={y} width={118} height={7} fill={NAVY} />
+      {Array.from({ length: rows }, (_, i) => (
+        <g key={i} className={part(step, 'deck-line')} style={{ animationDelay: `${0.25 + i * 0.25}s` }}>
+          <rect x={170} y={y + 8 + i * 9} width={118} height={8} fill={i % 2 ? '#F2F2F2' : '#ffffff'} stroke="#D0D0D0" strokeWidth={0.4} />
+          {cols.map((w, c) => (
+            <rect key={c} x={174 + cols.slice(0, c).reduce((a, b) => a + b + 4, 0)} y={y + 11 + i * 9} width={w} height={2.4} rx={1.2} fill="#1a1a1a" fillOpacity={0.35} />
+          ))}
+        </g>
+      ))}
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 320 180" role="img" aria-label="The report being written" className="deck-art block h-auto w-full">
+      <rect width="320" height="180" rx="6" fill="#ffffff" />
+      {/* step 1, the transcript: speakers' lines arriving on the left */}
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <g key={i} className={part(0, 'deck-line')} style={{ animationDelay: `${i * 0.3}s` }}>
+          <circle cx={26} cy={30 + i * 22} r={5} fill={i % 2 ? GOLD : NAVY} fillOpacity={0.8} />
+          <rect x={36} y={26 + i * 22} width={78 - (i % 3) * 14} height={3} rx={1.5} fill="#1a1a1a" fillOpacity={0.45} />
+          <rect x={36} y={32 + i * 22} width={56 - (i % 2) * 12} height={3} rx={1.5} fill="#1a1a1a" fillOpacity={0.25} />
+        </g>
+      ))}
+      {/* the read flowing into the page */}
+      <path className={part(0, 'deck-draw')} d="M124 90 C138 90 142 90 156 90" fill="none" stroke={GOLD} strokeWidth={2} strokeLinecap="round" pathLength="100" />
+      {/* the page */}
+      <rect x={162} y={8} width={134} height={164} rx={3} fill="#ffffff" stroke="#D0D0D0" />
+      {/* step 2, the header and the insights */}
+      <rect className={part(1, 'deck-line')} x={194} y={16} width={70} height={5} rx={1.5} fill={NAVY} />
+      <rect className={part(1, 'deck-line')} style={{ animationDelay: '0.2s' }} x={208} y={24} width={42} height={3} rx={1.5} fill={GOLD} />
+      <rect className={part(1, 'deck-line')} style={{ animationDelay: '0.3s' }} x={170} y={30} width={118} height={0.8} fill={GOLD} />
+      {table(1, 36, 3, [6, 22, 22, 22, 18])}
+      {/* step 3, the opportunities and challenges */}
+      {table(2, 76, 2, [28, 36, 34])}
+      {/* step 4, the recommendations and commitments */}
+      {table(3, 104, 3, [28, 22, 28, 12])}
+      {/* step 5, filled in: the closing lines and a tick */}
+      <rect className={part(4, 'deck-line')} x={170} y={142} width={118} height={7} fill={NAVY} />
+      <rect className={part(4, 'deck-line')} style={{ animationDelay: '0.2s' }} x={174} y={153} width={96} height={2.4} rx={1.2} fill="#1a1a1a" fillOpacity={0.35} />
+      <g className={part(4, 'deck-grow')} style={{ transformOrigin: '284px 160px', animationDelay: '0.4s' }}>
+        <circle cx={284} cy={160} r={9} fill={NAVY} />
+        <path d="M279.5 160.5 L283 164 L289 157" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </svg>
+  );
+}
+
 /** The steps beneath the wait, ticking off in turn (as the deck's do). */
-function ReportProgress() {
+export function ReportProgress() {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, []);
   const current = STEPS.reduce((at, step, i) => (seconds >= step.at ? i : at), 0);
+  // eases towards the end of about a minute, and waits there for the download
+  const progress = Math.min(95, Math.round((1 - Math.exp(-seconds / 24)) * 100));
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface-soft">
+        <div className="p-3">
+          <ReportArt current={current} />
+        </div>
+        <div className="h-1 bg-border" role="progressbar" aria-label="Writing the report" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+          <div className="h-full origin-left bg-primary transition-transform duration-1000 ease-linear" style={{ transform: `scaleX(${progress / 100})` }} />
+        </div>
+      </div>
       <ol aria-live="polite" className="flex flex-col">
         {STEPS.map((step, i) => {
           const done = i < current;
