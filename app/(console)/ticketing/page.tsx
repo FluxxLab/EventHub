@@ -1,22 +1,22 @@
 'use client';
 
-import Link from 'next/link';
-import { BanknotesIcon, ChartBarIcon, PencilSquareIcon, PlusIcon, QrCodeIcon, ShoppingCartIcon, TicketIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon, ChartBarIcon, PlusIcon, QrCodeIcon, ShoppingCartIcon, TicketIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
 import { OrdersCard } from '@/components/dashboard/orders-card';
 import { FigureCard } from '@/components/dashboard/stat-card';
+import { EventBar } from '@/components/events/event-bar';
 import { TierDialog } from '@/components/ticketing/tier-dialog';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { Panel } from '@/components/ui/panel';
-import { Select } from '@/components/ui/select';
+import { RowActions } from '@/components/ui/row-actions';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useDashboard } from '@/lib/dashboard/use-dashboard';
 import type { Edition } from '@/lib/events/events';
-import { useWorkingEdition } from '@/lib/events/working-edition';
+import { usePageEdition } from '@/lib/events/use-page-edition';
 import { count, moneyCompact } from '@/lib/format';
 import { EXTRA_CURRENCIES, formatMoney, priceModeOf, remaining, soldShare, type TicketType } from '@/lib/ticketing/ticketing';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
@@ -148,15 +148,7 @@ function TiersPanel({ edition }: { edition: Edition }) {
                     )}
                   </td>
                   <td className={cn(td, 'text-right')}>
-                    <button
-                      type="button"
-                      onClick={() => setEditing({ tier })}
-                      className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true })}
-                      aria-label={`Edit ${tier.name}`}
-                      title="Edit"
-                    >
-                      <PencilSquareIcon className="size-4" />
-                    </button>
+                    <RowActions name={tier.name} onEdit={() => setEditing({ tier })} />
                   </td>
                 </tr>
               ))}
@@ -218,45 +210,21 @@ function SalesPanel({ edition }: { edition: Edition }) {
 }
 
 export default function TicketingPage() {
-  const working = useWorkingEdition();
-  const editions = working.editions;
-  // picking an event here switches every page to it
-  const setPicked = working.setEditionId;
-  const [tab, setTab] = useUrlParam<Tab>('tab', 'tiers', TABS);
-  const edition = working.edition;
-  const tiers = useTicketTypes(edition?.id);
-
-  if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
-  if (!edition) {
-    return (
-      <div className="mx-auto mt-10 w-full max-w-lg">
-        <h1 className="sr-only">Ticketing</h1>
-        <EmptyState
-          framed
-          icon={TicketIcon}
-          title="No events yet"
-          body="Tickets belong to an event. Create the event first."
-          action={
-            <Link href="/events" className={buttonClass()}>
-              Go to Events
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
-
+  const page = usePageEdition();
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-medium text-ink">{edition.name}</h1>
-          <p className="mt-0.5 text-sm text-hint">Ticket tiers and sales for this event.</p>
-        </div>
-        <div className="w-80 max-w-full">
-          <Select label="Event" value={edition.id} options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))} onChange={setPicked} />
-        </div>
-      </header>
+    <>
+      <h1 className="sr-only">Ticketing</h1>
+      <EventBar page={page}>{(editionId) => <TicketingBoard edition={page.list.find((e) => e.id === editionId)!} />}</EventBar>
+    </>
+  );
+}
+
+/** The working event's tiers and sales, a tab each. */
+function TicketingBoard({ edition }: { edition: Edition }) {
+  const [tab, setTab] = useUrlParam<Tab>('tab', 'tiers', TABS);
+  const tiers = useTicketTypes(edition.id);
+  return (
+    <div className="flex flex-col gap-6">
       <UnderlineTabs
         label="Ticketing sections"
         idBase="ticketing"

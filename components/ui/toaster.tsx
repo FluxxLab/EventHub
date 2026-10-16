@@ -32,13 +32,7 @@ function ToastItem({ toast, onDismiss }: { toast: Shown; onDismiss: (id: number)
   }, [paused, duration, onDismiss, toast.id]);
 
   return (
-    <div
-      role="status"
-      onPointerEnter={() => setPaused(true)}
-      onPointerLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
-    >
+    <div role="status" onPointerEnter={() => setPaused(true)} onPointerLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
       <Notification
         title={toast.title}
         // A toast lives seconds, so it is always news.
@@ -80,7 +74,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[min(28rem,calc(100vw-2rem))] flex-col gap-3">
         {toasts.map((toast) => (
-          <div key={toast.id} className="pointer-events-auto">
+          <div key={toast.id} className="toast-in pointer-events-auto">
             <ToastItem toast={toast} onDismiss={dismiss} />
           </div>
         ))}

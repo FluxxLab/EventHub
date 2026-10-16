@@ -195,8 +195,9 @@ function Desk({ edition }: { edition: Edition }) {
           </p>
         }
       >
-        <form onSubmit={onForm} className="flex gap-2">
-          <label className="flex h-14 min-w-0 flex-1 items-center gap-3 rounded-xl border-2 border-primary/30 bg-surface px-4 focus-within:border-primary">
+        {/* on a phone the box takes the full width, with its buttons under it */}
+        <form onSubmit={onForm} className="flex flex-col gap-2 sm:flex-row">
+          <label className="flex h-14 w-full min-w-0 items-center gap-3 rounded-xl border-2 border-primary/30 bg-surface px-4 focus-within:border-primary sm:w-auto sm:flex-1">
             <QrCodeIcon className="size-6 shrink-0 text-primary" aria-hidden />
             <span className="sr-only">Scan a ticket, or type a name, email or ticket code</span>
             <input
@@ -211,26 +212,32 @@ function Desk({ edition }: { edition: Edition }) {
                   if (!now || now === document.body || now.tagName === 'IFRAME') input.current?.focus();
                 }, 150)
               }
-              placeholder="Scan a ticket, or type a name, email or code"
+              placeholder="Scan, or type a name or code"
               autoComplete="off"
               spellCheck={false}
-              className="h-full min-w-0 flex-1 bg-transparent text-lg text-ink outline-none placeholder:text-placeholder"
+              className="h-full min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-placeholder sm:text-lg"
             />
           </label>
-          <button type="submit" className={buttonClass({ className: 'h-14 px-5' })} aria-label="Find">
-            <MagnifyingGlassIcon className="size-5" />
-          </button>
-          {cameraReady && (
-            <button
-              type="button"
-              onClick={() => setCamera((c) => !c)}
-              aria-pressed={camera}
-              className={buttonClass({ style: 'outline', color: 'gray', className: 'h-14 px-4' })}
-              aria-label={camera ? 'Close camera' : 'Scan with camera'}
-            >
-              <CameraIcon className="size-5" />
+          <div className="flex gap-2">
+            <button type="submit" className={buttonClass({ className: 'h-14 flex-1 px-5 sm:flex-none' })}>
+              <MagnifyingGlassIcon className="size-5" />
+              <span className="sm:sr-only">Find</span>
             </button>
-          )}
+            {cameraReady && (
+              <button
+                type="button"
+                onClick={() => setCamera((c) => !c)}
+                aria-pressed={camera}
+                className={buttonClass({ style: 'outline', color: 'gray', className: 'h-14 flex-1 px-4 sm:flex-none' })}
+                aria-label={camera ? 'Close camera' : 'Scan with camera'}
+              >
+                <CameraIcon className="size-5" />
+                <span className="sm:hidden" aria-hidden>
+                  Camera
+                </span>
+              </button>
+            )}
+          </div>
         </form>
 
         {camera && <QrScanner onCode={submit} onClose={() => setCamera(false)} />}

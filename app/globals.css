@@ -135,6 +135,10 @@ body {
   --danger-soft: #3b1618;
   --warning: #e8c15a;
   --warning-soft: #33290f;
+  --chart-1: #7aa2f7;
+  --chart-2: #e5b93a;
+  --chart-3: #7cc0f5;
+  --chart-4: #d9a24a;
   --chart-other: #4c5361;
 }
 @media (prefers-color-scheme: dark) {
@@ -348,6 +352,15 @@ th {
 .deck-art .deck-line {
   animation: deck-line 3.6s ease-out infinite both;
 }
+/* parts of the slide whose step has not come yet: a faint outline of what is to come */
+.deck-art .deck-ghost {
+  opacity: 0.1;
+  transition: opacity var(--motion-slow) var(--ease-standard);
+}
+/* the steps beneath arrive in turn when the wait begins */
+.deck-step {
+  animation: rise-in var(--motion-slow) var(--ease-enter) both;
+}
 /*
  * A spinner waits a moment before it shows, so a quick save never flickers one on and off; once
  * shown it turns as usual.
@@ -373,6 +386,145 @@ th {
   }
 }
 
+/*
+ * Motion, after the enterprise systems (IBM Carbon's productive curves; Atlassian, Fluent and
+ * Material agree on the ranges): small changes 100-150ms, overlays 150ms, dialogs 240ms, nothing
+ * over 400ms. Things decelerate in and accelerate out, and leave faster than they arrive. Only
+ * opacity and transform move. Reduced motion keeps fades and drops all movement (end of file).
+ */
+:root {
+  --motion-fast: 100ms;
+  --motion-moderate: 150ms;
+  --motion-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0.38, 0.9);
+  --ease-enter: cubic-bezier(0, 0, 0.38, 0.9);
+  --ease-exit: cubic-bezier(0.2, 0, 1, 0.9);
+}
+
+/* Dialogs: rise and settle in (240ms), drop away faster (150ms); the backdrop fades with them. */
+dialog {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition:
+    opacity var(--motion-moderate) var(--ease-exit),
+    transform var(--motion-moderate) var(--ease-exit),
+    overlay var(--motion-moderate) allow-discrete,
+    display var(--motion-moderate) allow-discrete;
+}
+dialog[open] {
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--motion-slow);
+  transition-timing-function: var(--ease-enter);
+}
+@starting-style {
+  dialog[open] {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+dialog::backdrop {
+  transition:
+    opacity var(--motion-slow) var(--ease-enter),
+    overlay var(--motion-slow) allow-discrete,
+    display var(--motion-slow) allow-discrete;
+  opacity: 0;
+}
+dialog[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Menus and pop-overs: a short drop from their trigger. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.menu-in {
+  animation: menu-in var(--motion-moderate) var(--ease-enter);
+}
+
+/* Toasts: rise from the screen edge they sit on. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.toast-in {
+  animation: toast-in var(--motion-slow) var(--ease-enter);
+}
+
+/* A page's content as it opens: a quiet fade, never a slide. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+}
+.page-in {
+  animation: page-in var(--motion-moderate) var(--ease-standard);
+}
+
+/*
+ * As a page opens, its panels, figure cards and first rows rise in turn, 40ms apart (Carbon's
+ * stagger for related items). PageEntrance (console-shell.tsx) numbers them in reading order as
+ * `--stagger`, the seventh and later waiting no longer; content after the first moment just appears.
+ */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.page-in[data-entering] :is([data-panel], [data-figure], tbody > tr:nth-child(-n + 8)) {
+  animation: rise-in var(--motion-slow) var(--ease-enter) both;
+  animation-delay: calc(var(--stagger, 0) * 40ms);
+}
+
+/* Collapsing groups (the sidebar's): height eases open and shut. */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-moderate) var(--ease-standard);
+}
+.collapse[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Loading placeholders appear only if the wait is noticeable (300ms), so quick loads show nothing. */
+@keyframes skeleton-in {
+  to {
+    opacity: 1;
+  }
+}
+.skeleton-delay {
+  opacity: 0;
+  animation:
+    skeleton-in var(--motion-moderate) var(--ease-standard) 300ms forwards,
+    pulse 2s ease-in-out 300ms infinite;
+}
+
+/* Scrollbars: hidden on strips that scroll sideways (tabs, the rail), thin in dialogs and panels. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+}
+
 /* The skip link: hidden until the keyboard reaches it, first thing on every console page. */
 .skip-link {
   position: absolute;
@@ -390,6 +542,25 @@ th {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  dialog,
+  dialog[open] {
+    transform: none;
+  }
+  .menu-in,
+  .toast-in,
+  .page-in[data-entering] :is([data-panel], [data-figure], tbody > tr),
+  .deck-step {
+    animation-name: page-in;
+  }
+  .collapse {
+    transition: none;
+  }
+  .skeleton-delay {
+    animation: skeleton-in var(--motion-moderate) var(--ease-standard) 300ms forwards;
+  }
+  html {
+    scroll-behavior: auto;
+  }
   .spinner-delay {
     animation: spinner-in 0.15s ease-out 0.2s forwards;
   }

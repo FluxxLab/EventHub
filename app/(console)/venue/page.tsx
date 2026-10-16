@@ -1,27 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  ArrowTopRightOnSquareIcon,
-  BuildingOffice2Icon,
-  CheckCircleIcon,
-  GlobeAltIcon,
-  KeyIcon,
-  MapIcon,
-  MapPinIcon,
-  PencilSquareIcon,
-  PlusIcon,
-  SignalIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline';
+import { ArrowTopRightOnSquareIcon, BuildingOffice2Icon, CheckCircleIcon, GlobeAltIcon, KeyIcon, MapIcon, MapPinIcon, PlusIcon, SignalIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
+import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { Panel } from '@/components/ui/panel';
-import { Select } from '@/components/ui/select';
+import { RowActions } from '@/components/ui/row-actions';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { tabPanelId, tabId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
@@ -30,6 +18,7 @@ import { RoomDialog } from '@/components/venue/room-dialog';
 import { StreamDialog } from '@/components/venue/stream-dialog';
 import { runsEvents, useSession } from '@/lib/auth/session';
 import type { Edition } from '@/lib/events/events';
+import { usePageEdition } from '@/lib/events/use-page-edition';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { INPUT_LABEL, SOURCE_LABEL, streamStatus, type IngestRoom, type StreamCredentials } from '@/lib/ingest/ingest';
 import { useIngestActions, useIngestRooms } from '@/lib/ingest/use-ingest';
@@ -247,7 +236,7 @@ function RoomsCard({ edition }: { edition: Edition }) {
                 <th scope="col" className={cn(th, 'w-32')}>
                   Sessions
                 </th>
-                <th scope="col" className={cn(th, 'w-28')}>
+                <th scope="col" className={cn(th, 'w-36')}>
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -267,26 +256,7 @@ function RoomsCard({ edition }: { edition: Edition }) {
                   </td>
                   <td className={cn(td, 'text-right')}>
                     {room.id ? (
-                      <div className="flex justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditing({ room })}
-                          className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true })}
-                          aria-label={`Edit ${room.name}`}
-                          title="Edit"
-                        >
-                          <PencilSquareIcon className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleting(room)}
-                          className={buttonClass({ style: 'borderless', color: 'danger', iconOnly: true })}
-                          aria-label={`Remove ${room.name}`}
-                          title="Remove"
-                        >
-                          <TrashIcon className="size-4" />
-                        </button>
-                      </div>
+                      <RowActions name={room.name} onEdit={() => setEditing({ room })} onDelete={() => setDeleting(room)} />
                     ) : (
                       <button type="button" onClick={() => setEditing({ room })} className={buttonClass({ style: 'soft', color: 'primary' })}>
                         Describe
@@ -448,21 +418,11 @@ function AudioStreamsCard({ edition, onAddRooms }: { edition: Edition; onAddRoom
                     <td className={cn(td, 'text-ink-soft')}>{r.captioning ? SOURCE_LABEL[r.captioning] : <span className="text-placeholder">Off</span>}</td>
                     <td className={cn(td, 'text-right')}>
                       {!isAdmin ? null : r.stream ? (
-                        <div className="flex justify-end gap-1">
-                          <button type="button" onClick={() => setConfirm({ kind: 'rotate', room: r })} className={buttonClass({ style: 'borderless', color: 'gray' })}>
-                            <KeyIcon className="size-4" />
-                            New key
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirm({ kind: 'remove', room: r })}
-                            className={buttonClass({ style: 'borderless', color: 'danger', iconOnly: true })}
-                            aria-label={`Remove the stream for ${r.room}`}
-                            title="Remove stream"
-                          >
-                            <TrashIcon className="size-4" />
-                          </button>
-                        </div>
+                        <RowActions
+                          name={`the stream for ${r.room}`}
+                          actions={[{ label: 'New key', icon: KeyIcon, onSelect: () => setConfirm({ kind: 'rotate', room: r }) }]}
+                          onDelete={() => setConfirm({ kind: 'remove', room: r })}
+                        />
                       ) : (
                         <button type="button" onClick={() => setCreating(r.room)} className={buttonClass({ style: 'soft', color: 'primary' })}>
                           <PlusIcon className="size-4" />
@@ -508,47 +468,22 @@ const TABS = ['venue', 'rooms', 'streams'] as const;
 type Tab = (typeof TABS)[number];
 
 export default function VenuePage() {
-  const working = useWorkingEdition();
-  const editions = working.editions;
-  // picking an event here switches every page to it
-  const setPicked = working.setEditionId;
+  const page = usePageEdition();
+  return (
+    <>
+      <h1 className="sr-only">Venue</h1>
+      <EventBar page={page}>{(editionId) => <VenueBoard edition={page.list.find((e) => e.id === editionId)!} />}</EventBar>
+    </>
+  );
+}
+
+/** The working event's venue details, rooms and audio streams, a tab each. */
+function VenueBoard({ edition }: { edition: Edition }) {
   const [tab, setTab] = useUrlParam<Tab>('tab', 'venue', TABS);
-  const edition = working.edition;
   // Shares the Rooms card's query (same key), so the tab count costs no extra request.
   const rooms = useRooms(edition);
-
-  if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-5xl rounded-xl" />;
-  if (!edition) {
-    return (
-      <div className="mx-auto mt-10 w-full max-w-lg">
-        <h1 className="sr-only">Venue</h1>
-        <EmptyState
-          framed
-          icon={MapPinIcon}
-          title="No events yet"
-          body="A venue belongs to an event. Create the event first."
-          action={
-            <Link href="/events" className={buttonClass()}>
-              Go to Events
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
-
   return (
-    // A settings page, not a full-bleed table: a readable column, centred.
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-medium text-ink">{edition.name}</h1>
-          <p className="mt-0.5 text-sm text-hint">Venue details, rooms and their audio streams for this event.</p>
-        </div>
-        <div className="w-80 max-w-full">
-          <Select label="Event" value={edition.id} options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))} onChange={setPicked} />
-        </div>
-      </header>
+    <div className="flex flex-col gap-6">
       <UnderlineTabs
         label="Venue sections"
         idBase="venue"

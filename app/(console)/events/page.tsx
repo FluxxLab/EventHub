@@ -34,6 +34,9 @@ function downloadCsv(editions: Edition[]) {
   URL.revokeObjectURL(url);
 }
 
+/** Up to three letters of the short name ("GS-2027" → "GS"), so the mark never clips. */
+const markOf = (shortName: string) => (shortName.replace(/[^A-Za-z]/g, '') || shortName.replace(/\s/g, '')).slice(0, 3).toUpperCase();
+
 /** The event's cover, or its short name on navy; a green dot marks the edition the app shows. */
 function EventMark({ edition }: { edition: Edition }) {
   const cover = edition.coverUrl ?? (edition.coverImage && /^https?:\/\//.test(edition.coverImage) ? edition.coverImage : null);
@@ -43,7 +46,9 @@ function EventMark({ edition }: { edition: Edition }) {
         // eslint-disable-next-line @next/next/no-img-element -- covers come from any host the organiser uploads to
         <img src={cover} alt="" className="size-8 rounded-full object-cover" />
       ) : (
-        <span className="flex size-8 items-center justify-center rounded-full bg-primary text-[0.625rem] font-medium text-on-primary">{edition.shortName.slice(0, 4)}</span>
+        <span className="flex size-8 items-center justify-center rounded-full bg-primary text-[0.625rem] font-medium leading-none text-on-primary" aria-hidden>
+          {markOf(edition.shortName)}
+        </span>
       )}
       {edition.isCurrent && <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-[1.5px] border-surface bg-success" aria-hidden />}
     </span>

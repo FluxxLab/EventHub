@@ -96,7 +96,8 @@ function Board({ edition }: { edition: Edition }) {
   );
 
   return (
-    <Panel title="Albums" count={albums.data.length} description={`Published albums show in the app under ${edition.shortName} › Gallery.`} actions={newAlbum}>
+    <Panel title="Albums" count={albums.data.length} description={`Published albums show in the app under ${edition.shortName} › Gallery.`} actions={albums.data.length > 0 ? newAlbum : undefined}>
+      {/* with no albums, the empty state offers New album instead */}
       {albums.data.length === 0 ? (
         <EmptyState icon={PhotoIcon} title="No albums yet" body="Make an album for each day or big moment, like “Day 1”, then add the photos to it." action={newAlbum} />
       ) : (
@@ -320,7 +321,17 @@ function AlbumView({ edition, album, onEdit, onPublish, onDeleted }: { edition: 
         photo={viewing}
         isCover={!!viewing && album.coverPhotoId === viewing.id}
         onClose={() => setViewing(null)}
-        onCaption={(caption) => viewing && actions.updatePhoto.mutate({ photo: viewing, caption }, { onSuccess: (p) => setViewing(p) })}
+        onCaption={(caption) =>
+          viewing &&
+          actions.updatePhoto.mutate(
+            { photo: viewing, caption },
+            {
+              // the viewer may have closed (or moved on) while it saved
+              onSuccess: (p) => setViewing((v) => (v?.id === p.id ? p : v)),
+              onError: (e) => toast.push({ title: 'Caption not saved', body: e.message }),
+            },
+          )
+        }
         onCover={() =>
           viewing && actions.save.mutate({ id: album.id, coverPhotoId: viewing.id }, { onSuccess: () => toast.push({ title: 'Cover set', body: 'The app shows this photo on the album.' }) })
         }
@@ -360,6 +371,8 @@ function PhotoDialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [caption, setCaption] = useState('');
+  // the last caption sent, so a blur right after closing does not send it twice
+  const sent = useRef<string | null>(null);
   const [seen, setSeen] = useState<string | null>(null);
   if ((photo?.id ?? null) !== seen) {
     setSeen(photo?.id ?? null);
@@ -371,14 +384,27 @@ function PhotoDialog({
     if (photo && !d.open) d.showModal();
     if (!photo && d.open) d.close();
   }, [photo]);
+  const saveCaption = () => {
+    if (!photo) return;
+    const next = caption.trim();
+    const key = `${photo.id}:${next}`;
+    if (next === (photo.caption ?? '') || sent.current === key) return;
+    sent.current = key;
+    onCaption(next || null);
+  };
+  // Escape, the backdrop and × all keep a caption being typed: it is saved, then the viewer closes
+  const close = () => {
+    saveCaption();
+    onClose();
+  };
   return (
     <dialog
       ref={ref}
       onCancel={(e) => {
         e.preventDefault();
-        onClose();
+        close();
       }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && close()}
       className={modalClass('lg')}
       aria-label="Photo"
     >
@@ -387,7 +413,7 @@ function PhotoDialog({
           <div className="relative flex max-h-[65dvh] items-center justify-center bg-ink">
             {/* eslint-disable-next-line @next/next/no-img-element -- signed storage links */}
             <img src={photo.url ?? photo.thumbUrl ?? ''} alt={photo.caption ?? ''} className="max-h-[65dvh] w-auto object-contain" />
-            <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70">
+            <button type="button" onClick={close} aria-label="Close" className="absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70">
               <XMarkIcon className="size-5" />
             </button>
           </div>
@@ -397,7 +423,8 @@ function PhotoDialog({
                 value={caption}
                 maxLength={300}
                 onChange={(e) => setCaption(e.target.value)}
-                onBlur={() => caption.trim() !== (photo.caption ?? '') && onCaption(caption.trim() || null)}
+                onBlur={saveCaption}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveCaption())}
                 placeholder="Caption: who is in it, what is happening"
                 aria-label="Caption"
                 className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary"

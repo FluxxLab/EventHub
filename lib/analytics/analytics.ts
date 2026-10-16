@@ -87,16 +87,30 @@ const sentence = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLo
 export function screenLabel(key: string): string {
   const parts = key.split('/').filter(Boolean);
   if (parts.length === 0) return 'Home';
-  return parts.map((p, i) => (p === ':id' ? 'detail' : i === 0 ? sentence(words(p)) : words(p).toLowerCase())).join(' › ');
+  return parts.map(screenPart).join(' › ');
+}
+
+/** App screens whose path segment does not read as their name. */
+const SCREEN_NAMES: Record<string, string> = { qa: 'Q&A', faq: 'FAQs', faqs: 'FAQs', 'my-pass': 'My pass', cta: 'Calls to action' };
+
+/** "hall-a" → "Hall A", ":id" → "Detail": one path part as a readable name. */
+function screenPart(part: string): string {
+  if (part === ':id') return 'Detail';
+  const known = SCREEN_NAMES[part.toLowerCase()];
+  if (known) return known;
+  return part
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
 }
 
 /** Views per screen, ids folded together, most viewed first. */
 export function groupScreens(screens: AnalyticsSummary['screens']): { key: string; label: string; views: number }[] {
   const byKey = new Map<string, number>();
   for (const s of screens) byKey.set(screenKey(s.path), (byKey.get(screenKey(s.path)) ?? 0) + s.views);
-  return [...byKey]
-    .map(([key, views]) => ({ key, label: screenLabel(key), views }))
-    .sort((a, b) => b.views - a.views || a.label.localeCompare(b.label));
+  return [...byKey].map(([key, views]) => ({ key, label: screenLabel(key), views })).sort((a, b) => b.views - a.views || a.label.localeCompare(b.label));
 }
 
 /** "session_bookmark" → "Session bookmark". */

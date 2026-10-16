@@ -156,10 +156,10 @@ export default function SecurityLogPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!isAdmin) return <EmptyState framed icon={ShieldCheckIcon} title="The security log is for organisers" className="mx-auto w-full max-w-lg" />;
+  if (!isAdmin) return <EmptyState framed icon={ShieldCheckIcon} title="The security log is for organisers" />;
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div>
       <h1 className="sr-only">Security log</h1>
       <Panel
         title="Security log"
@@ -223,8 +223,8 @@ export default function SecurityLogPage() {
           )
         }
       >
-        {/* column heads, desktop only */}
-        <div className="hidden grid-cols-[2rem_minmax(0,1fr)_13rem_7rem_1rem] gap-x-4 border-b border-border px-6 py-2 text-xs text-hint md:grid">
+        {/* column heads, desktop only: the same grey band as the console's tables */}
+        <div className="hidden h-15 grid-cols-[2rem_minmax(0,1fr)_13rem_7rem_1rem] items-center gap-x-4 border-b border-border bg-surface-soft px-6 text-sm text-ink-soft md:grid">
           <span />
           <span>Event</span>
           <span>Who</span>

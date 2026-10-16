@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { BreadcrumbProvider, Breadcrumbs } from '@/components/shell/breadcrumbs';
 import { usePathname } from 'next/navigation';
@@ -66,19 +66,60 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
           <OpsAlerts />
           <main id="content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none sm:px-7">
             {/* where the page sits, above its content rather than in the navbar */}
-            <Breadcrumbs pathname={pathname} className="mb-4" />
-            {children}
+            {/* one width for every page, the breadcrumb aligned with the content under it */}
+            <div className="mx-auto w-full max-w-[90rem]">
+              <Breadcrumbs pathname={pathname} className="mb-4" />
+              <PageEntrance key={pathname}>{children}</PageEntrance>
+            </div>
           </main>
           {/*
            * Pinned to the bottom of the window, within the content column so it never slides under
            * the sidebar; h-17 matches the sidebar's user row so the two top borders form one line.
            */}
-          <footer className="sticky bottom-0 z-20 flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface px-4 text-xs text-muted sm:px-7">
-            Designed and maintained by Flux Eco
-          </footer>
+          <footer className="flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface px-4 text-xs text-muted sm:px-7">Designed and maintained by Flux Eco</footer>
         </div>
         <NavMenu groups={groups} open={menuOpen} onClose={closeMenu} />
       </div>
     </BreadcrumbProvider>
+  );
+}
+
+/**
+ * A page as it opens: a quiet fade, and for its first moment (`data-entering`) its panels, figure
+ * cards and first table rows rise in one after another (see .page-in in globals.css). Content that
+ * arrives later, or changes with a filter, appears at once.
+ */
+function PageEntrance({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [entering, setEntering] = useState(true);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    // number what has arrived in reading order, each batch (first paint, then the data) from the top
+    const seen = new WeakSet<Element>();
+    const number = () => {
+      let n = 0;
+      for (const el of root.querySelectorAll<HTMLElement>('[data-panel], [data-figure], tbody > tr')) {
+        if (seen.has(el)) continue;
+        seen.add(el);
+        el.style.setProperty('--stagger', String(Math.min(n++, 6)));
+      }
+    };
+    number();
+    const observer = new MutationObserver(number);
+    observer.observe(root, { childList: true, subtree: true });
+    const timer = setTimeout(() => {
+      observer.disconnect();
+      setEntering(false);
+    }, 1200);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
+  return (
+    <div ref={ref} className="page-in" data-entering={entering || undefined}>
+      {children}
+    </div>
   );
 }

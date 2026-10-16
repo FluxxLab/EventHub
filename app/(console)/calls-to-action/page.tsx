@@ -152,7 +152,7 @@ function Board({ edition }: { edition: Edition }) {
         </div>
         {!aiReady && (
           <p className="border-t border-border bg-warning-soft px-6 py-2.5 text-sm text-warning">
-            Analyse is off until the AI is set up on the server (ANTHROPIC_API_KEY). You can still add, review and export.
+            AI analysis isn’t set up yet. Ask your administrator. You can still add, review and export calls to action.
           </p>
         )}
       </Panel>
@@ -172,17 +172,20 @@ function Board({ edition }: { edition: Edition }) {
               <PresentationChartBarIcon className="size-4" />
               Make a deck
             </button>
-            <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
-              <PlusIcon className="size-4" />
-              Add by hand
-            </button>
+            {/* with nothing listed, the empty state below offers it instead */}
+            {items.length > 0 && (
+              <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
+                <PlusIcon className="size-4" />
+                Add by hand
+              </button>
+            )}
           </>
         }
         toolbar={
           <>
             <SegmentedTabs label="Review status" options={STATUS_TABS.map((t) => ({ value: t, label: TAB_LABEL[t], count: counts[t] }))} value={tab} onChange={setTab} />
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="w-56">
+            <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+              <div className="w-full sm:w-56">
                 <Select
                   label="Session"
                   value={sessionFilter}
@@ -191,7 +194,7 @@ function Board({ edition }: { edition: Edition }) {
                 />
               </div>
               {targetOptions.length > 0 && (
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Select
                     label="Directed at"
                     value={targetFilter}
@@ -208,7 +211,7 @@ function Board({ edition }: { edition: Edition }) {
           <div className="flex flex-wrap items-center gap-3 border-b border-border bg-primary-soft/40 px-6 py-3 text-sm">
             <Squares2X2Icon className="size-4 text-primary" />
             <span className="text-ink">Merge {chosen.length} duplicates, keeping</span>
-            <div className="w-80">
+            <div className="w-full sm:w-80">
               <Select
                 label="The one to keep"
                 value={chosen.includes(keep) ? keep : chosen[0]!}
@@ -232,7 +235,7 @@ function Board({ edition }: { edition: Edition }) {
               title="No calls to action yet"
               body="Analyse a session, or add one by hand."
               action={
-                <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
                   <PlusIcon className="size-4" />
                   Add by hand
                 </button>

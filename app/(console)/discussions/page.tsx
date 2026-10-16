@@ -30,7 +30,7 @@ function ListButton({ selected, onSelect, children }: { selected: boolean; onSel
       aria-pressed={selected}
       onClick={onSelect}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect())}
-      className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
+      className={cn('flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors', selected ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
     >
       {children}
     </div>
@@ -296,17 +296,15 @@ export default function DiscussionsPage() {
   const thread = review ? null : (all.find((t) => t.sessionId === selectedId) ?? null);
 
   if (!isAdmin) {
-    return (
-      <EmptyState framed className="mx-auto w-full max-w-lg" icon={ChatBubbleLeftRightIcon} title="Discussions are moderated by organisers" body="Ask an organiser if a comment needs attention." />
-    );
+    return <EmptyState framed icon={ChatBubbleLeftRightIcon} title="Discussions are moderated by organisers" body="Ask an organiser if a comment needs attention." />;
   }
-  if (threads.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (threads.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (threads.isError && !threads.data) {
-    return <ErrorState framed className="mx-auto w-full max-w-6xl" title="Discussions could not load" error={threads.error} onRetry={() => void threads.refetch()} />;
+    return <ErrorState framed title="Discussions could not load" error={threads.error} onRetry={() => void threads.refetch()} />;
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
+    <div className="grid items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
       <Panel title="Threads" count={all.length}>
         <ul className="border-b border-border">
           <li>

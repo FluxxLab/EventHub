@@ -53,8 +53,9 @@ export function Tooltip({
         role="tooltip"
         id={id}
         className={cn(
-          'pointer-events-none invisible absolute z-40 flex items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-xs leading-[18px] opacity-0 transition-opacity duration-100',
-          'group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100',
+          'pointer-events-none absolute z-40 hidden items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-xs leading-[18px]',
+          // out of the layout until shown: a hidden tooltip near the edge must not widen the page
+          'group-hover/tip:flex group-focus-within/tip:flex',
           side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
           ALIGN[align],
           colours,
@@ -65,7 +66,12 @@ export function Tooltip({
         {/* the arrow: a 12x6 triangle in the tooltip's own colour */}
         <span
           aria-hidden
-          className={cn('absolute h-1.5 w-3', side === 'top' ? 'top-full [clip-path:polygon(0_0,100%_0,50%_100%)]' : 'bottom-full [clip-path:polygon(50%_0,100%_100%,0_100%)]', ARROW_ALIGN[align], colours)}
+          className={cn(
+            'absolute h-1.5 w-3',
+            side === 'top' ? 'top-full [clip-path:polygon(0_0,100%_0,50%_100%)]' : 'bottom-full [clip-path:polygon(50%_0,100%_100%,0_100%)]',
+            ARROW_ALIGN[align],
+            colours,
+          )}
         />
       </span>
     </span>

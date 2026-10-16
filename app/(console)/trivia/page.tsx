@@ -77,7 +77,7 @@ function ListItem({
         aria-pressed={selected}
         onClick={onSelect}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect())}
-        className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
+        className={cn('flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors', selected ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
       >
         <RunButton question={question} busy={busy} onStart={onStart} onStop={onStop} />
         <div className="min-w-0 flex-1">
@@ -259,8 +259,8 @@ function TriviaBoard({ editionId }: { editionId: string }) {
   const requestStart = (q: TriviaQuestion) => (live && live.id !== q.id ? setPending({ kind: 'start', question: q }) : run(q));
   const end = (q: TriviaQuestion) => stop.mutate({ id: q.id }, { onError: fail('Question not stopped') });
 
-  if (list.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
-  if (list.isError && !list.data) return <ErrorState framed className="mx-auto w-full max-w-6xl" title="Trivia could not load" error={list.error} onRetry={() => void list.refetch()} />;
+  if (list.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
+  if (list.isError && !list.data) return <ErrorState framed title="Trivia could not load" error={list.error} onRetry={() => void list.refetch()} />;
 
   const dialogs = (
     <>
@@ -324,7 +324,6 @@ function TriviaBoard({ editionId }: { editionId: string }) {
       <>
         <EmptyState
           framed
-          className="mx-auto w-full max-w-6xl"
           icon={TrophyIcon}
           title="No trivia questions yet"
           body="Write a few for the breaks; delegates answer on their phones and see the answer when you stop it."
@@ -341,7 +340,7 @@ function TriviaBoard({ editionId }: { editionId: string }) {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
+    <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <Panel
         title="Questions"
         count={all.length}

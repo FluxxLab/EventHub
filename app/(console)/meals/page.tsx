@@ -129,7 +129,8 @@ function Board({ edition }: { edition: Edition }) {
                               <div className="h-2 flex-1 rounded-full bg-surface-soft" aria-hidden>
                                 <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
                               </div>
-                              <span className="whitespace-nowrap text-xs tabular-nums text-ink">
+                              {/* a fixed width, so every row's bar starts and ends in line */}
+                              <span className="w-28 shrink-0 whitespace-nowrap text-right text-xs tabular-nums text-ink">
                                 {m.served.toLocaleString('en-GB')} of {people.toLocaleString('en-GB')}
                               </span>
                             </div>

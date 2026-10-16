@@ -84,7 +84,7 @@ describe('analytics figures', () => {
     expect(screenKey('/')).toBe('/');
     expect(screenLabel('/')).toBe('Home');
     expect(screenLabel('/my-pass')).toBe('My pass');
-    expect(screenLabel('/sessions/:id')).toBe('Sessions › detail');
+    expect(screenLabel('/sessions/:id')).toBe('Sessions › Detail');
     expect(
       groupScreens([
         { path: '/sessions/6f1c0f6e-2d1a-4a1e-9a0e-2c7f3f0f9b21', views: 40 },
@@ -92,7 +92,7 @@ describe('analytics figures', () => {
         { path: '/sessions/77ab0f6e-2d1a-4a1e-9a0e-2c7f3f0f9b21', views: 35 },
       ]),
     ).toEqual([
-      { key: '/sessions/:id', label: 'Sessions › detail', views: 75 },
+      { key: '/sessions/:id', label: 'Sessions › Detail', views: 75 },
       { key: '/agenda', label: 'Agenda', views: 70 },
     ]);
     expect(featureLabel('session_bookmark')).toBe('Session bookmark');

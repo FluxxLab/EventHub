@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } 
 
 import { Avatar } from '@/components/shell/avatar';
 import { buttonClass } from '@/components/ui/button';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toaster';
@@ -13,6 +14,9 @@ import { useCreateSpeaker, useUpdateSpeaker } from '@/lib/speakers/use-speakers'
 
 const EMPTY: CreateSpeakerForm = { name: '', role: '', organisation: '' };
 type Errors = Partial<Record<keyof CreateSpeakerForm | 'photo', string>>;
+
+/** The details as one string, to tell whether anything changed since the form opened. */
+const snapshot = (form: CreateSpeakerForm) => JSON.stringify([form.name.trim(), (form.role ?? '').trim(), (form.organisation ?? '').trim()]);
 
 /**
  * "Add speaker": photo (optional, previewed before upload), name, role and organisation. The
@@ -52,9 +56,12 @@ export function CreateSpeakerDialog({ open, onClose, speaker = null }: { open: b
   }, [open]);
 
   // Free the preview's object URL when it is replaced or the dialog unmounts.
-  useEffect(() => () => {
-    if (preview) URL.revokeObjectURL(preview);
-  }, [preview]);
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
 
   const pickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -88,6 +95,9 @@ export function CreateSpeakerDialog({ open, onClose, speaker = null }: { open: b
   const close = () => {
     if (!pending) finish();
   };
+  // a photo picked or removed counts as a change too
+  const dirty = open && (snapshot(form) !== snapshot(speaker ? { name: speaker.name, role: speaker.role ?? '', organisation: speaker.organisation ?? '' } : EMPTY) || !!photo || removedPhoto);
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending, onClose: close });
   const set = (key: keyof CreateSpeakerForm, value: string) => {
     setForm((was) => ({ ...was, [key]: value }));
     if (errors[key]) setErrors((was) => ({ ...was, [key]: undefined }));
@@ -138,13 +148,18 @@ export function CreateSpeakerDialog({ open, onClose, speaker = null }: { open: b
       aria-labelledby={id('title')}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('md')}
     >
       <form onSubmit={onSubmit} noValidate className="flex max-h-[calc(100dvh-2.5rem)] flex-col">
         <div className="shrink-0 px-6 pb-3 pt-6">
-          <ModalHeader icon={MicrophoneIcon} title={speaker ? 'Edit speaker' : 'Add speaker'} titleId={id('title')} subtitle={speaker ? 'Speakers are shared across events: a change shows in every programme they are in.' : 'Speakers are shared across events; add them once, use them in any programme.'} />
+          <ModalHeader
+            icon={MicrophoneIcon}
+            title={speaker ? 'Edit speaker' : 'Add speaker'}
+            titleId={id('title')}
+            subtitle={speaker ? 'Speakers are shared across events: a change shows in every programme they are in.' : 'Speakers are shared across events; add them once, use them in any programme.'}
+          />
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-3 scrollbar-thin">
@@ -208,8 +223,9 @@ export function CreateSpeakerDialog({ open, onClose, speaker = null }: { open: b
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
-          <button type="button" onClick={close} disabled={pending} className={cancelClass}>
+          <button type="button" onClick={requestClose} disabled={pending} className={cancelClass}>
             Cancel
           </button>
           <button type="submit" disabled={pending} className={buttonClass()}>
@@ -220,4 +236,3 @@ export function CreateSpeakerDialog({ open, onClose, speaker = null }: { open: b
     </dialog>
   );
 }
-

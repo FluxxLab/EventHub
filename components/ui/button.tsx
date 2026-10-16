@@ -39,14 +39,9 @@ const COLORS: Record<ButtonStyle, Record<ButtonColor, string>> = {
 };
 
 /** The classes alone, for a <Link> or <a> that should look like a button. */
-export function buttonClass({
-  style = 'fill',
-  color = 'primary',
-  iconOnly = false,
-  className,
-}: { style?: ButtonStyle; color?: ButtonColor; iconOnly?: boolean; className?: string } = {}) {
+export function buttonClass({ style = 'fill', color = 'primary', iconOnly = false, className }: { style?: ButtonStyle; color?: ButtonColor; iconOnly?: boolean; className?: string } = {}) {
   return cn(
-    'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded text-sm font-normal whitespace-nowrap transition-[color,background-color,border-color,transform] duration-150 motion-safe:active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50',
+    'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded text-sm font-normal whitespace-nowrap transition-[color,background-color,border-color,transform] duration-100 ease-[var(--ease-standard)] motion-safe:active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50',
     iconOnly ? 'w-9' : 'px-3',
     COLORS[style][color],
     className,

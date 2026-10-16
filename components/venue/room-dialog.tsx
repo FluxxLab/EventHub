@@ -4,6 +4,7 @@ import { BuildingOffice2Icon, CheckCircleIcon, Square3Stack3DIcon } from '@heroi
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toaster';
@@ -12,6 +13,9 @@ import { roomFormOf, roomSchema, toRoomBody, type Room, type RoomForm } from '@/
 import { useRoomMutations } from '@/lib/venue/use-venue';
 
 type Errors = Partial<Record<keyof RoomForm, string>>;
+
+/** The room's details as one string, to tell whether anything changed since the form opened. */
+const snapshot = (form: RoomForm) => JSON.stringify([form.name.trim(), form.floor.trim(), form.notes.trim()]);
 
 /**
  * Add, edit or describe a room. `room` null adds one; a room with no id (named only by the
@@ -50,6 +54,8 @@ export function RoomDialog({ open, onClose, editionId, room }: { open: boolean; 
     setOpenedFor(undefined);
     onClose();
   };
+  const dirty = open && snapshot(form) !== snapshot(roomFormOf(room));
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending: mutation.isPending, onClose: close });
   const set = (key: keyof RoomForm, value: string) => {
     setForm((was) => ({ ...was, [key]: value }));
     if (errors[key]) setErrors((was) => ({ ...was, [key]: undefined }));
@@ -85,7 +91,7 @@ export function RoomDialog({ open, onClose, editionId, room }: { open: boolean; 
       aria-labelledby={id('title')}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('md')}
     >
@@ -131,8 +137,9 @@ export function RoomDialog({ open, onClose, editionId, room }: { open: boolean; 
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
-          <button type="button" onClick={close} disabled={mutation.isPending} className={cancelClass}>
+          <button type="button" onClick={requestClose} disabled={mutation.isPending} className={cancelClass}>
             Cancel
           </button>
           <button type="submit" disabled={mutation.isPending} className={buttonClass()}>

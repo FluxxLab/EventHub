@@ -4,14 +4,32 @@ import { CheckCircleIcon, TagIcon, TicketIcon, UsersIcon } from '@heroicons/reac
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { EXTRA_CURRENCIES, tierFormOf, tierSchema, toTierBody, type PriceMode, type TicketType, type TierForm } from '@/lib/ticketing/ticketing';
 import { useTierMutations } from '@/lib/ticketing/use-ticketing';
 
 type Errors = Partial<Record<keyof TierForm, string>>;
+
+/** The tier as it would be saved (blank perk lines left out), to tell whether anything changed since the form opened. */
+const snapshot = (form: TierForm) =>
+  JSON.stringify([
+    form.name.trim(),
+    form.section.trim(),
+    form.mode,
+    form.price.trim(),
+    EXTRA_CURRENCIES.map((c) => form.extra[c].trim()),
+    form.capacity.trim(),
+    form.perks
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean),
+    form.isActive,
+  ]);
 
 const MODES: { value: PriceMode; label: string; hint: string }[] = [
   { value: 'paid', label: 'Paid', hint: 'Bought at checkout' },
@@ -69,6 +87,8 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
   const close = () => {
     if (!mutation.isPending) reset();
   };
+  const dirty = open && snapshot(form) !== snapshot(tierFormOf(tier));
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending: mutation.isPending, onClose: close });
   const set = <K extends keyof TierForm>(key: K, value: TierForm[K]) => {
     setForm((was) => ({ ...was, [key]: value }));
     if (errors[key]) setErrors((was) => ({ ...was, [key]: undefined }));
@@ -106,7 +126,7 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
       aria-labelledby={id('title')}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('lg')}
     >
@@ -172,10 +192,7 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
                   role="radio"
                   aria-checked={form.mode === m.value}
                   onClick={() => set('mode', m.value)}
-                  className={cn(
-                    'rounded-lg border px-3 py-2.5 text-left transition-colors',
-                    form.mode === m.value ? 'border-primary bg-primary-soft' : 'border-border hover:bg-surface-soft',
-                  )}
+                  className={cn('rounded-lg border px-3 py-2.5 text-left transition-colors', form.mode === m.value ? 'border-primary bg-primary-soft' : 'border-border hover:bg-surface-soft')}
                 >
                   <span className={cn('block text-sm', form.mode === m.value ? 'font-medium text-primary' : 'text-ink')}>{m.label}</span>
                   <span className="block text-xs text-hint">{m.hint}</span>
@@ -251,25 +268,9 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
             <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div id={id('onsale-label')}>
                 <p className="text-sm text-ink">On sale</p>
-                <p className="text-xs text-hint">
-                  {form.isActive ? 'Listed at checkout now.' : 'Hidden from checkout; tickets already sold stay valid. Switch it back on any time.'}
-                </p>
+                <p className="text-xs text-hint">{form.isActive ? 'Listed at checkout now.' : 'Hidden from checkout; tickets already sold stay valid. Switch it back on any time.'}</p>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.isActive}
-                aria-labelledby={id('onsale-label')}
-                onClick={() => set('isActive', !form.isActive)}
-                className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors', form.isActive ? 'bg-success' : 'bg-border-strong')}
-              >
-                <span
-                  className={cn(
-                    'absolute left-0.5 top-0.5 size-5 rounded-full bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform',
-                    form.isActive ? 'translate-x-5' : 'translate-x-0',
-                  )}
-                />
-              </button>
+              <Switch checked={form.isActive} onChange={(on) => set('isActive', on)} labelledBy={id('onsale-label')} />
             </div>
           </Section>
 
@@ -280,8 +281,9 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
-          <button type="button" onClick={close} disabled={mutation.isPending} className={cancelClass}>
+          <button type="button" onClick={requestClose} disabled={mutation.isPending} className={cancelClass}>
             Cancel
           </button>
           <button type="submit" disabled={mutation.isPending} className={buttonClass()}>

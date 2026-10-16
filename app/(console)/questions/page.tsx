@@ -305,12 +305,11 @@ export default function QuestionsPage() {
   );
   const session = options.find((s) => s.id === picked) ?? defaultSession(options, now);
 
-  if (editions.isPending || sessions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (editions.isPending || sessions.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (!session) {
     return (
       <EmptyState
         framed
-        className="mx-auto mt-10 w-full max-w-lg"
         icon={ChatBubbleLeftRightIcon}
         title="No sessions yet"
         body="Questions belong to a session."
@@ -324,7 +323,7 @@ export default function QuestionsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <h1 className="sr-only">Questions</h1>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="w-full max-w-xl">

@@ -1,8 +1,9 @@
 'use client';
 
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type FormEvent, type ReactNode } from 'react';
 
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { Spinner } from '@/components/ui/spinner';
 import { buttonClass } from '@/components/ui/button';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
@@ -50,21 +51,7 @@ export function FormDialog({
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
   }, [open]);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
-  // nothing to discard any more (saved, undone): stop asking
-  if (confirmDiscard && !dirty) setConfirmDiscard(false);
-  useEffect(() => {
-    if (!open || !dirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [open, dirty]);
-  const close = () => {
-    if (pending) return;
-    if (dirty && !confirmDiscard) return setConfirmDiscard(true);
-    setConfirmDiscard(false);
-    onClose();
-  };
+  const { requestClose: close, prompt } = useDiscardGuard({ open, dirty, pending, onClose });
   return (
     <dialog
       ref={ref}
@@ -87,19 +74,7 @@ export function FormDialog({
             </p>
           )}
         </div>
-        {confirmDiscard && (
-          <div role="alert" className="pop-in mx-6 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning">
-            <span>Discard your changes?</span>
-            <span className="flex gap-2">
-              <button type="button" onClick={() => setConfirmDiscard(false)} className={buttonClass({ style: 'outline', color: 'gray' })}>
-                Keep editing
-              </button>
-              <button type="button" onClick={close} className={buttonClass({ color: 'danger' })}>
-                Discard
-              </button>
-            </span>
-          </div>
-        )}
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
           <button type="button" onClick={close} disabled={pending} className={cancelClass}>
             Cancel

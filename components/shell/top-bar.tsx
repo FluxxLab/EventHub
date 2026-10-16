@@ -25,7 +25,7 @@ export function TopBar({ user, onMenu }: { user: StaffUser; onMenu: () => void }
         <Bars3Icon className="size-5" />
       </button>
       {/* Pages carry their own h1; the navbar title names the place, so it is not a heading. */}
-      <p className="truncate text-2xl font-medium text-ink">{title}</p>
+      <p className="truncate text-lg font-medium text-ink sm:text-2xl">{title}</p>
 
       {/* Search sits with the other tools on the right, at half its former width. */}
       <div className="ml-auto flex items-center gap-2.5">

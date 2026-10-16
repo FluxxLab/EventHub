@@ -23,10 +23,10 @@ export default function SettingsPage() {
   const isAdmin = auth.status === 'signed-in' && auth.user.tier === 'admin';
   const [tab, setTab] = useUrlParam<TabKey>('tab', 'tracks', TAB_KEYS);
 
-  if (!isAdmin) return <EmptyState framed icon={Cog6ToothIcon} title="Catalog and settings are for organisers" className="mx-auto w-full max-w-lg" />;
+  if (!isAdmin) return <EmptyState framed icon={Cog6ToothIcon} title="Catalog and settings are for organisers" />;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <h1 className="sr-only">Catalog and settings</h1>
       <UnderlineTabs label="Settings" idBase="settings" options={[...TABS]} value={tab} onChange={setTab} />
       <div id={tabPanelId('settings', tab)} role="tabpanel" aria-labelledby={tabId('settings', tab)}>

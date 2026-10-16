@@ -4,6 +4,7 @@ import { ArrowDownTrayIcon, ArrowUpTrayIcon, CheckCircleIcon, DocumentArrowUpIco
 import { useEffect, useId, useMemo, useRef, useState, type DragEvent } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -96,6 +97,9 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
     reset();
     onClose();
   };
+  // a list read in (or being pasted) and not yet imported is work to lose; after the import, nothing is
+  const dirty = !running && !finished && (!!pasted.trim() || !!workbook || !!table);
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending: running, onClose: close });
 
   const load = (text: string | Table, name: string | null) => {
     const t = typeof text === 'string' ? parseTable(text) : text;
@@ -168,7 +172,7 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
       aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('lg')}
     >
@@ -373,6 +377,7 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
           {finished ? (
             <>
@@ -394,7 +399,7 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
             </>
           ) : (
             <>
-              <button type="button" onClick={step === 'source' ? close : () => setStep(step === 'review' ? 'columns' : 'source')} disabled={running} className={cancelClass}>
+              <button type="button" onClick={step === 'source' ? requestClose : () => setStep(step === 'review' ? 'columns' : 'source')} disabled={running} className={cancelClass}>
                 {step === 'source' ? 'Cancel' : 'Back'}
               </button>
               {step === 'source' && (

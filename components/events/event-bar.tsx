@@ -15,15 +15,15 @@ import { dateRange } from '@/lib/events/events';
  */
 export function EventBar({ page, note, children }: { page: ReturnType<typeof usePageEdition>; note?: string; children: (editionId: string) => ReactNode }) {
   const { editions, edition } = page;
-  if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (editions.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (editions.isError) {
-    return <ErrorState framed title="Events could not load" error={editions.error} onRetry={() => void editions.refetch()} className="mx-auto w-full max-w-6xl" />;
+    return <ErrorState framed title="Events could not load" error={editions.error} onRetry={() => void editions.refetch()} className="w-full" />;
   }
   if (!edition) {
-    return <EmptyState framed icon={CalendarDaysIcon} title="No events yet" body="They appear here once one is created or assigned to you." className="mx-auto w-full max-w-6xl" />;
+    return <EmptyState framed icon={CalendarDaysIcon} title="No events yet" body="They appear here once one is created or assigned to you." className="w-full" />;
   }
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       {/* the event is picked in the top bar, for every page; here it is only named */}
       <p className="flex items-center gap-2 text-sm text-hint">
         <CalendarDaysIcon className="size-4 shrink-0" aria-hidden />

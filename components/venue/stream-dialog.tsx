@@ -4,6 +4,7 @@ import { CheckIcon, ClipboardDocumentIcon, ExclamationTriangleIcon, EyeIcon, Eye
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Switch } from '@/components/ui/switch';
 import { encoderFields, INPUT_LABEL, testCommand, type StreamCredentials, type StreamInput } from '@/lib/ingest/ingest';
@@ -54,15 +55,7 @@ function CopyField({ label, value, secret }: { label: string; value: string; sec
  * (the API never returns it again), so the dialog says so and makes copying easy. Opened with
  * `credentials` already set after a key rotation, it skips straight to the settings.
  */
-export function StreamDialog({
-  room,
-  credentials: given,
-  onClose,
-}: {
-  room: string | null;
-  credentials?: StreamCredentials | null;
-  onClose: () => void;
-}) {
+export function StreamDialog({ room, credentials: given, onClose }: { room: string | null; credentials?: StreamCredentials | null; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const baseId = useId();
   const { create } = useIngestActions();
@@ -87,6 +80,9 @@ export function StreamDialog({
     setDiarise(false);
     onClose();
   };
+  // choices made but the stream not yet created; once it exists there is nothing left to lose here
+  const dirty = open && !credentials && (input !== 'rtmp' || diarise);
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending: create.isPending, onClose: close });
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -102,7 +98,7 @@ export function StreamDialog({
       aria-labelledby={`${baseId}-title`}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('md')}
     >
@@ -134,9 +130,7 @@ export function StreamDialog({
                   <li>Leave it streaming all day. Captions reach a session only while it is live in the room.</li>
                 </ul>
               </div>
-              {command && (
-                <CopyField label="Test from any laptop with ffmpeg" value={command} secret={false} />
-              )}
+              {command && <CopyField label="Test from any laptop with ffmpeg" value={command} secret={false} />}
             </>
           ) : (
             <>
@@ -177,6 +171,7 @@ export function StreamDialog({
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
           {credentials ? (
             <button type="submit" className={buttonClass()}>
@@ -184,7 +179,7 @@ export function StreamDialog({
             </button>
           ) : (
             <>
-              <button type="button" onClick={close} disabled={create.isPending} className={cancelClass}>
+              <button type="button" onClick={requestClose} disabled={create.isPending} className={cancelClass}>
                 Cancel
               </button>
               <button type="submit" disabled={create.isPending} className={buttonClass()}>

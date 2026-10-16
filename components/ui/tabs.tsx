@@ -52,7 +52,13 @@ export function SegmentedTabs<T extends string>({
 }) {
   const { list, onKeyDown } = useArrowKeys(options, value, onChange);
   return (
-    <div ref={list} role="tablist" aria-label={label} onKeyDown={onKeyDown} className={cn('flex w-fit flex-wrap gap-1 rounded-lg bg-surface-soft p-1', className)}>
+    <div
+      ref={list}
+      role="tablist"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className={cn('flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-surface-soft p-1 scrollbar-none [&>*]:shrink-0', className)}
+    >
       {options.map((o) => {
         const selected = o.value === value;
         return (
@@ -101,7 +107,13 @@ export function UnderlineTabs<T extends string>({
   const base = idBase ?? fallbackId;
   const { list, onKeyDown } = useArrowKeys(options, value, onChange);
   return (
-    <div ref={list} role="tablist" aria-label={label} onKeyDown={onKeyDown} className={cn('flex gap-6 overflow-x-auto border-b border-border', className)}>
+    <div
+      ref={list}
+      role="tablist"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className={cn('flex gap-6 overflow-x-auto border-b border-border scrollbar-none [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:[mask-image:none]', className)}
+    >
       {options.map((o) => {
         const selected = o.value === value;
         return (

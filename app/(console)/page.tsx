@@ -29,7 +29,7 @@ export default function DashboardPage() {
   if (!isAdmin) {
     // Session operators land here after sign-in; the dashboard is organiser-only.
     return (
-      <div className="mx-auto mt-6 w-full max-w-lg">
+      <div className="mt-6 w-full max-w-lg">
         <h1 className="sr-only">Welcome</h1>
         <EmptyState
           framed

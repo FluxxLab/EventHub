@@ -24,9 +24,10 @@ import { cn } from '@/lib/utils';
 
 const th = 'h-12 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
-const HOT = '#ff5e5e';
-const WARM = '#f2b705';
-const COLD = '#51c0ff';
+// the palette's own tokens, so they follow dark mode: hot reads urgent, warm amber, cold the brand blue
+const HOT = 'var(--danger)';
+const WARM = 'var(--warning)';
+const COLD = 'var(--primary)';
 
 /** The exhibition in numbers: leads per stand, interest, passport visits, the day's rush, and a report for each sponsor. */
 export default function ExhibitionPage() {
@@ -63,7 +64,7 @@ function HourBars({ series }: { series: { hour: number; leads: number }[] }) {
           <span className="block text-on-primary/70">
             {String(series[active]!.hour).padStart(2, '0')}:00–{String(series[active]!.hour + 1).padStart(2, '0')}:00
           </span>
-          <TipRow colour="#002d74" value={count(series[active]!.leads)} label={series[active]!.leads === 1 ? 'lead' : 'leads'} />
+          <TipRow colour="var(--primary)" value={count(series[active]!.leads)} label={series[active]!.leads === 1 ? 'lead' : 'leads'} />
         </ChartTooltip>
       )}
     </div>
@@ -131,7 +132,18 @@ function Report({ edition }: { edition: Edition }) {
         <Stat label="Leads scanned" value={count(t.leads)} changeLabel={`across ${t.stands} stands`} />
         <Stat label="Delegates reached" value={`${reach}%`} changeLabel={`${count(r.delegatesScanned)} of ${count(r.ticketHolders)} scanned at a stand`} />
         <Stat label="Passport visits" value={count(t.stamps)} changeLabel="delegates who scanned a stand" />
-        <Stat label="Most leads" value={t.busiest?.name ?? '–'} changeLabel={t.busiest ? `${count(t.busiest.leads)} leads` : 'no scans yet'} />
+        {t.busiest ? (
+          // a stand's name, not a figure: Stat's layout with the name set smaller, so it fits and the row stays level
+          <div className="flex min-w-0 flex-col gap-2">
+            <p className="truncate text-sm leading-5 text-ink">Most leads</p>
+            <p className="truncate text-lg font-medium leading-[38px] text-ink" title={t.busiest.name}>
+              {t.busiest.name}
+            </p>
+            <p className="truncate text-sm leading-5 text-hint">{count(t.busiest.leads)} leads</p>
+          </div>
+        ) : (
+          <Stat label="Most leads" value="–" changeLabel="no scans yet" />
+        )}
       </div>
 
       <ChartCard

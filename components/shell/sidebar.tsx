@@ -184,39 +184,42 @@ export function Sidebar({
                 <span className={cn(label(expanded), 'flex-1')}>{group.label}</span>
                 <ChevronDownIcon className={cn('size-4 shrink-0 text-muted transition-transform', groupOpen && 'rotate-180', !expanded && 'opacity-0')} />
               </button>
-              {expanded && groupOpen && (
-                <ul className="flex flex-col gap-0.5 py-1">
-                  {group.pages.map((page) => {
-                    const active = current?.page.href === page.href;
-                    const isPinned = pinnedHrefs.includes(page.href);
-                    return (
-                      <li key={page.href} className="group/item relative">
-                        <Link
-                          href={page.href}
-                          aria-current={active ? 'page' : undefined}
-                          className={cn('flex items-center gap-2.5 whitespace-nowrap rounded-lg py-2 pl-8 pr-3 text-sm text-muted hover:bg-surface-soft hover:text-ink', active && activeRow)}
-                        >
-                          <page.icon className="size-4.5 shrink-0" />
-                          <span className="truncate">{page.label}</span>
-                          <Count n={counts[page.href] ?? 0} />
-                          <span className="w-6 shrink-0" aria-hidden />
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => togglePinned(page.href)}
-                          aria-label={isPinned ? `Unpin ${page.label}` : `Pin ${page.label} to the top`}
-                          aria-pressed={isPinned}
-                          className={cn(
-                            'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-hint hover:text-ink',
-                            isPinned ? 'text-secondary' : 'opacity-0 focus-visible:opacity-100 group-hover/item:opacity-100',
-                          )}
-                        >
-                          {isPinned ? <StarSolid className="size-4" /> : <StarIcon className="size-4" />}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+              {expanded && (
+                // eases open and shut; a closed group's links are out of the Tab order
+                <div className="collapse" data-open={groupOpen}>
+                  <ul className="flex flex-col gap-0.5 py-1" inert={!groupOpen}>
+                    {group.pages.map((page) => {
+                      const active = current?.page.href === page.href;
+                      const isPinned = pinnedHrefs.includes(page.href);
+                      return (
+                        <li key={page.href} className="group/item relative">
+                          <Link
+                            href={page.href}
+                            aria-current={active ? 'page' : undefined}
+                            className={cn('flex items-center gap-2.5 whitespace-nowrap rounded-lg py-2 pl-8 pr-3 text-sm text-muted hover:bg-surface-soft hover:text-ink', active && activeRow)}
+                          >
+                            <page.icon className="size-4.5 shrink-0" />
+                            <span className="truncate">{page.label}</span>
+                            <Count n={counts[page.href] ?? 0} />
+                            <span className="w-6 shrink-0" aria-hidden />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => togglePinned(page.href)}
+                            aria-label={isPinned ? `Unpin ${page.label}` : `Pin ${page.label} to the top`}
+                            aria-pressed={isPinned}
+                            className={cn(
+                              'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-hint hover:text-ink',
+                              isPinned ? 'text-secondary' : 'opacity-0 focus-visible:opacity-100 group-hover/item:opacity-100',
+                            )}
+                          >
+                            {isPinned ? <StarSolid className="size-4" /> : <StarIcon className="size-4" />}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
             </div>
           );

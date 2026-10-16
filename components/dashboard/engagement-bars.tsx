@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { shortDay } from '@/components/dashboard/line-chart';
+import { dayLabelClass, shortDay } from '@/components/dashboard/line-chart';
 import { ChartTooltip, TipRow } from '@/components/ui/chart-tooltip';
 import { niceTicks } from '@/lib/dashboard/chart';
 import type { DashboardView } from '@/lib/dashboard/types';
@@ -21,7 +21,6 @@ export function EngagementBars({ days }: { days: DashboardView['spark']['engagem
   const [active, setActive] = useState<number | null>(null);
   const ticks = niceTicks(Math.max(0, ...days.map((d) => d.questions + d.pollVotes)));
   const top = ticks[ticks.length - 1]!;
-  const labelEvery = Math.max(1, Math.ceil(days.length / 7));
   const at = (value: number) => `${100 - (value / top) * 100}%`;
 
   if (days.length === 0) return <p className="flex h-56 items-center justify-center text-sm text-muted">No questions or votes yet.</p>;
@@ -69,11 +68,14 @@ export function EngagementBars({ days }: { days: DashboardView['spark']['engagem
       </div>
       <div />
       <div className="mt-2 flex gap-[6%] px-[2%] text-xs text-hint" aria-hidden>
-        {days.map((d, i) => (
-          <span key={d.day} className="min-w-0 flex-1 whitespace-nowrap text-center">
-            {(days.length - 1 - i) % labelEvery === 0 ? shortDay(d.day) : ''}
-          </span>
-        ))}
+        {days.map((d, i) => {
+          const shown = dayLabelClass(i, days.length);
+          return (
+            <span key={d.day} className="min-w-0 flex-1 whitespace-nowrap text-center">
+              {shown !== null && <span className={shown}>{shortDay(d.day)}</span>}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

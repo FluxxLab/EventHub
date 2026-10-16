@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowTrendingDownIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
-import { useState, type KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 
 import { changeOf } from '@/components/dashboard/change-badge';
 import { ENGAGEMENT_SERIES, EngagementBars } from '@/components/dashboard/engagement-bars';
@@ -10,6 +10,7 @@ import { Panel } from '@/components/ui/panel';
 import { halves } from '@/lib/dashboard/chart';
 import type { DashboardView } from '@/lib/dashboard/types';
 import { count, moneyCompact, percentChange } from '@/lib/format';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
 type Key = 'revenue' | 'delegates' | 'engagement';
@@ -19,7 +20,8 @@ type Key = 'revenue' | 'delegates' | 'engagement';
  * last week; the chosen figure's series is charted underneath.
  */
 export function TrendsCard({ data }: { data: DashboardView }) {
-  const [active, setActive] = useState<Key>('revenue');
+  // the figure shown is kept in the address, like every other tab in the console
+  const [active, setActive] = useUrlParam<Key>('trend', 'revenue', ['revenue', 'delegates', 'engagement']);
   const { revenue, activeDelegates, engagement } = data.spark;
   const engagementTotals = engagement.daily.map((d) => d.questions + d.pollVotes);
 
@@ -32,11 +34,22 @@ export function TrendsCard({ data }: { data: DashboardView }) {
     { key: 'engagement', label: 'Engagement', value: `${engagement.rate.toFixed(1)}%`, series: engagementTotals },
   ];
 
-  // Arrow keys move between the figures, as a tablist should.
+  // Arrow keys move between the figures, Home and End jump to the ends, as a tablist should.
   const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     const i = metrics.findIndex((m) => m.key === active);
-    const next = metrics[(i + (event.key === 'ArrowRight' ? 1 : metrics.length - 1)) % metrics.length]!;
+    const to =
+      event.key === 'ArrowRight'
+        ? (i + 1) % metrics.length
+        : event.key === 'ArrowLeft'
+          ? (i - 1 + metrics.length) % metrics.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? metrics.length - 1
+              : -1;
+    if (to < 0) return;
+    event.preventDefault();
+    const next = metrics[to]!;
     setActive(next.key);
     document.getElementById(`trend-tab-${next.key}`)?.focus();
   };
@@ -60,11 +73,11 @@ export function TrendsCard({ data }: { data: DashboardView }) {
               aria-controls="trend-panel"
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(metric.key)}
-              className={cn('flex flex-col items-start gap-2 border-b-2 pb-2 text-left', selected ? 'border-primary' : 'border-transparent hover:border-border')}
+              className={cn('flex flex-col items-start gap-2 border-b-2 pb-2 text-left', selected ? 'border-primary' : 'border-transparent hover:border-border-strong')}
             >
               <span className={cn('text-sm', selected ? 'font-medium text-primary' : 'text-ink')}>{metric.label}</span>
               <span className="text-3xl font-medium text-ink">{metric.value}</span>
-              {metric.note ? <span className="text-sm text-muted">{metric.note}</span> : null}
+              {metric.note ? <span className="text-sm text-hint">{metric.note}</span> : null}
               {change !== null ? (
                 <span className="flex items-center gap-1 text-sm">
                   <Trend className={`size-5 ${up ? 'text-success' : 'text-danger'}`} />
@@ -72,10 +85,10 @@ export function TrendsCard({ data }: { data: DashboardView }) {
                     {up ? '+' : '-'}
                     {percentChange(change)}
                   </span>
-                  <span className="text-muted">vs previous {split.days} days</span>
+                  <span className="text-hint">vs previous {split.days} days</span>
                 </span>
               ) : (
-                <span className="text-sm text-muted">No earlier week to compare</span>
+                <span className="text-sm text-hint">No earlier week to compare</span>
               )}
             </button>
           );
