@@ -16,16 +16,16 @@
   --background: #fdfdfd;
 
   /*
-   * The page behind the panels (a cool grey, so white panels lift off it) and the navy sidebar
-   * with its own text, hover and current-page shades.
+   * The page behind the panels (a cool grey, so white panels lift off it) and the sidebar's
+   * navigation: white like the rest of the frame, with the logo's arcs at its foot.
    */
   --canvas: #f3f5f8;
-  --rail: #002d74;
-  --rail-ink: #ffffff;
-  --rail-muted: #c9d3e6;
-  --rail-hover: rgb(255 255 255 / 0.08);
-  --rail-active: rgb(255 255 255 / 0.14);
-  --rail-border: rgb(255 255 255 / 0.12);
+  --rail: var(--surface);
+  --rail-ink: var(--ink);
+  --rail-muted: var(--ink-soft);
+  --rail-hover: var(--surface-soft);
+  --rail-active: var(--primary-soft);
+  --rail-border: var(--border);
   --surface: #ffffff;
   --surface-soft: #f5f5f5;
   /* wells and tracks: switch tracks, progress bars, segmented controls */
@@ -138,7 +138,6 @@ body {
   --gold: #e0b44a;
   --background: #0f1115;
   --canvas: #0f1115;
-  --rail: #0b1733;
   --surface: #16191f;
   --surface-soft: #1d2129;
   --surface-sunken: #262b34;
@@ -173,8 +172,7 @@ body {
     --gold: #e0b44a;
     --background: #0f1115;
     --canvas: #0f1115;
-    --rail: #0b1733;
-    --surface: #16191f;
+      --surface: #16191f;
     --surface-soft: #1d2129;
     --surface-sunken: #262b34;
     --border: #2d323c;
@@ -484,6 +482,34 @@ dialog[open]::backdrop {
   animation: toast-in var(--motion-slow) var(--ease-enter);
 }
 
+/* ...and leave faster, sinking back towards the edge. */
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.toast-out {
+  animation: toast-out var(--motion-moderate) var(--ease-exit) forwards;
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The sidebar's fly-outs: a short slide out from the rail's edge. */
+@keyframes flyout-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+.flyout-in {
+  animation: flyout-in var(--motion-moderate) var(--ease-enter);
+}
+
 /* A page's content as it opens: a quiet fade, never a slide. */
 @keyframes page-in {
   from {
@@ -518,11 +544,6 @@ dialog[open]::backdrop {
   background:
     linear-gradient(color-mix(in srgb, var(--canvas) 86%, transparent), color-mix(in srgb, var(--canvas) 86%, transparent)),
     url('/BackGround.png') center / cover no-repeat fixed;
-}
-
-/* On the navy sidebar the keyboard ring is gold, since navy would vanish into it. */
-[data-rail] :focus-visible {
-  outline-color: var(--secondary);
 }
 
 /* Collapsing groups (the sidebar's): height eases open and shut. */
@@ -585,6 +606,7 @@ dialog[open]::backdrop {
     transform: none;
   }
   .menu-in,
+  .flyout-in,
   .toast-in,
   .page-in[data-entering] :is([data-panel], [data-figure], tbody > tr),
   .deck-step {
@@ -592,6 +614,9 @@ dialog[open]::backdrop {
   }
   .group-collapse {
     transition: none;
+  }
+  .toast-out {
+    animation-name: fade-out;
   }
   .skeleton-delay {
     animation: skeleton-in var(--motion-moderate) var(--ease-standard) 300ms forwards;

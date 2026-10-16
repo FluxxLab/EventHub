@@ -10,6 +10,7 @@ import { buttonClass } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fieldBox, TextInput } from '@/components/ui/field';
 import { Panel } from '@/components/ui/panel';
+import { SaveLabel, useJustSaved } from '@/components/ui/reveal';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import {
@@ -150,6 +151,7 @@ function Composer({
 }) {
   const toast = useToast();
   const actions = useCampaignActions(edition.id);
+  const justSaved = useJustSaved(actions.save);
   const initial: CampaignDraft = campaign
     ? { subject: campaign.subject, body: campaign.body, buttonLabel: campaign.buttonLabel, buttonUrl: campaign.buttonUrl, audience: campaign.audience, design: campaign.design }
     : EMPTY_DRAFT;
@@ -262,7 +264,9 @@ function Composer({
               </button>
             )}
             <button type="button" disabled={busy || (!!savedId && !dirty)} onClick={() => void saveDraft()} className={buttonClass({ style: 'soft', color: 'gray' })}>
-              {actions.save.isPending ? 'Saving…' : 'Save draft'}
+              <SaveLabel pending={actions.save.isPending} saved={justSaved}>
+                Save draft
+              </SaveLabel>
             </button>
             <button type="button" disabled={busy || actions.test.isPending} onClick={() => void sendTest()} className={buttonClass({ style: 'outline', color: 'gray' })}>
               <EnvelopeIcon className="size-4" />

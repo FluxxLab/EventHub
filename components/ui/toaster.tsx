@@ -19,6 +19,8 @@ type Api = { push: (toast: Toast) => number; dismiss: (id: number) => void };
 const ToastContext = createContext<Api | null>(null);
 const DEFAULT_DURATION = 6000;
 const MAX_SHOWN = 3;
+/** A shade over the exit (150ms, .toast-out). */
+const LEAVE_MS = 200;
 
 /** One toast: closes itself after its duration, but not while the pointer or focus is on it. */
 function ToastItem({ toast, onDismiss }: { toast: Shown; onDismiss: (id: number) => void }) {
@@ -61,7 +63,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Shown[]>([]);
   const nextId = useRef(1);
 
-  const dismiss = useCallback((id: number) => setToasts((all) => all.filter((t) => t.id !== id)), []);
+  // a dismissed toast plays its exit first (see .toast-out), then leaves
+  const [leaving, setLeaving] = useState<Set<number>>(() => new Set());
+  const remove = useCallback((id: number) => {
+    setToasts((all) => all.filter((t) => t.id !== id));
+    setLeaving((was) => {
+      const next = new Set(was);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+  const dismiss = useCallback(
+    (id: number) => {
+      setLeaving((was) => new Set(was).add(id));
+      // gone by the time the exit has played, even where the animation never reports its end
+      setTimeout(() => remove(id), LEAVE_MS);
+    },
+    [remove],
+  );
   const push = useCallback((toast: Toast) => {
     const id = nextId.current++;
     setToasts((all) => [...all, { ...toast, id }].slice(-MAX_SHOWN));
@@ -74,7 +93,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[min(28rem,calc(100vw-2rem))] flex-col gap-3">
         {toasts.map((toast) => (
-          <div key={toast.id} className="toast-in pointer-events-auto">
+          <div
+            key={toast.id}
+            className={leaving.has(toast.id) ? 'toast-out pointer-events-none' : 'toast-in pointer-events-auto'}
+            onAnimationEnd={(e) => {
+              if (e.target === e.currentTarget && leaving.has(toast.id)) remove(toast.id);
+            }}
+          >
             <ToastItem toast={toast} onDismiss={dismiss} />
           </div>
         ))}

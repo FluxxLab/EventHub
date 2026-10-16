@@ -31,7 +31,8 @@ describe('toasts', () => {
   it('closes itself after its duration', () => {
     show(1000);
     expect(screen.getByText('Event added')).toBeTruthy();
-    act(() => vi.advanceTimersByTime(1000));
+    // its time, then its exit
+    act(() => vi.advanceTimersByTime(1200));
     expect(screen.queryByText('Event added')).toBeNull();
   });
 
@@ -41,13 +42,15 @@ describe('toasts', () => {
     act(() => vi.advanceTimersByTime(5000));
     expect(screen.getByText('Event added')).toBeTruthy();
     fireEvent.pointerLeave(screen.getByRole('status'));
-    act(() => vi.advanceTimersByTime(1000));
+    // its time, then its exit
+    act(() => vi.advanceTimersByTime(1200));
     expect(screen.queryByText('Event added')).toBeNull();
   });
 
   it('closes on its ✕', () => {
     show(0);
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    act(() => vi.advanceTimersByTime(200));
     expect(screen.queryByText('Event added')).toBeNull();
   });
 });

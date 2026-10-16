@@ -12,6 +12,7 @@ import { ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import { moveOption } from '@/lib/catalog/topics';
 import { tileProblem, useCategories, useUpdateCategories, type Category } from '@/lib/catalog/use-categories';
+import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
 /** One tile's name and picture. */
@@ -117,6 +118,7 @@ export function CategoryTiles() {
   const categories = useCategories();
   const reorder = useUpdateCategories();
   const [editing, setEditing] = useState<Category | null>(null);
+  const listRef = useListMotion<HTMLOListElement>();
   const list = categories.data ?? [];
 
   const move = (c: Category, direction: -1 | 1) => {
@@ -139,7 +141,7 @@ export function CategoryTiles() {
       ) : categories.isError ? (
         <ErrorState title="Categories could not load" error={categories.error} onRetry={() => void categories.refetch()} />
       ) : (
-        <ol className={cn('grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4', reorder.isPending && 'opacity-70')}>
+        <ol ref={listRef} className={cn('grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4', reorder.isPending && 'opacity-70')}>
           {list.map((c, i) => (
             <li key={c.slug} className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface">
               <button type="button" onClick={() => setEditing(c)} className="group relative aspect-[4/3] overflow-hidden bg-surface-soft text-left" aria-label={`Edit ${c.label}`}>

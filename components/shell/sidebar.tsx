@@ -16,9 +16,9 @@ import type { NavGroup } from '@/lib/nav';
 import { pageFor } from '@/lib/nav';
 import { cn } from '@/lib/utils';
 
-// on the navy sidebar: soft white text, a lighter wash on hover, the current page brighter with a gold icon
+// the sidebar's rows: soft text, a grey wash on hover, the current page in navy on pale blue
 const row = 'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-rail-muted hover:bg-rail-hover hover:text-rail-ink';
-const activeRow = 'bg-rail-active font-medium text-rail-ink hover:bg-rail-active [&_svg]:text-secondary';
+const activeRow = 'bg-rail-active font-medium text-primary hover:bg-rail-active';
 // in a fly-out (a white panel)
 const flyActive = 'bg-primary-soft font-medium text-primary hover:bg-primary-soft';
 /** A count of things waiting, beside a page. */
@@ -96,8 +96,8 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
         )}
       </div>
 
-      {/* the navigation: PIC navy, the logo's arcs at its foot, between the white logo and user rows */}
-      <div data-rail className="flex min-h-0 flex-1 flex-col bg-rail bg-[url(/brand/rail-arcs.svg)] bg-[length:18.75rem_auto] bg-left-bottom bg-no-repeat text-rail-ink">
+      {/* the navigation, with the logo's arcs at its foot */}
+      <div className="flex min-h-0 flex-1 flex-col bg-rail bg-[url(/brand/rail-arcs.svg)] bg-[length:18.75rem_auto] bg-left-bottom bg-no-repeat text-rail-ink">
         {expanded ? (
           <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
             {pinnedPages.length > 0 && (
@@ -325,7 +325,7 @@ function RailItem({
   const flyId = `rail-${id.replace(/\W+/g, '-')}`;
   const trigger = cn(
     'relative flex h-11 w-full items-center justify-center rounded-lg text-rail-muted hover:bg-rail-hover hover:text-rail-ink',
-    active ? 'bg-rail-active text-secondary hover:bg-rail-active' : isOpen && children && 'bg-rail-hover text-rail-ink',
+    active ? 'bg-rail-active text-primary hover:bg-rail-active' : isOpen && children && 'bg-rail-hover text-rail-ink',
   );
   const mark = (
     <>
@@ -408,7 +408,7 @@ function FlyOut({ id, top, left, label, onPick, children }: { id: string; top: n
       onClick={(e) => {
         if (e.target instanceof Element && e.target.closest('a')) onPick();
       }}
-      className={cn(dropdownPanel, 'fixed z-50', label ? 'w-60 py-2' : 'py-0')}
+      className={cn(dropdownPanel.replace('menu-in', 'flyout-in'), 'fixed z-50', label ? 'w-60 py-2' : 'py-0')}
     >
       {label && <p className="px-4 pb-1.5 pt-1 text-[0.6875rem] font-medium uppercase tracking-wider text-hint">{label}</p>}
       {children}

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 360" fill="none">
-  <!-- PIC's swoosh, for the navy sidebar: gold and sky arcs rising from the foot -->
-  <circle cx="40" cy="380" r="150" fill="#1f4fa3" fill-opacity="0.35"/>
-  <path d="M-40 250 A230 230 0 0 1 250 380" stroke="#fccc00" stroke-opacity="0.55" stroke-width="10" stroke-linecap="round"/>
-  <path d="M-30 200 A280 280 0 0 1 300 360" stroke="#5fa3e8" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="3 7" stroke-linecap="round"/>
-  <path d="M-20 300 A180 180 0 0 1 190 380" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.5"/>
+  <!-- PIC's swoosh at the sidebar's foot: a gold arc, a dotted navy arc and a pale navy wash -->
+  <circle cx="40" cy="380" r="150" fill="#002d74" fill-opacity="0.05"/>
+  <path d="M-40 250 A230 230 0 0 1 250 380" stroke="#fccc00" stroke-opacity="0.6" stroke-width="10" stroke-linecap="round"/>
+  <path d="M-30 200 A280 280 0 0 1 300 360" stroke="#002d74" stroke-opacity="0.18" stroke-width="2" stroke-dasharray="3 7" stroke-linecap="round"/>
+  <path d="M-20 300 A180 180 0 0 1 190 380" stroke="#002d74" stroke-opacity="0.08" stroke-width="1.5"/>
 </svg>

@@ -7,10 +7,12 @@ import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/field';
 import { Panel } from '@/components/ui/panel';
+import { SaveLabel, useJustSaved } from '@/components/ui/reveal';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import { addTerms, MAX_TERMS, useCaptionVocabulary, useSetCaptionVocabulary } from '@/lib/captions/vocabulary';
 import { useWorkingEdition } from '@/lib/events/working-edition';
+import { useListMotion } from '@/lib/use-list-motion';
 
 /**
  * Vocabulary: words the working event's captions should listen for, so they are not heard as
@@ -21,17 +23,22 @@ export function VocabularyPanel() {
   const working = useWorkingEdition();
   const editionId = working.edition?.id;
   const vocabulary = useCaptionVocabulary(editionId);
+  // held here, not in the editor: a save remounts the editor, and the button should still say Saved
+  const save = useSetCaptionVocabulary(editionId);
+  const justSaved = useJustSaved(save);
 
   if (working.editions.isPending || (editionId && vocabulary.isPending)) return <Skeleton className="h-96 rounded-xl" />;
   if (!editionId) return <EmptyState framed icon={BookOpenIcon} title="No event picked" body="Pick an event at the top to edit its vocabulary." />;
   if (vocabulary.isError) return <ErrorState framed title="The vocabulary could not load" error={vocabulary.error} onRetry={() => void vocabulary.refetch()} />;
 
-  return <VocabularyEditor key={`${editionId}:${JSON.stringify(vocabulary.data)}`} editionId={editionId} eventName={working.edition?.shortName ?? 'this event'} saved={vocabulary.data ?? []} />;
+  return (
+    <VocabularyEditor key={`${editionId}:${JSON.stringify(vocabulary.data)}`} save={save} justSaved={justSaved} eventName={working.edition?.shortName ?? 'this event'} saved={vocabulary.data ?? []} />
+  );
 }
 
-function VocabularyEditor({ editionId, eventName, saved }: { editionId: string; eventName: string; saved: string[] }) {
+function VocabularyEditor({ save, justSaved, eventName, saved }: { save: ReturnType<typeof useSetCaptionVocabulary>; justSaved: boolean; eventName: string; saved: string[] }) {
   const toast = useToast();
-  const save = useSetCaptionVocabulary(editionId);
+  const termsRef = useListMotion<HTMLUListElement>();
   const [terms, setTerms] = useState(saved);
   const [typed, setTyped] = useState('');
   const dirty = JSON.stringify(terms) !== JSON.stringify(saved);
@@ -65,8 +72,10 @@ function VocabularyEditor({ editionId, eventName, saved }: { editionId: string; 
       description="Words the captions should listen for: acronyms, programme names, places."
       actions={
         <button type="button" disabled={!dirty || save.isPending} onClick={submit} className={buttonClass()}>
-          <CheckIcon className="size-4" />
-          {save.isPending ? 'Saving…' : 'Save vocabulary'}
+          {!justSaved && <CheckIcon className="size-4" />}
+          <SaveLabel pending={save.isPending} saved={justSaved}>
+            Save vocabulary
+          </SaveLabel>
         </button>
       }
     >
@@ -92,7 +101,7 @@ function VocabularyEditor({ editionId, eventName, saved }: { editionId: string; 
             <BookOpenIcon className="size-4" /> No terms yet: captions listen for the speakers’ names and the event’s name only.
           </p>
         ) : (
-          <ul aria-label="Terms" className="flex flex-wrap gap-2">
+          <ul ref={termsRef} aria-label="Terms" className="flex flex-wrap gap-2">
             {terms.map((t) => (
               <li key={t} className="flex items-center gap-1 rounded-full border border-border bg-surface-soft py-1 pl-3 pr-1 text-sm text-ink">
                 {t}

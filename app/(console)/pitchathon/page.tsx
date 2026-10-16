@@ -23,6 +23,7 @@ import { usePitchathonActions, useTopics } from '@/lib/pitchathon/use-pitchathon
 import { shares } from '@/lib/polls/polls';
 import { trackLabel } from '@/lib/catalog/topics';
 import { useTrackLibrary } from '@/lib/catalog/use-topics';
+import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
 const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -230,6 +231,8 @@ function PitchBoard({ editionId }: { editionId: string }) {
   const [topicDialog, setTopicDialog] = useState<{ name: string | null; id?: string } | null>(null);
   const [pitchDialog, setPitchDialog] = useState<{ pitch: PitchEntry | null } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const topicsRef = useListMotion<HTMLUListElement>();
+  const pitchesRef = useListMotion<HTMLOListElement>();
 
   const all = useMemo(() => topics.data ?? [], [topics.data]);
   const live = all.find((t) => t.voting === 'open');
@@ -376,7 +379,7 @@ function PitchBoard({ editionId }: { editionId: string }) {
           )
         }
       >
-        <ul className="divide-y divide-border">
+        <ul ref={topicsRef} className="divide-y divide-border">
           {all.map((t, i) => (
             <TopicItem
               key={t.id}
@@ -467,7 +470,8 @@ function PitchBoard({ editionId }: { editionId: string }) {
               }
             />
           ) : (
-            <ol className="divide-y divide-border">
+            // keyed by topic, so picking another topic swaps the list rather than fading the old one out
+            <ol key={selected.id} ref={pitchesRef} className="divide-y divide-border">
               {ranked.map((p, i) => (
                 <PitchRow
                   key={p.id}

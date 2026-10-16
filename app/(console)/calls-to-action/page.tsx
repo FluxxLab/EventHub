@@ -31,6 +31,7 @@ import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { timeRange } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
+import { useListMotion } from '@/lib/use-list-motion';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
@@ -63,6 +64,7 @@ function Board({ edition }: { edition: Edition }) {
   const [keep, setKeep] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
   const [fromStart, setFromStart] = useState(false);
+  const listRef = useListMotion<HTMLUListElement>();
 
   const sessionList = useMemo(() => (sessions.data ?? []).filter((s) => s.type !== 'break').sort((a, b) => a.startsAt.localeCompare(b.startsAt)), [sessions.data]);
   const titleOf = (id: string | null) => sessionList.find((s) => s.id === id)?.title ?? (id ? 'A removed session' : 'No session');
@@ -263,7 +265,8 @@ function Board({ edition }: { edition: Edition }) {
             />
           )
         ) : (
-          <ul className="divide-y divide-border">
+          // keyed by tab, so switching tabs swaps the list rather than fading the old one out
+          <ul key={tab} ref={listRef} className="divide-y divide-border">
             {shown.map((c) => (
               <li key={c.id} className={cn('flex gap-4 px-6 py-4', c.status === 'merged' && 'opacity-60')}>
                 {c.status !== 'merged' && (

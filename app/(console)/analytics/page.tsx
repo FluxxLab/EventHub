@@ -10,6 +10,7 @@ import { ChartTooltip, TipRow } from '@/components/ui/chart-tooltip';
 import { Skeleton } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Panel } from '@/components/ui/panel';
+import { Reveal } from '@/components/ui/reveal';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { averageActive, defaultPeriod, featureLabel, groupScreens, peakDay, periodRange, platformShares, summaryCsv, type AnalyticsSummary, type Period } from '@/lib/analytics/analytics';
@@ -49,7 +50,27 @@ function Ranked({ title, unit, rows, empty }: { title: string; unit: string; row
   const [hovered, setHovered] = useState<string | null>(null);
   const top = rows[0]?.value ?? 0;
   const total = rows.reduce((sum, r) => sum + r.value, 0);
-  const shown = all ? rows : rows.slice(0, LIST_LIMIT);
+  const item = (r: (typeof rows)[number], i: number) => (
+    <li key={r.key} className="grid gap-1">
+      <div className="flex items-baseline gap-3 text-sm">
+        <span className="w-4 shrink-0 text-right text-xs tabular-nums text-hint">{i + 1}</span>
+        <span className="min-w-0 flex-1 truncate text-ink" title={r.key}>
+          {r.label}
+        </span>
+        <span className="tabular-nums text-ink-soft">{count(r.value)}</span>
+      </div>
+      <div className="relative ml-7" onPointerEnter={() => setHovered(r.key)} onPointerLeave={() => setHovered(null)}>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-soft">
+          <div className="h-full rounded-full" style={{ width: `${top ? (r.value / top) * 100 : 0}%`, background: chartColour(0) }} />
+        </div>
+        {hovered === r.key && (
+          <ChartTooltip x={`${Math.max(6, Math.min(94, top ? (r.value / top) * 100 : 0))}%`} y={0}>
+            <TipRow colour={chartColour(0)} value={count(r.value)} label={`${unit} · ${total ? Math.round((r.value / total) * 100) : 0}% of these`} />
+          </ChartTooltip>
+        )}
+      </div>
+    </li>
+  );
   return (
     <Panel
       {...chartPanel}
@@ -66,29 +87,17 @@ function Ranked({ title, unit, rows, empty }: { title: string; unit: string; row
       {rows.length === 0 ? (
         <EmptyState title={empty} body="Pick a longer period above." className="py-8" />
       ) : (
-        <ol className="grid gap-3">
-          {shown.map((r, i) => (
-            <li key={r.key} className="grid gap-1">
-              <div className="flex items-baseline gap-3 text-sm">
-                <span className="w-4 shrink-0 text-right text-xs tabular-nums text-hint">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate text-ink" title={r.key}>
-                  {r.label}
-                </span>
-                <span className="tabular-nums text-ink-soft">{count(r.value)}</span>
-              </div>
-              <div className="relative ml-7" onPointerEnter={() => setHovered(r.key)} onPointerLeave={() => setHovered(null)}>
-                <div className="h-1.5 overflow-hidden rounded-full bg-surface-soft">
-                  <div className="h-full rounded-full" style={{ width: `${top ? (r.value / top) * 100 : 0}%`, background: chartColour(0) }} />
-                </div>
-                {hovered === r.key && (
-                  <ChartTooltip x={`${Math.max(6, Math.min(94, top ? (r.value / top) * 100 : 0))}%`} y={0}>
-                    <TipRow colour={chartColour(0)} value={count(r.value)} label={`${unit} · ${total ? Math.round((r.value / total) * 100) : 0}% of these`} />
-                  </ChartTooltip>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
+        <div>
+          <ol className="grid gap-3">{rows.slice(0, LIST_LIMIT).map((r, i) => item(r, i))}</ol>
+          {rows.length > LIST_LIMIT && (
+            // the rest ease open below; the clip reaches into the panel's padding so a bar's tooltip is not cut
+            <Reveal open={all} className="-mx-6 px-6">
+              <ol start={LIST_LIMIT + 1} className="grid gap-3 pt-3">
+                {rows.slice(LIST_LIMIT).map((r, i) => item(r, LIST_LIMIT + i))}
+              </ol>
+            </Reveal>
+          )}
+        </div>
       )}
     </Panel>
   );

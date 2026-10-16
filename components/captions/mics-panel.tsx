@@ -8,6 +8,7 @@ import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/field';
 import { Panel } from '@/components/ui/panel';
+import { SaveLabel, useJustSaved } from '@/components/ui/reveal';
 import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
@@ -15,15 +16,19 @@ import { AUDIENCE, MAX_MICS, nextMic, useSetSessionMics, type SessionMic } from 
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { timeRange, type Session } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
+import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
-/** How a mic row is held while editing: a speaker, the audience, or a name typed in. */
-type Row = { mic: number; who: string; other: string };
+/** How a mic row is held while editing: a speaker, the audience, or a name typed in. `key` keeps a row's place in the list while its mic number changes. */
+type Row = { key: number; mic: number; who: string; other: string };
 const OTHER = '__other';
 const NOBODY = '';
 
+let lastKey = 0;
+const rowKey = () => ++lastKey;
+
 const toRows = (mics: SessionMic[] = []): Row[] =>
-  mics.map((m) => ({ mic: m.mic, who: m.speakerId ?? (m.label === AUDIENCE ? AUDIENCE : m.label ? OTHER : NOBODY), other: m.speakerId || m.label === AUDIENCE ? '' : (m.label ?? '') }));
+  mics.map((m) => ({ key: rowKey(), mic: m.mic, who: m.speakerId ?? (m.label === AUDIENCE ? AUDIENCE : m.label ? OTHER : NOBODY), other: m.speakerId || m.label === AUDIENCE ? '' : (m.label ?? '') }));
 
 const toMics = (rows: Row[]): SessionMic[] =>
   rows.map((r) =>
@@ -45,6 +50,9 @@ export function MicsPanel() {
   const editionId = working.edition?.id;
   const sessions = useSessions(editionId);
   const [openId, setOpenId] = useState<string | null>(null);
+  // held here, not in the editor: a save remounts the editor, and the button should still say Saved
+  const save = useSetSessionMics(editionId);
+  const justSaved = useJustSaved(save);
 
   const list = useMemo(() => (sessions.data ?? []).filter((s) => s.type !== 'break').sort((a, b) => a.startsAt.localeCompare(b.startsAt)), [sessions.data]);
   const open = list.find((s) => s.id === openId) ?? list.find((s) => s.status === 'live') ?? list[0] ?? null;
@@ -90,15 +98,15 @@ export function MicsPanel() {
         )}
       </Panel>
 
-      {open ? <MicsEditor key={`${open.id}:${JSON.stringify(open.mics ?? [])}`} session={open} editionId={editionId} /> : <div />}
+      {open ? <MicsEditor key={`${open.id}:${JSON.stringify(open.mics ?? [])}`} session={open} save={save} justSaved={justSaved && save.variables?.sessionId === open.id} /> : <div />}
     </div>
   );
 }
 
-function MicsEditor({ session, editionId }: { session: Session; editionId: string | undefined }) {
+function MicsEditor({ session, save, justSaved }: { session: Session; save: ReturnType<typeof useSetSessionMics>; justSaved: boolean }) {
   const toast = useToast();
-  const save = useSetSessionMics(editionId);
-  const [rows, setRows] = useState<Row[]>(() => (session.mics?.length ? toRows(session.mics) : [{ mic: 1, who: NOBODY, other: '' }]));
+  const rowsRef = useListMotion<HTMLUListElement>();
+  const [rows, setRows] = useState<Row[]>(() => (session.mics?.length ? toRows(session.mics) : [{ key: rowKey(), mic: 1, who: NOBODY, other: '' }]));
   const dirty = JSON.stringify(toMics(rows)) !== JSON.stringify(toMics(toRows(session.mics)));
 
   const who = [
@@ -111,7 +119,7 @@ function MicsEditor({ session, editionId }: { session: Session; editionId: strin
   const set = (i: number, next: Partial<Row>) => setRows((all) => all.map((r, j) => (j === i ? { ...r, ...next } : r)));
   const add = () => {
     const mic = nextMic(rows);
-    if (mic) setRows((all) => [...all, { mic, who: NOBODY, other: '' }]);
+    if (mic) setRows((all) => [...all, { key: rowKey(), mic, who: NOBODY, other: '' }]);
   };
 
   const submit = () =>
@@ -130,8 +138,10 @@ function MicsEditor({ session, editionId }: { session: Session; editionId: strin
       description={`Day ${session.day} · ${timeRange(session.startsAt, session.endsAt)} · ${session.room}`}
       actions={
         <button type="button" disabled={!dirty || save.isPending} onClick={submit} className={buttonClass()}>
-          <CheckIcon className="size-4" />
-          {save.isPending ? 'Saving…' : 'Save mics'}
+          {!justSaved && <CheckIcon className="size-4" />}
+          <SaveLabel pending={save.isPending} saved={justSaved}>
+            Save mics
+          </SaveLabel>
         </button>
       }
     >
@@ -139,9 +149,9 @@ function MicsEditor({ session, editionId }: { session: Session; editionId: strin
         {session.speakers.length === 0 && <p className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">No speakers in Programme yet: add them there to pick them here.</p>}
         <p className="text-xs text-hint">Mic numbers are the sound desk’s channels for {session.room}; each name labels that mic’s captions.</p>
 
-        <ul className="flex flex-col gap-3">
+        <ul ref={rowsRef} className="flex flex-col gap-3">
           {rows.map((r, i) => (
-            <li key={i} className="grid items-center gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_auto]">
+            <li key={r.key} className="grid items-center gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_auto]">
               <Select
                 label={`Mic number, row ${i + 1}`}
                 value={String(r.mic)}
