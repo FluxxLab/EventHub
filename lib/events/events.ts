@@ -4,16 +4,7 @@ import { z } from 'zod';
 export const EDITION_STATUSES = ['draft', 'announced', 'live', 'ended'] as const;
 export type EditionStatus = (typeof EDITION_STATUSES)[number];
 
-export const EDITION_CATEGORIES = [
-  'summits',
-  'workshops',
-  'roundtables',
-  'conferences',
-  'fellowships',
-  'training',
-  'exhibitions',
-  'community',
-] as const;
+export const EDITION_CATEGORIES = ['summits', 'workshops', 'roundtables', 'conferences', 'fellowships', 'training', 'exhibitions', 'community'] as const;
 export type EditionCategory = (typeof EDITION_CATEGORIES)[number];
 
 export type Edition = {
@@ -49,7 +40,15 @@ export type Edition = {
   brandGuideName?: string | null;
   /** The event's button colour in the app, #rrggbb, or null for PIC navy. */
   brandColor?: string | null;
+  /** How its call-to-action decks look: designed from its brand each time, or the Build commitment template. */
+  deckTemplate?: DeckTemplate;
   createdAt: string;
+};
+
+export type DeckTemplate = 'designed' | 'build';
+export const DECK_TEMPLATE_LABEL: Record<DeckTemplate, string> = {
+  designed: 'Designed for the event',
+  build: 'Build commitment template',
 };
 
 export const STATUS_LABEL: Record<EditionStatus, string> = {
@@ -86,8 +85,7 @@ const STATUS_ORDER: Record<EditionStatus, number> = { draft: 0, announced: 1, li
 
 export function sortEditions(editions: Edition[], sort: Sort): Edition[] {
   const sign = sort.dir === 'asc' ? 1 : -1;
-  const value = (e: Edition) =>
-    sort.key === 'name' ? e.name.toLowerCase() : sort.key === 'status' ? STATUS_ORDER[e.status] : Date.parse(e.startsAt);
+  const value = (e: Edition) => (sort.key === 'name' ? e.name.toLowerCase() : sort.key === 'status' ? STATUS_ORDER[e.status] : Date.parse(e.startsAt));
   return [...editions].sort((a, b) => {
     const x = value(a);
     const y = value(b);

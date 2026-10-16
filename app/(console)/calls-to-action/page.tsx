@@ -4,6 +4,7 @@ import {
   ArrowDownTrayIcon,
   ArrowUturnLeftIcon,
   CheckIcon,
+  DocumentTextIcon,
   MegaphoneIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -16,6 +17,7 @@ import { useMemo, useState } from 'react';
 
 import { CallDialog } from '@/components/calls-to-action/call-dialog';
 import { DeckDialog } from '@/components/calls-to-action/deck-dialog';
+import { ReportDialog } from '@/components/calls-to-action/report-dialog';
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
@@ -63,6 +65,7 @@ function Board({ edition }: { edition: Edition }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [fromStart, setFromStart] = useState(false);
   const listRef = useListMotion<HTMLUListElement>();
 
@@ -173,6 +176,10 @@ function Board({ edition }: { edition: Edition }) {
             <button type="button" onClick={() => setDeckOpen(true)} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
               <PresentationChartBarIcon className="size-4" />
               Make a deck
+            </button>
+            <button type="button" onClick={() => setReportOpen(true)} disabled={sessionList.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
+              <DocumentTextIcon className="size-4" />
+              Rapporteur report
             </button>
             {/* with nothing listed, the empty state below offers it instead */}
             {items.length > 0 && (
@@ -328,6 +335,7 @@ function Board({ edition }: { edition: Edition }) {
         )}
       </Panel>
 
+      {reportOpen && <ReportDialog open edition={edition} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setReportOpen(false)} />}
       {deckOpen && <DeckDialog open edition={edition} items={items} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setDeckOpen(false)} />}
 
       {editing && (
