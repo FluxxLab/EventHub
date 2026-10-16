@@ -1,72 +1,35 @@
 'use client';
 
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
-import { useState, type KeyboardEvent } from 'react';
 
 import { CategoryTiles } from '@/components/settings/category-tiles';
 import { TopicLibrary } from '@/components/settings/topic-library';
+import { EmptyState } from '@/components/ui/states';
+import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { useSession } from '@/lib/auth/session';
-import { cn } from '@/lib/utils';
+import { useUrlParam } from '@/lib/use-url-state';
 
 const TABS = [
-  { key: 'tracks', label: 'Tracks' },
-  { key: 'interests', label: 'Interests' },
-  { key: 'categories', label: 'Event categories' },
+  { value: 'tracks', label: 'Tracks' },
+  { value: 'interests', label: 'Interests' },
+  { value: 'categories', label: 'Event categories' },
 ] as const;
-type TabKey = (typeof TABS)[number]['key'];
+type TabKey = (typeof TABS)[number]['value'];
+const TAB_KEYS = TABS.map((t) => t.value);
 
-/**
- * Catalog & settings: the shared lists every event draws on. A button group across the top (the
- * design's settings panel), one list under it.
- */
+/** Catalog & settings: the shared lists every event draws on, one section per tab. */
 export default function SettingsPage() {
   const auth = useSession();
   const isAdmin = auth.status === 'signed-in' && auth.user.tier === 'admin';
-  const [tab, setTab] = useState<TabKey>('tracks');
+  const [tab, setTab] = useUrlParam<TabKey>('tab', 'tracks', TAB_KEYS);
 
-  // arrow keys move along the tabs, as a tablist should
-  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    event.preventDefault();
-    const i = TABS.findIndex((t) => t.key === tab);
-    const next = TABS[(i + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]!;
-    setTab(next.key);
-    document.getElementById(`settings-tab-${next.key}`)?.focus();
-  };
-
-  if (!isAdmin) {
-    return (
-      <div className="mx-auto max-w-lg rounded-lg border border-[#dcdcdc] bg-[#fdfdfd] p-10 text-center">
-        <Cog6ToothIcon className="mx-auto size-8 text-[#7c7c7c]" />
-        <p className="mt-2 text-ink">Catalog and settings are for organisers</p>
-      </div>
-    );
-  }
+  if (!isAdmin) return <EmptyState framed icon={Cog6ToothIcon} title="Catalog and settings are for organisers" className="mx-auto w-full max-w-lg" />;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <h1 className="sr-only">Catalog and settings</h1>
-      <div role="tablist" aria-label="Settings" onKeyDown={onKey} className="grid grid-cols-3 overflow-hidden rounded-lg border border-[#dcdcdc] bg-[#fdfdfd]">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            id={`settings-tab-${t.key}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            aria-controls="settings-panel"
-            tabIndex={tab === t.key ? 0 : -1}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              'h-9 truncate border-r border-[#dcdcdc] px-3 text-sm last:border-r-0',
-              tab === t.key ? 'bg-primary-soft text-primary' : 'text-ink hover:bg-[#f6f6f6]',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>
+      <UnderlineTabs label="Settings" idBase="settings" options={[...TABS]} value={tab} onChange={setTab} />
+      <div id={tabPanelId('settings', tab)} role="tabpanel" aria-labelledby={tabId('settings', tab)}>
         {tab === 'tracks' ? <TopicLibrary key="track" kind="track" /> : tab === 'interests' ? <TopicLibrary key="interest" kind="interest" /> : <CategoryTiles />}
       </div>
     </div>

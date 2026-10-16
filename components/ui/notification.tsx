@@ -37,7 +37,7 @@ export function Notification({
   return (
     <div
       className={cn(
-        'relative flex gap-3 rounded-lg border border-border bg-[#f6f6f6] p-5 shadow-lg',
+        'relative flex gap-3 rounded-lg border border-border bg-surface-soft p-5 shadow-lg',
         className,
       )}
     >
@@ -55,9 +55,9 @@ export function Notification({
       <div className={cn('flex min-w-0 flex-1 flex-col gap-4', onClose && 'pr-6')}>
         <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span className="text-lg font-medium leading-none text-ink">{title}</span>
-          {meta && <span className="text-sm text-[#7c7c7c]">{meta}</span>}
+          {meta && <span className="text-sm text-hint">{meta}</span>}
         </p>
-        {children && <div className="text-sm leading-[1.5] text-[#525252]">{children}</div>}
+        {children && <div className="text-sm leading-[1.5] text-ink-soft">{children}</div>}
         {actions.length > 0 && (
           <div className="flex gap-4">
             {actions.map((action) => (
@@ -79,7 +79,7 @@ export function Notification({
           type="button"
           onClick={onClose}
           aria-label="Dismiss"
-          className="absolute right-5 top-5 flex size-5 items-center justify-center rounded text-[#525252] hover:text-ink"
+          className="absolute right-5 top-5 flex size-5 items-center justify-center rounded text-ink-soft hover:text-ink"
         >
           <XMarkIcon className="size-5" />
         </button>

@@ -5,10 +5,11 @@ import { useId, useMemo, useState, type FormEvent } from 'react';
 
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Field, TextInput } from '@/components/ui/field';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
@@ -37,7 +38,6 @@ import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
 type Errors = Partial<Record<keyof AnnouncementForm, string>>;
 
 /** A row of options that reads as one choice (radio semantics). */
@@ -53,7 +53,7 @@ function Choice<T extends string>({ label, value, options, onChange }: { label: 
           onClick={() => onChange(o.value)}
           className={cn(
             'h-9 rounded-lg border px-3 text-sm transition-colors',
-            value === o.value ? 'border-primary bg-primary-soft/50 font-medium text-primary' : 'border-border text-[#525252] hover:border-[#bdbdbd]',
+            value === o.value ? 'border-primary bg-primary-soft/50 font-medium text-primary' : 'border-border text-ink-soft hover:border-border-strong',
           )}
         >
           {o.label}
@@ -66,22 +66,19 @@ function Choice<T extends string>({ label, value, options, onChange }: { label: 
 /** Roughly how the push lands on a phone's lock screen, cut where phones cut it. */
 function PhonePreview({ title, body }: { title: string; body: string }) {
   return (
-    <section aria-label="Preview" className={cardClass}>
-      <header className="border-b border-border px-5 py-3">
-        <p className="text-sm text-ink">On a phone</p>
-      </header>
+    <Panel title="On a phone">
       <div className="bg-[linear-gradient(160deg,#0b2b5c,#1f4fa3)] px-4 py-8">
-        <div className="rounded-2xl bg-white/90 px-3.5 py-3 shadow-lg backdrop-blur">
-          <div className="flex items-center gap-2 text-[11px] text-[#525252]">
-            <span className="flex size-5 items-center justify-center rounded-md bg-primary text-[8px] font-medium text-on-primary">PIC</span>
+        <div className="rounded-xl bg-white/90 px-3.5 py-3 shadow-lg backdrop-blur">
+          <div className="flex items-center gap-2 text-[0.6875rem] text-ink-soft">
+            <span className="flex size-5 items-center justify-center rounded-md bg-primary text-[0.5rem] font-medium text-on-primary">PIC</span>
             PIC Events
             <span className="ml-auto">now</span>
           </div>
           <p className="mt-1.5 truncate text-sm font-medium text-ink">{title.trim() || 'Your title'}</p>
-          <p className="line-clamp-3 text-sm leading-5 text-[#3a3a3a]">{body.trim() || 'Your message appears here, cut off after about three lines.'}</p>
+          <p className="line-clamp-3 text-sm leading-5 text-ink">{body.trim() || 'Your message appears here, cut off after about three lines.'}</p>
         </div>
       </div>
-    </section>
+    </Panel>
   );
 }
 
@@ -118,15 +115,21 @@ function Composer({
   const titleLong = form.title.trim().length > TITLE_VISIBLE;
   const bodyLong = form.body.trim().length > BODY_VISIBLE;
   return (
-    <form onSubmit={onSubmit} noValidate aria-labelledby={`${id}-title`} className={cardClass}>
-      <header className="border-b border-border px-6 py-4">
-        <h2 id={`${id}-title`} className="text-base font-medium text-ink">
-          New announcement
-        </h2>
-        <p className="text-sm text-[#7c7c7c]">A push to delegates’ phones, kept in their inbox in the app.</p>
-      </header>
-
-      <div className="flex flex-col gap-5 px-6 py-5">
+    <form onSubmit={onSubmit} noValidate>
+      <Panel
+        title="New announcement"
+        description="A push to delegates’ phones, kept in their inbox in the app."
+        footer={
+          <>
+            <p className="text-xs">A push cannot be recalled once it reaches phones.</p>
+            <button type="submit" disabled={pending} className={buttonClass()}>
+              <PaperAirplaneIcon className="size-4" />
+              Send to {reach === 'event' ? `${audienceLabel({ segment: 'all', ticketTypeIds: form.ticketTypeIds }, new Map(tiers.map((t) => [t.id, t.name])))} at ${eventName}` : 'everyone on the app'}
+            </button>
+          </>
+        }
+        bodyClassName="flex flex-col gap-5 px-6 py-5"
+      >
         <div>
           <p className="mb-1.5 text-sm text-ink">Reaches</p>
           {canReachEveryone ? (
@@ -140,7 +143,7 @@ function Composer({
               onChange={onReach}
             />
           ) : (
-            <p className="text-sm text-[#525252]">{eventName} delegates: ticket holders and people who saved or attended its sessions.</p>
+            <p className="text-sm text-ink-soft">{eventName} delegates: ticket holders and people who saved or attended its sessions.</p>
           )}
         </div>
         {reach === 'event' && (
@@ -151,7 +154,10 @@ function Composer({
                 type="button"
                 aria-pressed={form.ticketTypeIds.length === 0}
                 onClick={() => onChange('ticketTypeIds', [])}
-                className={cn('rounded-full border px-3 py-1 text-sm', form.ticketTypeIds.length === 0 ? 'border-primary bg-primary text-white' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-sm',
+                  form.ticketTypeIds.length === 0 ? 'border-primary bg-primary text-on-primary' : 'border-border text-ink-soft hover:border-border-strong',
+                )}
               >
                 Everyone
               </button>
@@ -163,14 +169,14 @@ function Composer({
                     type="button"
                     aria-pressed={on}
                     onClick={() => onChange('ticketTypeIds', on ? form.ticketTypeIds.filter((id) => id !== t.id) : [...form.ticketTypeIds, t.id])}
-                    className={cn('rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary text-white' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+                    className={cn('rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary text-on-primary' : 'border-border text-ink-soft hover:border-border-strong')}
                   >
                     {t.name}
                   </button>
                 );
               })}
             </div>
-            <p className="mt-1.5 text-xs text-[#7c7c7c]">
+            <p className="mt-1.5 text-xs text-hint">
               {tiers.length === 0
                 ? `${eventName} has no ticket tiers yet; add them in Ticketing to send to some of them.`
                 : form.ticketTypeIds.length
@@ -185,7 +191,7 @@ function Composer({
             <label htmlFor={`${id}-t`} className="text-sm text-ink">
               Title
             </label>
-            <span className={cn('text-xs tabular-nums', titleLong ? 'text-[#7a5d00]' : 'text-[#7c7c7c]')}>
+            <span className={cn('text-xs tabular-nums', titleLong ? 'text-warning' : 'text-hint')}>
               {form.title.trim().length}/{TITLE_VISIBLE}
               {titleLong && ' · cut off on lock screens'}
             </span>
@@ -199,7 +205,7 @@ function Composer({
             <label htmlFor={`${id}-b`} className="text-sm text-ink">
               Message
             </label>
-            <span className={cn('text-xs tabular-nums', bodyLong ? 'text-[#7a5d00]' : 'text-[#7c7c7c]')}>
+            <span className={cn('text-xs tabular-nums', bodyLong ? 'text-warning' : 'text-hint')}>
               {form.body.trim().length}/{BODY_VISIBLE}
               {bodyLong && ' · the rest shows in the app'}
             </span>
@@ -214,7 +220,7 @@ function Composer({
             aria-invalid={!!errors.body}
             className={cn(
               'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-sm leading-5 text-ink shadow-xs outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-              errors.body ? 'border-danger' : 'border-[#bdbdbd]',
+              errors.body ? 'border-danger' : 'border-border-strong',
             )}
           />
           {errors.body && <p className="mt-1 text-xs text-danger">{errors.body}</p>}
@@ -239,36 +245,49 @@ function Composer({
           )}
           {form.target === 'link' && (
             <Field id={`${id}-l`} label="Web address" error={errors.linkUrl} className="mt-3">
-              <TextInput id={`${id}-l`} value={form.linkUrl} onChange={(e) => onChange('linkUrl', e.target.value)} placeholder="https://policycentre.org/communique" invalid={!!errors.linkUrl} maxLength={500} />
+              <TextInput
+                id={`${id}-l`}
+                value={form.linkUrl}
+                onChange={(e) => onChange('linkUrl', e.target.value)}
+                placeholder="https://policycentre.org/communique"
+                invalid={!!errors.linkUrl}
+                maxLength={500}
+              />
             </Field>
           )}
         </div>
-      </div>
-
-      <footer className="flex items-center justify-between gap-3 border-t border-border bg-[#f6f6f6] px-6 py-3">
-        <p className="text-xs text-[#7c7c7c]">A push cannot be recalled once it reaches phones.</p>
-        <button type="submit" disabled={pending} className={buttonClass()}>
-          <PaperAirplaneIcon className="size-4" />
-          Send to {reach === 'event' ? `${audienceLabel({ segment: 'all', ticketTypeIds: form.ticketTypeIds }, new Map(tiers.map((t) => [t.id, t.name])))} at ${eventName}` : 'everyone on the app'}
-        </button>
-      </footer>
+      </Panel>
     </form>
   );
 }
 
-function SentRow({ n, now, sessionTitle, eventName, tierNames, onRetract }: { n: SentNotification; now: number; sessionTitle?: string; eventName?: string; tierNames: Map<string, string>; onRetract: () => void }) {
+function SentRow({
+  n,
+  now,
+  sessionTitle,
+  eventName,
+  tierNames,
+  onRetract,
+}: {
+  n: SentNotification;
+  now: number;
+  sessionTitle?: string;
+  eventName?: string;
+  tierNames: Map<string, string>;
+  onRetract: () => void;
+}) {
   const automatic = !isAnnouncement(n);
   return (
     <li className="flex gap-4 px-6 py-4">
       <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-2 text-xs text-[#7c7c7c]">
+        <p className="flex flex-wrap items-center gap-2 text-xs text-hint">
           <Tag tone={automatic ? 'gray' : 'primary'}>{categoryLabel(n.category)}</Tag>
           {n.delegateId ? 'One delegate' : `To ${audienceLabel(n, tierNames)}${n.editionId ? ` at ${eventName ?? 'an event'}` : ' on the app'}`}
           <span>· {n.sentAt ? ago(n.sentAt, now).toLowerCase() : 'sending…'}</span>
           {n.whatsapp && <Tag tone="green">Also on WhatsApp</Tag>}
         </p>
-        <p className="mt-1.5 text-[15px] text-ink">{n.title}</p>
-        <p className="line-clamp-2 text-sm text-[#525252]">{n.body}</p>
+        <p className="mt-1.5 text-[0.9375rem] text-ink">{n.title}</p>
+        <p className="line-clamp-2 text-sm text-ink-soft">{n.body}</p>
         {(n.sessionId || n.linkUrl) && (
           <p className="mt-1 flex items-center gap-1 text-xs text-primary">
             {n.linkUrl ? <ArrowTopRightOnSquareIcon className="size-3.5" /> : <CalendarDaysIcon className="size-3.5" />}
@@ -291,12 +310,7 @@ export default function NotificationsPage() {
   const session = useSession();
   const page = usePageEdition();
   if (session.status !== 'signed-in' || !runsEvents(session.user.tier)) {
-    return (
-      <div className={cn(cardClass, 'mx-auto max-w-lg p-10 text-center')}>
-        <BellAlertIcon className="mx-auto size-8 text-[#7c7c7c]" />
-        <p className="mt-2 font-medium text-ink">Announcements are sent by organisers</p>
-      </div>
-    );
+    return <EmptyState framed icon={BellAlertIcon} title="Announcements are sent by organisers" className="mx-auto w-full max-w-lg" />;
   }
   const organiser = session.user.tier === 'admin';
   return <EventBar page={page}>{(editionId) => <NotificationsBoard edition={page.list.find((e) => e.id === editionId)!} organiser={organiser} />}</EventBar>;
@@ -321,10 +335,7 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
   const tierNames = useMemo(() => new Map(tiers.map((t) => [t.id, t.name])), [tiers]);
   const waReach = useWhatsAppReach(toEventNow ? form.ticketTypeIds : [], toEventNow ? edition.id : undefined, whatsapp);
 
-  const sessionOptions = useMemo(
-    () => (sessions.data ?? []).filter((s) => s.type !== 'break').map((s) => ({ value: s.id, label: `Day ${s.day} · ${s.room} · ${s.title}` })),
-    [sessions.data],
-  );
+  const sessionOptions = useMemo(() => (sessions.data ?? []).filter((s) => s.type !== 'break').map((s) => ({ value: s.id, label: `Day ${s.day} · ${s.room} · ${s.title}` })), [sessions.data]);
   // this event's announcements, and those that went to everyone
   const shown = (sent.data ?? []).filter((n) => !n.editionId || n.editionId === edition.id);
   const titleOf = (id: string | null) => sessions.data?.find((s) => s.id === id)?.title;
@@ -371,24 +382,17 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
       </div>
 
       <div className="flex flex-col gap-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-
         <PhonePreview title={form.title} body={form.body} />
 
-        <section aria-labelledby="auto-title" className={cardClass}>
-          <header className="border-b border-border px-5 py-3">
-            <h2 id="auto-title" className="text-sm font-medium text-ink">
-              Automatic pushes
-            </h2>
-            <p className="text-xs text-[#7c7c7c]">Sent by the app on its own{edition ? ` for ${edition.shortName}` : ''}.</p>
-          </header>
+        <Panel title="Automatic pushes" description={`Sent by the app on its own${edition ? ` for ${edition.shortName}` : ''}.`}>
           <ul className="divide-y divide-border">
             {AUTOMATIC.map((a) => {
               const on = !muted.includes(a.key);
               return (
-                <li key={a.key} className="flex items-center justify-between gap-3 px-5 py-3">
+                <li key={a.key} className="flex items-center justify-between gap-3 px-6 py-3">
                   <div id={`auto-${a.key}`} className="min-w-0">
                     <p className="text-sm text-ink">{a.label}</p>
-                    <p className="text-xs text-[#7c7c7c]">{a.hint}</p>
+                    <p className="text-xs text-hint">{a.hint}</p>
                   </div>
                   <Switch
                     checked={on}
@@ -404,36 +408,24 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
               );
             })}
           </ul>
-        </section>
+        </Panel>
       </div>
 
-      <section aria-labelledby="sent-title" className={cn(cardClass, 'min-w-0 lg:col-start-1')}>
-          <header className="border-b border-border px-6 py-4">
-            <h2 id="sent-title" className="text-base font-medium text-ink">
-              Sent
-            </h2>
-            <p className="text-sm text-[#7c7c7c]">The latest 50, automatic pushes included.</p>
-          </header>
-          {sent.isPending ? (
-            <div className="flex flex-col gap-3 p-6">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-14" />
-              ))}
-            </div>
-          ) : sent.isError && !sent.data ? (
-            <p role="alert" className="p-6 text-sm text-danger">
-              {sent.error.message}
-            </p>
-          ) : shown.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-[#7c7c7c]">Nothing sent yet.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {shown.map((n) => (
-                <SentRow key={n.id} n={n} now={now} sessionTitle={titleOf(n.sessionId)} eventName={edition.shortName} tierNames={tierNames} onRetract={() => setRetracting(n)} />
-              ))}
-            </ul>
-          )}
-      </section>
+      <Panel title="Sent" count={sent.data ? shown.length : undefined} description="The latest 50, automatic pushes included." className="min-w-0 lg:col-start-1">
+        {sent.isPending ? (
+          <LoadingRows rows={3} />
+        ) : sent.isError && !sent.data ? (
+          <ErrorState title="Sent announcements could not load" error={sent.error} onRetry={() => void sent.refetch()} />
+        ) : shown.length === 0 ? (
+          <EmptyState icon={PaperAirplaneIcon} title="Nothing sent yet" body="Announcements and automatic pushes appear here once they go out." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {shown.map((n) => (
+              <SentRow key={n.id} n={n} now={now} sessionTitle={titleOf(n.sessionId)} eventName={edition.shortName} tierNames={tierNames} onRetract={() => setRetracting(n)} />
+            ))}
+          </ul>
+        )}
+      </Panel>
 
       <ConfirmDialog
         open={!!confirming}
@@ -456,7 +448,9 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
         }
       >
         “{confirming?.title}” goes to phones straight away and cannot be recalled from them. You can still remove it from the in-app inbox later.
-        {confirming?.whatsapp && waReach.data ? ` It also goes on WhatsApp to ${waReach.data.recipients.toLocaleString('en-GB')} ${waReach.data.recipients === 1 ? 'delegate' : 'delegates'} who opted in${waReach.data.live ? ', charged per message' : ' (WhatsApp is not connected yet, so those are only logged)'}.` : ''}
+        {confirming?.whatsapp && waReach.data
+          ? ` It also goes on WhatsApp to ${waReach.data.recipients.toLocaleString('en-GB')} ${waReach.data.recipients === 1 ? 'delegate' : 'delegates'} who opted in${waReach.data.live ? ', charged per message' : ' (WhatsApp is not connected yet, so those are only logged)'}.`
+          : ''}
       </ConfirmDialog>
       <ConfirmDialog
         open={!!retracting}
@@ -489,14 +483,14 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
  */
 function WhatsAppOption({ on, onChange, reach, loading }: { on: boolean; onChange: (on: boolean) => void; reach: { recipients: number; live: boolean } | undefined; loading: boolean }) {
   return (
-    <section aria-labelledby="wa-title" className={cn(cardClass, 'mt-5 flex items-start justify-between gap-4 px-6 py-4')}>
+    <section aria-labelledby="wa-title" className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-border bg-surface px-6 py-4">
       <div className="min-w-0">
         <h2 id="wa-title" className="text-sm font-medium text-ink">
           Also send on WhatsApp
         </h2>
-        <p className="text-xs text-[#7c7c7c]">
+        <p className="text-xs text-hint">
           {!on
-            ? 'To delegates in this audience who opted in to WhatsApp updates. Each message is charged.'
+            ? 'To delegates here who opted in to WhatsApp updates. Each message is charged.'
             : loading || !reach
               ? 'Counting who opted in…'
               : reach.recipients === 0

@@ -92,7 +92,7 @@ function useElementWidth() {
 
 function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-lg border border-border bg-[#f6f6f6] p-0.5">
+    <div role="radiogroup" aria-label={label} className="flex rounded-lg border border-border bg-surface-soft p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
@@ -100,7 +100,7 @@ function Segmented<T extends string>({ label, value, options, onChange }: { labe
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cn('h-8 flex-1 rounded-md px-2 text-sm', value === o.value ? 'bg-surface font-medium text-ink shadow-sm' : 'text-[#525252] hover:text-ink')}
+          className={cn('h-8 flex-1 rounded-md px-2 text-sm', value === o.value ? 'bg-surface font-medium text-ink shadow-sm' : 'text-ink-soft hover:text-ink')}
         >
           {o.label}
         </button>
@@ -113,8 +113,8 @@ function Control({ label, value, children }: { label: string; value?: string; ch
   return (
     <div className="grid gap-1.5">
       <div className="flex items-baseline justify-between text-xs">
-        <span className="text-[#525252]">{label}</span>
-        {value && <span className="tabular-nums text-[#7c7c7c]">{value}</span>}
+        <span className="text-ink-soft">{label}</span>
+        {value && <span className="tabular-nums text-hint">{value}</span>}
       </div>
       {children}
     </div>
@@ -181,7 +181,7 @@ function TextBox({
       onKeyDown={nudge}
       className={cn(
         'absolute cursor-move touch-none select-none whitespace-nowrap outline-offset-2',
-        selected ? 'outline-2 outline-primary' : 'outline-1 outline-[#7c7c7c]/70 outline-dashed hover:outline-primary',
+        selected ? 'outline-2 outline-primary' : 'outline-1 outline-hint/70 outline-dashed hover:outline-primary',
       )}
       style={{
         left: `${box.left * 100}%`,
@@ -220,7 +220,7 @@ function Controls({ which, p, pageHeightPt, onChange }: { which: Which; p: TextP
             type="button"
             aria-pressed={p.bold}
             onClick={() => set({ bold: !p.bold })}
-            className={cn('h-9 w-10 rounded-lg border text-sm font-bold', p.bold ? 'border-primary bg-primary-soft text-primary' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+            className={cn('h-9 w-10 rounded-lg border text-sm font-bold', p.bold ? 'border-primary bg-primary-soft text-primary' : 'border-border text-ink-soft hover:border-border-strong')}
           >
             <span className="sr-only">Bold</span>
             <span aria-hidden>B</span>
@@ -278,7 +278,7 @@ function Controls({ which, p, pageHeightPt, onChange }: { which: Which; p: TextP
               style={{ background: s.value }}
             />
           ))}
-          <label className="relative ml-auto flex h-7 cursor-pointer items-center rounded-md border border-border px-2 text-xs text-[#525252] hover:border-[#bdbdbd]">
+          <label className="relative ml-auto flex h-7 cursor-pointer items-center rounded-md border border-border px-2 text-xs text-ink-soft hover:border-border-strong">
             Custom
             <input type="color" value={p.color} onChange={(e) => set({ color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
           </label>
@@ -413,7 +413,7 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
   );
 
   return (
-    <section aria-labelledby={`${id}-t`} className="overflow-hidden rounded-2xl border border-border bg-surface lg:col-span-2">
+    <section aria-labelledby={`${id}-t`} className="overflow-hidden rounded-xl border border-border bg-surface lg:col-span-2">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
         <div className="min-w-0">
           <h2 id={`${id}-t`} className="flex items-center gap-2 text-base font-medium text-ink">
@@ -430,20 +430,20 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
             )}
             {!template && !dirty && <Tag>Not set up</Tag>}
           </h2>
-          <p className="text-sm text-[#7c7c7c]">
+          <p className="text-sm text-hint">
             {template ? `Each delegate downloads this with their own name. Saved ${ago(template.updatedAt, now).toLowerCase()}.` : 'Delegates can download a certificate for this event once a design is saved.'}
           </p>
         </div>
       </header>
       {/* Always shown, even with one event: the organiser must see which event the design is for. */}
-      <div className="flex flex-col gap-2 border-b border-border bg-[#f6f6f6] px-6 py-3 sm:flex-row sm:items-center sm:gap-3">
-        <label htmlFor={`${id}-event`} className="text-sm text-[#525252]">
+      <div className="flex flex-col gap-2 border-b border-border bg-surface-soft px-6 py-3 sm:flex-row sm:items-center sm:gap-3">
+        <label htmlFor={`${id}-event`} className="text-sm text-ink-soft">
           Event
         </label>
         <div className="w-full sm:w-96">
           <Select id={`${id}-event`} value={editionId ?? ''} options={editions.map((e) => ({ value: e.id, label: `${e.name} · ${dateRange(e.startsAt, e.endsAt)}` }))} onChange={chooseEdition} />
         </div>
-        <p className="text-xs text-[#7c7c7c]">Each event has its own certificate.</p>
+        <p className="text-xs text-hint">Each event has its own certificate.</p>
       </div>
 
       {design.isPending ? (
@@ -464,11 +464,11 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
             }}
             onDragLeave={() => setDragOver(false)}
             onDrop={drop}
-            className={cn('flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center', dragOver ? 'border-primary bg-primary-soft/40' : 'border-[#bdbdbd] hover:border-primary')}
+            className={cn('flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center', dragOver ? 'border-primary bg-primary-soft/40' : 'border-border-strong hover:border-primary')}
           >
-            <PhotoIcon className="size-8 text-[#7c7c7c]" />
-            <span className="text-[15px] text-ink">Upload the certificate for {edition?.name ?? 'this event'}</span>
-            <span className="max-w-md text-sm text-[#7c7c7c]">
+            <PhotoIcon className="size-8 text-hint" />
+            <span className="text-[0.9375rem] text-ink">Upload the certificate for {edition?.name ?? 'this event'}</span>
+            <span className="max-w-md text-sm text-hint">
               PNG or JPG, A4 landscape or portrait. 3508×2480 px prints sharply. Leave the name blank: you place it on the next step, and each delegate’s is printed there.
             </span>
             <span className={buttonClass({ style: 'outline', color: 'gray', className: 'mt-2' })}>Choose a file</span>
@@ -483,7 +483,7 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
               ref={previewRef}
               onDragOver={(e) => e.preventDefault()}
               onDrop={drop}
-              className="relative w-full overflow-hidden rounded-md bg-[#f1f1f1] shadow-[0_1px_3px_rgba(0,0,0,.12)]"
+              className="relative w-full overflow-hidden rounded-md bg-surface-soft shadow-[0_1px_3px_rgba(0,0,0,.12)]"
               style={{ aspectRatio: String(aspect) }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- a signed or local URL, drawn stretched exactly as the PDF places it */}
@@ -498,7 +498,7 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
                 </>
               )}
             </div>
-            <p className="mt-3 text-xs text-[#7c7c7c]">Drag the name and code into place. Arrow keys nudge the selected one; hold Shift for bigger steps. Long names shrink to fit their width.</p>
+            <p className="mt-3 text-xs text-hint">Drag the name and code into place. Arrow keys nudge the selected one; hold Shift for bigger steps. Long names shrink to fit their width.</p>
             {warnings.map((w) => (
               <p key={w} className="mt-2 flex items-start gap-1.5 text-xs text-gold">
                 <ExclamationTriangleIcon className="mt-px size-3.5 shrink-0" /> {w}
@@ -527,18 +527,18 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
                   <p id={`${id}-code-l`} className="text-sm text-ink">
                     Print the code
                   </p>
-                  <p className="text-xs text-[#7c7c7c]">Lets anyone confirm the certificate is genuine.</p>
+                  <p className="text-xs text-hint">Lets anyone confirm the certificate is genuine.</p>
                 </div>
                 <Switch checked={Boolean(draft.code)} labelledBy={`${id}-code-l`} onChange={(on) => setDraft((d) => ({ ...d, code: on ? (saved?.code ?? DEFAULT_CODE) : null }))} />
               </div>
             )}
-            {selected ? <Controls which={which} p={selected} pageHeightPt={pageHeightPt} onChange={(p) => place(which, p)} /> : <p className="text-sm text-[#7c7c7c]">The code is left off. Verifiers will have nothing to check.</p>}
+            {selected ? <Controls which={which} p={selected} pageHeightPt={pageHeightPt} onChange={(p) => place(which, p)} /> : <p className="text-sm text-hint">The code is left off. Verifiers will have nothing to check.</p>}
           </div>
         </div>
       )}
 
       {artwork && (
-        <footer className="flex flex-wrap items-center gap-2 border-t border-border bg-[#f6f6f6] px-4 py-3 sm:px-6">
+        <footer className="flex flex-wrap items-center gap-2 border-t border-border bg-surface-soft px-4 py-3 sm:px-6">
           {template && (
             <button type="button" onClick={() => setRemoving(true)} className={buttonClass({ style: 'borderless', color: 'danger' })}>
               Remove

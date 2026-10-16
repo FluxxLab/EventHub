@@ -32,7 +32,7 @@ export default function ExhibitPage() {
   // null until the browser has read the link (the server never sees what follows `#`)
   const key = useSyncExternalStore(subscribeHash, () => keyFromHash(window.location.hash) ?? '', () => null);
   return (
-    <div className="min-h-dvh bg-[#f6f6f6]">
+    <div className="min-h-dvh bg-surface-soft">
       {key === null ? null : key === '' ? <Invalid /> : <Scanner key={key} standKey={key} />}
     </div>
   );
@@ -43,7 +43,7 @@ function Invalid({ message }: { message?: string }) {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
       <Image src="/pic-logo.png" alt="Policy Innovation Centre" width={72} height={72} priority />
       <h1 className="text-xl font-medium text-ink">This scanner link does not work</h1>
-      <p className="text-sm text-[#525252]">{message ?? 'It may have been copied only in part, or replaced by a newer link.'} Ask the event organisers for your stand’s current link.</p>
+      <p className="text-sm text-ink-soft">{message ?? 'It may have been copied only in part, or replaced by a newer link.'} Ask the event organisers for your stand’s current link.</p>
     </main>
   );
 }
@@ -66,7 +66,7 @@ function Scanner({ standKey }: { standKey: string }) {
   if (view.isPending) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center">
-        <p className="text-sm text-[#7c7c7c]">Opening the scanner…</p>
+        <p className="text-sm text-hint">Opening the scanner…</p>
       </main>
     );
   }
@@ -75,7 +75,7 @@ function Scanner({ standKey }: { standKey: string }) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-3 px-6 text-center">
         <p className="font-medium text-ink">The scanner could not load.</p>
-        <p className="text-sm text-[#525252]">{view.error.message}</p>
+        <p className="text-sm text-ink-soft">{view.error.message}</p>
         <button type="button" onClick={() => void view.refetch()} className={buttonClass()}>
           Try again
         </button>
@@ -107,14 +107,14 @@ function Scanner({ standKey }: { standKey: string }) {
         <Image src="/pic-logo.png" alt="" width={40} height={40} className="shrink-0" priority />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-medium text-ink">{booth.name}</h1>
-          <p className="truncate text-xs text-[#7c7c7c]">
+          <p className="truncate text-xs text-hint">
             {edition.shortName}
             {booth.location ? ` · ${booth.location}` : ''}
           </p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-medium leading-none tabular-nums text-ink">{leads.length}</p>
-          <p className="text-xs text-[#7c7c7c]">{leads.length === 1 ? 'lead' : 'leads'}</p>
+          <p className="text-xs text-hint">{leads.length === 1 ? 'lead' : 'leads'}</p>
         </div>
       </header>
 
@@ -126,7 +126,7 @@ function Scanner({ standKey }: { standKey: string }) {
           Scan a badge
         </button>
       )}
-      {!cameraOk && <p className="-mt-2 text-center text-xs text-[#7c7c7c]">This browser cannot use the camera. Open the link in Chrome or Safari, or use a scanner below.</p>}
+      {!cameraOk && <p className="-mt-2 text-center text-xs text-hint">This browser cannot use the camera. Open the link in Chrome or Safari, or use a scanner below.</p>}
 
       <form onSubmit={onTyped} className="flex gap-2">
         <input
@@ -143,7 +143,7 @@ function Scanner({ standKey }: { standKey: string }) {
       </form>
 
       <div aria-live="polite">
-        {scan.isPending && <p className="rounded-xl bg-white p-4 text-sm text-[#525252] shadow-sm">Checking the badge…</p>}
+        {scan.isPending && <p className="rounded-xl bg-white p-4 text-sm text-ink-soft shadow-sm">Checking the badge…</p>}
         {!scan.isPending && last && 'error' in last && (
           <p role="alert" className="flex items-start gap-2 rounded-xl bg-danger-soft p-4 text-sm text-danger">
             <XCircleIcon className="size-5 shrink-0" />
@@ -152,7 +152,7 @@ function Scanner({ standKey }: { standKey: string }) {
         )}
         {!scan.isPending && current && last && 'isNew' in last && (
           <div className={cn('rounded-xl bg-white p-4 shadow-sm ring-1', last.isNew ? 'ring-success/40' : 'ring-border')}>
-            <p className={cn('flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide', last.isNew ? 'text-success' : 'text-[#7c7c7c]')}>
+            <p className={cn('flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide', last.isNew ? 'text-success' : 'text-hint')}>
               {last.isNew ? <CheckCircleIcon className="size-4" /> : <InformationCircleIcon className="size-4" />}
               {last.isNew ? 'New lead' : `Already scanned at ${time(current.createdAt)}`}
             </p>
@@ -166,12 +166,12 @@ function Scanner({ standKey }: { standKey: string }) {
           <h2 id="leads-title" className="text-sm font-medium text-ink">
             Leads
           </h2>
-          <p className="text-xs text-[#7c7c7c]">
+          <p className="text-xs text-hint">
             {counts.hot} hot · {counts.warm} warm · {counts.cold} cold
           </p>
         </div>
         {leads.length === 0 ? (
-          <p className="rounded-xl bg-white p-6 text-center text-sm text-[#7c7c7c] shadow-sm">Nobody yet. Scan the QR on a visitor’s badge to add them.</p>
+          <p className="rounded-xl bg-white p-6 text-center text-sm text-hint shadow-sm">Nobody yet. Scan the QR on a visitor’s badge to add them.</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl bg-white shadow-sm">
             {leads.map((l) => (
@@ -179,13 +179,13 @@ function Scanner({ standKey }: { standKey: string }) {
                 <button type="button" onClick={() => setOpen(open === l.id ? null : l.id)} aria-expanded={open === l.id} className="flex w-full items-center gap-3 px-4 py-3 text-left">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-ink">{l.name}</p>
-                    <p className="truncate text-xs text-[#7c7c7c]">{[l.organisation, time(l.createdAt)].filter(Boolean).join(' · ')}</p>
+                    <p className="truncate text-xs text-hint">{[l.organisation, time(l.createdAt)].filter(Boolean).join(' · ')}</p>
                   </div>
-                  {l.rating && <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-medium', RATING_TONE[l.rating])}>{RATING_LABEL[l.rating]}</span>}
-                  <ChevronDownIcon className={cn('size-4 shrink-0 text-[#7c7c7c] transition-transform', open === l.id && 'rotate-180')} />
+                  {l.rating && <span className={cn('rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium', RATING_TONE[l.rating])}>{RATING_LABEL[l.rating]}</span>}
+                  <ChevronDownIcon className={cn('size-4 shrink-0 text-hint transition-transform', open === l.id && 'rotate-180')} />
                 </button>
                 {open === l.id && (
-                  <div className="border-t border-border bg-[#fafafa] px-4 pb-4">
+                  <div className="border-t border-border bg-surface-soft px-4 pb-4">
                     <LeadDetails lead={l} onRate={(rating) => update.mutate({ id: l.id, rating })} onNote={(note) => update.mutate({ id: l.id, note })} />
                     <button type="button" onClick={() => remove.mutate(l.id, { onSuccess: () => setOpen(null) })} className={buttonClass({ style: 'borderless', color: 'gray', className: 'mt-2 h-8 px-0 hover:text-danger' })}>
                       <TrashIcon className="size-4" />
@@ -203,7 +203,7 @@ function Scanner({ standKey }: { standKey: string }) {
         <ArrowDownTrayIcon className="size-4" />
         Download leads (CSV)
       </button>
-      <p className="flex items-start gap-1.5 text-xs text-[#7c7c7c]">
+      <p className="flex items-start gap-1.5 text-xs text-hint">
         <ExclamationTriangleIcon className="mt-px size-4 shrink-0" />
         Keep this link to your stand’s staff: anyone with it can see your leads. The organisers can replace it if it is shared by mistake.
       </p>
@@ -218,11 +218,11 @@ function LeadDetails({ lead, onRate, onNote }: { lead: Lead; onRate: (rating: Le
     <div className="mt-2 flex flex-col gap-3">
       <div>
         <p className="text-lg font-medium text-ink">{lead.name}</p>
-        {(lead.title || lead.organisation) && <p className="text-sm text-[#525252]">{[lead.title, lead.organisation].filter(Boolean).join(', ')}</p>}
+        {(lead.title || lead.organisation) && <p className="text-sm text-ink-soft">{[lead.title, lead.organisation].filter(Boolean).join(', ')}</p>}
         <a href={`mailto:${lead.email}`} className="text-sm text-primary underline">
           {lead.email}
         </a>
-        <p className="text-xs text-[#7c7c7c]">{[lead.country, `${lead.tier} ticket`].filter(Boolean).join(' · ')}</p>
+        <p className="text-xs text-hint">{[lead.country, `${lead.tier} ticket`].filter(Boolean).join(' · ')}</p>
       </div>
       <div className="flex gap-2" role="radiogroup" aria-label="Interest">
         {LEAD_RATINGS.map((r) => (
@@ -232,7 +232,7 @@ function LeadDetails({ lead, onRate, onNote }: { lead: Lead; onRate: (rating: Le
             role="radio"
             aria-checked={lead.rating === r}
             onClick={() => onRate(lead.rating === r ? null : r)}
-            className={cn('h-10 flex-1 rounded-lg border text-sm font-medium transition-colors', lead.rating === r ? RATING_TONE[r] : 'border-border bg-white text-[#525252]')}
+            className={cn('h-10 flex-1 rounded-lg border text-sm font-medium transition-colors', lead.rating === r ? RATING_TONE[r] : 'border-border bg-white text-ink-soft')}
           >
             {RATING_LABEL[r]}
           </button>

@@ -21,9 +21,9 @@ const emailSchema = z.email('Enter a valid email address.');
 type Mode = 'sign-in' | 'request' | 'reset';
 
 const inputClass =
-  'h-12 w-full rounded-[10px] border bg-[#fdfdfd] px-5 text-sm text-ink outline-none transition-colors placeholder:text-[#7c7c7c] focus:border-primary focus:ring-4 focus:ring-primary-soft';
+  'h-12 w-full rounded-lg border bg-surface px-5 text-sm text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary focus:ring-4 focus:ring-primary-soft';
 const primaryClass =
-  'flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-primary px-5 text-base font-medium text-on-primary transition-[background-color,transform] duration-150 hover:bg-primary/90 motion-safe:active:scale-[0.98] disabled:opacity-60';
+  'flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 text-base font-medium text-on-primary transition-[background-color,transform] duration-150 hover:bg-primary/90 motion-safe:active:scale-[0.98] disabled:opacity-60';
 
 /** Taller screens get the design's full spacing; shorter ones tighten so nothing scrolls. */
 const FORM = 'flex w-full max-w-[404px] flex-col gap-5 [@media(min-height:800px)]:gap-[25px]';
@@ -38,13 +38,21 @@ function Heading({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
       <h1 className="text-3xl font-medium leading-[37px] text-ink">{title}</h1>
-      <p className="text-base leading-5 text-[#7c7c7c]">{children}</p>
+      <p className="text-base leading-5 text-hint">{children}</p>
     </div>
   );
 }
 
 /** A label over a 48px input, its error under it; `action` sits at the label's right (Forgot password?). */
-function Field({ id, label, error, action, password, className, ...props }: InputHTMLAttributes<HTMLInputElement> & { id: string; label: string; error?: string; action?: ReactNode; password?: boolean }) {
+function Field({
+  id,
+  label,
+  error,
+  action,
+  password,
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { id: string; label: string; error?: string; action?: ReactNode; password?: boolean }) {
   const [shown, setShown] = useState(false);
   return (
     <div>
@@ -61,7 +69,7 @@ function Field({ id, label, error, action, password, className, ...props }: Inpu
           type={password ? (shown ? 'text' : 'password') : props.type}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={cn(inputClass, password && 'pr-12', error ? 'border-danger' : 'border-[#dcdcdc]', className)}
+          className={cn(inputClass, password && 'pr-12', error ? 'border-danger' : 'border-border', className)}
         />
         {password && (
           <button
@@ -69,7 +77,7 @@ function Field({ id, label, error, action, password, className, ...props }: Inpu
             onClick={() => setShown(!shown)}
             aria-label={shown ? 'Hide password' : 'Show password'}
             aria-pressed={shown}
-            className="absolute inset-y-0 right-2 my-auto flex size-9 items-center justify-center rounded-lg text-[#7c7c7c] hover:bg-[#f6f6f6] hover:text-ink"
+            className="absolute inset-y-0 right-2 my-auto flex size-9 items-center justify-center rounded-lg text-hint hover:bg-surface-soft hover:text-ink"
           >
             {shown ? <EyeSlashIcon className="size-5" /> : <EyeIcon className="size-5" />}
           </button>
@@ -86,7 +94,10 @@ function Field({ id, label, error, action, password, className, ...props }: Inpu
 
 function Alert({ tone, children }: { tone: 'danger' | 'success'; children: ReactNode }) {
   return (
-    <p role={tone === 'danger' ? 'alert' : 'status'} className={cn('flex items-start gap-2 rounded-[10px] px-4 py-3 text-sm', tone === 'danger' ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success')}>
+    <p
+      role={tone === 'danger' ? 'alert' : 'status'}
+      className={cn('flex items-start gap-2 rounded-lg px-4 py-3 text-sm', tone === 'danger' ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success')}
+    >
       {tone === 'success' && <CheckCircleIcon className="size-5 shrink-0" />}
       {children}
     </p>
@@ -95,7 +106,7 @@ function Alert({ tone, children }: { tone: 'danger' | 'success'; children: React
 
 function BackLink({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 self-start text-sm text-[#7c7c7c] hover:text-ink">
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 self-start text-sm text-hint hover:text-ink">
       <ArrowLeftIcon className="size-4" /> Back to sign in
     </button>
   );
@@ -194,7 +205,7 @@ export default function SignInPage() {
   };
 
   return (
-    <main className="grid h-dvh overflow-hidden bg-white lg:grid-cols-[minmax(0,1fr)_minmax(0,45%)]">
+    <main className="grid h-dvh overflow-hidden bg-surface lg:grid-cols-[minmax(0,1fr)_minmax(0,45%)]">
       {entering && <TransitionScreen label="Signing you in…" />}
       <section className={'flex h-dvh min-h-0 flex-col px-6 py-6 sm:px-12 lg:px-[clamp(3rem,8vw,135px)] [@media(min-height:800px)]:py-10'}>
         <Image src="/pic-logo.png" alt="Policy Innovation Centre" width={64} height={64} priority className={'h-auto w-11 shrink-0 [@media(min-height:800px)]:w-14'} />
@@ -202,10 +213,19 @@ export default function SignInPage() {
         <div className="flex min-h-0 flex-1 items-center">
           {mode === 'sign-in' ? (
             <form onSubmit={signIn} noValidate className={FORM}>
-              <Heading title="Sign in">Welcome back. Enter your organiser account details.</Heading>
+              <Heading title="Sign in">Welcome back. Use your organiser account.</Heading>
               {notice && <Alert tone="success">{notice}</Alert>}
               <div className="flex flex-col gap-[5px]">
-                <Field id={`${id}-email`} label="Email" type="email" autoComplete="username" placeholder="you@policyinnovationcentre.org" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />
+                <Field
+                  id={`${id}-email`}
+                  label="Email"
+                  type="email"
+                  autoComplete="username"
+                  placeholder="you@policyinnovationcentre.org"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  error={errors.email}
+                />
                 <Field
                   id={`${id}-password`}
                   label="Password"
@@ -231,8 +251,18 @@ export default function SignInPage() {
           ) : mode === 'request' ? (
             <form onSubmit={sendCode} noValidate className={FORM}>
               <BackLink onClick={() => go('sign-in')} />
-              <Heading title="Reset your password">Enter your account email and we will send you a 6-digit code.</Heading>
-              <Field id={`${id}-reset-email`} label="Email" type="email" autoComplete="username" placeholder="you@policyinnovationcentre.org" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} autoFocus />
+              <Heading title="Reset your password">We will email you a 6-digit code.</Heading>
+              <Field
+                id={`${id}-reset-email`}
+                label="Email"
+                type="email"
+                autoComplete="username"
+                placeholder="you@policyinnovationcentre.org"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={errors.email}
+                autoFocus
+              />
               {formError && <Alert tone="danger">{formError}</Alert>}
               <button type="submit" disabled={pending} className={primaryClass}>
                 {pending && <Spinner />}
@@ -258,12 +288,26 @@ export default function SignInPage() {
                   autoFocus
                   className="tracking-[0.3em]"
                   action={
-                    <button type="button" onClick={() => sendCode()} disabled={pending || resendIn > 0} className="text-sm leading-[17px] text-primary hover:underline disabled:text-[#7c7c7c] disabled:no-underline">
+                    <button
+                      type="button"
+                      onClick={() => sendCode()}
+                      disabled={pending || resendIn > 0}
+                      className="text-sm leading-[17px] text-primary hover:underline disabled:text-hint disabled:no-underline"
+                    >
                       {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
                     </button>
                   }
                 />
-                <Field id={`${id}-new`} label="New password" password autoComplete="new-password" placeholder="At least 8 characters" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} error={errors.newPassword} />
+                <Field
+                  id={`${id}-new`}
+                  label="New password"
+                  password
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  error={errors.newPassword}
+                />
               </div>
               {formError && <Alert tone="danger">{formError}</Alert>}
               <button type="submit" disabled={pending} className={primaryClass}>
@@ -274,19 +318,19 @@ export default function SignInPage() {
           )}
         </div>
 
-        <p className="shrink-0 text-xs text-[#7c7c7c]">Organiser and staff accounts only. Delegates use the PIC Events app.</p>
+        <p className="shrink-0 text-xs text-hint">Organiser and staff accounts only. Delegates use the PIC Events app.</p>
       </section>
 
       {/* The picture half: PIC navy with the gold accent until a photo from the summit replaces it. */}
       <aside aria-hidden className="relative hidden h-dvh overflow-hidden bg-primary lg:block">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,0.14),transparent_45%),radial-gradient(circle_at_15%_85%,rgba(201,162,39,0.35),transparent_40%)]" />
-        <svg viewBox="0 0 400 400" className="absolute -right-24 top-1/2 w-[130%] -translate-y-1/2 text-white/10" fill="none" stroke="currentColor">
+        <svg viewBox="0 0 400 400" className="absolute -right-24 top-1/2 w-[130%] -translate-y-1/2 text-on-primary/10" fill="none" stroke="currentColor">
           {[60, 100, 140, 180, 220].map((r) => (
             <circle key={r} cx={260} cy={200} r={r} strokeWidth={1} />
           ))}
         </svg>
         <div className="absolute inset-0 bg-[#1b212d]/10" />
-        <div className="absolute inset-x-10 bottom-10 text-white xl:inset-x-14">
+        <div className="absolute inset-x-10 bottom-10 text-on-primary xl:inset-x-14">
           <p className="max-w-md text-2xl font-medium leading-tight xl:text-3xl">Programme, tickets, delegates and the live room, in one place.</p>
           <span className="mt-5 block h-1 w-16 rounded-full bg-secondary" />
         </div>

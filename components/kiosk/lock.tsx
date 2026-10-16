@@ -76,23 +76,23 @@ export function PinPad({ pinHash, onCancel, onUnlock }: { pinHash: string; onCan
   }, [pin, onCancel]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 px-5" role="dialog" aria-modal="true" aria-label="Staff PIN">
-      <div className="w-full max-w-xs rounded-2xl bg-surface p-6 text-center shadow-xl">
+      <div className="w-full max-w-xs rounded-xl bg-surface p-6 text-center shadow-xl">
         <LockClosedIcon className="mx-auto size-8 text-primary" />
         <p className="mt-2 font-medium text-ink">Staff PIN</p>
-        <p className={cn('mt-1 h-5 text-sm', wrong ? 'text-danger' : 'text-[#7c7c7c]')}>{wrong ? 'That PIN is not right.' : '•'.repeat(pin.length) || 'Enter the PIN to leave'}</p>
+        <p className={cn('mt-1 h-5 text-sm', wrong ? 'text-danger' : 'text-hint')}>{wrong ? 'That PIN is not right.' : '•'.repeat(pin.length) || 'Enter the PIN to leave'}</p>
         <div className="mt-4 grid grid-cols-3 gap-2">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-            <button key={d} type="button" onClick={() => void press(d)} className="h-14 rounded-xl bg-[#f1f1f1] text-xl text-ink active:bg-primary-soft">
+            <button key={d} type="button" onClick={() => void press(d)} className="h-14 rounded-xl bg-surface-soft text-xl text-ink active:bg-primary-soft">
               {d}
             </button>
           ))}
-          <button type="button" onClick={onCancel} className="h-14 rounded-xl text-sm text-[#525252]">
+          <button type="button" onClick={onCancel} className="h-14 rounded-xl text-sm text-ink-soft">
             Cancel
           </button>
-          <button type="button" onClick={() => void press('0')} className="h-14 rounded-xl bg-[#f1f1f1] text-xl text-ink active:bg-primary-soft">
+          <button type="button" onClick={() => void press('0')} className="h-14 rounded-xl bg-surface-soft text-xl text-ink active:bg-primary-soft">
             0
           </button>
-          <button type="button" onClick={() => setPin((p) => p.slice(0, -1))} className="h-14 rounded-xl text-sm text-[#525252]">
+          <button type="button" onClick={() => setPin((p) => p.slice(0, -1))} className="h-14 rounded-xl text-sm text-ink-soft">
             Delete
           </button>
         </div>

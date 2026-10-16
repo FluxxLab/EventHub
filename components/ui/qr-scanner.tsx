@@ -105,7 +105,7 @@ export function QrScanner({
     <div className={cn('relative overflow-hidden rounded-xl bg-ink', className)}>
       <video ref={video} muted playsInline className={cn('aspect-[4/3] w-full object-cover', facing === 'user' && '-scale-x-100')} />
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
-        <div className="size-44 rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]" />
+        <div className="size-44 rounded-xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]" />
       </div>
       {problem && <p className="absolute inset-x-0 bottom-0 bg-danger px-4 py-2 text-sm text-white">{problem}</p>}
       {onClose && (

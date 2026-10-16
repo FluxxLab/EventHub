@@ -27,7 +27,7 @@ function CopyField({ label, value, secret }: { label: string; value: string; sec
   return (
     <div>
       <p className="mb-1 text-sm text-ink">{label}</p>
-      <div className="flex items-center gap-1 rounded-lg border border-border bg-[#f6f6f6] py-1 pr-1 pl-3">
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-soft py-1 pr-1 pl-3">
         <code className="min-w-0 flex-1 truncate font-mono text-sm text-ink" title={shown ? value : undefined}>
           {shown ? value : '•'.repeat(24)}
         </code>
@@ -119,14 +119,14 @@ export function StreamDialog({
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-3 scrollbar-thin">
           {credentials ? (
             <>
-              <p role="note" className="flex items-start gap-2 rounded-lg bg-[#fdf6e0] px-3 py-2.5 text-sm text-[#7a5d00]">
+              <p role="note" className="flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning">
                 <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0" />
                 Copy the key now: it is not shown again. If it is lost, rotate it for a new one.
               </p>
               {encoderFields(credentials).map((f) => (
                 <CopyField key={f.label} {...f} />
               ))}
-              <div className="rounded-lg border border-border p-4 text-sm text-[#525252]">
+              <div className="rounded-lg border border-border p-4 text-sm text-ink-soft">
                 <p className="font-medium text-ink">On the encoder</p>
                 <ul className="mt-1.5 list-disc space-y-1 pl-5">
                   <li>Send the room&apos;s speech mix: microphones only, no music or playback.</li>
@@ -148,15 +148,15 @@ export function StreamDialog({
                       key={option.value}
                       className={cn(
                         'cursor-pointer rounded-lg border p-4 transition-colors',
-                        input === option.value ? 'border-primary bg-primary-soft/40' : 'border-border hover:border-[#bdbdbd]',
+                        input === option.value ? 'border-primary bg-primary-soft/40' : 'border-border hover:border-border-strong',
                       )}
                     >
                       <input type="radio" name={`${baseId}-input`} value={option.value} checked={input === option.value} onChange={() => setInput(option.value)} className="sr-only" />
                       <span className="flex items-center justify-between text-sm font-medium text-ink">
                         {option.title}
-                        <span className={cn('size-4 rounded-full border', input === option.value ? 'border-4 border-primary' : 'border-[#bdbdbd]')} aria-hidden />
+                        <span className={cn('size-4 rounded-full border', input === option.value ? 'border-4 border-primary' : 'border-border-strong')} aria-hidden />
                       </span>
-                      <span className="mt-1 block text-xs text-[#7c7c7c]">{option.body}</span>
+                      <span className="mt-1 block text-xs text-hint">{option.body}</span>
                     </label>
                   ))}
                 </div>
@@ -164,7 +164,7 @@ export function StreamDialog({
               <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
                 <div id={`${baseId}-diarise`}>
                   <p className="text-sm text-ink">Label speakers</p>
-                  <p className="text-xs text-[#7c7c7c]">For panels. Adds a little delay and can split one voice in two.</p>
+                  <p className="text-xs text-hint">For panels. Adds a little delay and can split one voice in two.</p>
                 </div>
                 <Switch checked={diarise} onChange={setDiarise} labelledBy={`${baseId}-diarise`} />
               </div>

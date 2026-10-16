@@ -19,7 +19,10 @@ import { DeckDialog } from '@/components/calls-to-action/deck-dialog';
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { callsCsv, countByStatus, filterCalls, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
@@ -28,9 +31,9 @@ import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { timeRange } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
 const TAB_LABEL: Record<StatusTab, string> = { suggested: 'To review', approved: 'Approved', rejected: 'Rejected', all: 'All' };
 const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
@@ -52,9 +55,9 @@ function Board({ edition }: { edition: Edition }) {
   const actions = useCallActions(edition.id);
 
   const [sessionToAnalyse, setSessionToAnalyse] = useState('');
-  const [tab, setTab] = useState<StatusTab>('suggested');
-  const [sessionFilter, setSessionFilter] = useState('all');
-  const [targetFilter, setTargetFilter] = useState('all');
+  const [tab, setTab] = useUrlParam<StatusTab>('status', 'suggested', STATUS_TABS);
+  const [sessionFilter, setSessionFilter] = useUrlParam<string>('session', 'all');
+  const [targetFilter, setTargetFilter] = useUrlParam<string>('to', 'all');
   const [editing, setEditing] = useState<{ call: CallToAction | null } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
@@ -69,15 +72,8 @@ function Board({ edition }: { edition: Edition }) {
     return { value: s.id, label: `Day ${s.day} · ${timeRange(s.startsAt, s.endsAt)} · ${s.title}${s.status === 'live' ? ' · live' : ''}${runs ? ` · analysed ${runs}×` : ''}` };
   });
 
-  if (board.isPending) return <Skeleton className="h-96 w-full rounded-2xl" />;
-  if (board.isError) {
-    return (
-      <div role="alert" className={cn(cardClass, 'p-10 text-center')}>
-        <p className="font-medium text-ink">Calls to action could not load.</p>
-        <p className="mt-1 text-sm text-muted">{board.error.message}</p>
-      </div>
-    );
-  }
+  if (board.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
+  if (board.isError) return <ErrorState framed title="Calls to action could not load" error={board.error} onRetry={() => void board.refetch()} />;
   const { items, aiReady } = board.data;
   const counts = countByStatus(items);
   const shown = filterCalls(items, tab, sessionFilter, targetFilter);
@@ -130,16 +126,10 @@ function Board({ edition }: { edition: Edition }) {
   return (
     <div className="flex flex-col gap-5">
       {/* 1. Analyse */}
-      <section aria-labelledby="analyse-title" className={cardClass}>
+      <Panel title="Analyse a session" description="At a break or when it ends: reads what was said since the last analysis and suggests calls to action.">
         <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-end">
           <div className="min-w-0 flex-1">
-            <h2 id="analyse-title" className="text-base font-medium text-ink">
-              Analyse a session
-            </h2>
-            <p className="text-sm text-[#7c7c7c]">
-              At a break or when it ends: reads what was said since the last analysis, with the names on the mics, and suggests its calls to action for you to review.
-            </p>
-            <div className="mt-3 max-w-xl">
+            <div className="max-w-xl">
               <Select
                 label="Session to analyse"
                 value={sessionToAnalyse || sessionList.find((s) => s.status === 'live')?.id || ''}
@@ -151,7 +141,7 @@ function Board({ edition }: { edition: Edition }) {
               <label className="mt-3 flex w-fit items-center gap-2 text-sm text-ink">
                 <input type="checkbox" checked={fromStart} onChange={(e) => setFromStart(e.target.checked)} className="size-4 accent-primary" />
                 Read the whole session again
-                <span className="text-[#7c7c7c]">· not only what is new; calls already listed are not suggested twice</span>
+                <span className="text-hint">· calls already listed are not suggested twice</span>
               </label>
             )}
           </div>
@@ -161,22 +151,19 @@ function Board({ edition }: { edition: Edition }) {
           </button>
         </div>
         {!aiReady && (
-          <p className="border-t border-border bg-gold-soft px-6 py-2.5 text-sm text-[#7a5d00]">
-            Analyse is off until the AI is set up on the server (ANTHROPIC_API_KEY). You can still add, review and export calls to action.
+          <p className="border-t border-border bg-warning-soft px-6 py-2.5 text-sm text-warning">
+            Analyse is off until the AI is set up on the server (ANTHROPIC_API_KEY). You can still add, review and export.
           </p>
         )}
-      </section>
+      </Panel>
 
       {/* 2. Review */}
-      <section aria-labelledby="review-title" className={cardClass}>
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-          <div>
-            <h2 id="review-title" className="text-base font-medium text-ink">
-              Calls to action
-            </h2>
-            <p className="text-sm text-[#7c7c7c]">Only approved ones go into the deck. Edit any of them to say exactly what was asked, and of whom.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <Panel
+        title="Calls to action"
+        count={items.length}
+        description="Only approved ones go into the deck."
+        actions={
+          <>
             <button type="button" onClick={exportCsv} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
               <ArrowDownTrayIcon className="size-4" />
               Export approved
@@ -189,48 +176,34 @@ function Board({ edition }: { edition: Edition }) {
               <PlusIcon className="size-4" />
               Add by hand
             </button>
-          </div>
-        </header>
-
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-3">
-          <div role="tablist" aria-label="Review status" className="flex gap-1 rounded-lg bg-[#f1f1f1] p-1">
-            {STATUS_TABS.map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={tab === t}
-                onClick={() => setTab(t)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm',
-                  tab === t ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink',
-                )}
-              >
-                {TAB_LABEL[t]}
-                <span className="text-xs tabular-nums text-[#7c7c7c]">{counts[t]}</span>
-              </button>
-            ))}
-          </div>
-          <div className="w-56">
-            <Select
-              label="Session"
-              value={sessionFilter}
-              options={[{ value: 'all', label: 'Every session' }, ...sessionList.map((s) => ({ value: s.id, label: s.title }))]}
-              onChange={setSessionFilter}
-            />
-          </div>
-          {targetOptions.length > 0 && (
-            <div className="w-56">
-              <Select
-                label="Directed at"
-                value={targetFilter}
-                options={[{ value: 'all', label: 'Everyone called on' }, ...targetOptions.map((t) => ({ value: t, label: t }))]}
-                onChange={setTargetFilter}
-              />
+          </>
+        }
+        toolbar={
+          <>
+            <SegmentedTabs label="Review status" options={STATUS_TABS.map((t) => ({ value: t, label: TAB_LABEL[t], count: counts[t] }))} value={tab} onChange={setTab} />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="w-56">
+                <Select
+                  label="Session"
+                  value={sessionFilter}
+                  options={[{ value: 'all', label: 'Every session' }, ...sessionList.map((s) => ({ value: s.id, label: s.title }))]}
+                  onChange={setSessionFilter}
+                />
+              </div>
+              {targetOptions.length > 0 && (
+                <div className="w-56">
+                  <Select
+                    label="Directed at"
+                    value={targetFilter}
+                    options={[{ value: 'all', label: 'Everyone called on' }, ...targetOptions.map((t) => ({ value: t, label: t }))]}
+                    onChange={setTargetFilter}
+                  />
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
+          </>
+        }
+      >
         {chosen.length >= 2 && (
           <div className="flex flex-wrap items-center gap-3 border-b border-border bg-primary-soft/40 px-6 py-3 text-sm">
             <Squares2X2Icon className="size-4 text-primary" />
@@ -253,10 +226,39 @@ function Board({ edition }: { edition: Edition }) {
         )}
 
         {shown.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
-            <MegaphoneIcon className="size-8 text-placeholder" />
-            <p className="text-sm text-[#7c7c7c]">{items.length === 0 ? 'None yet. Analyse a session, or add one by hand.' : `Nothing ${TAB_LABEL[tab].toLowerCase()} here.`}</p>
-          </div>
+          items.length === 0 ? (
+            <EmptyState
+              icon={MegaphoneIcon}
+              title="No calls to action yet"
+              body="Analyse a session, or add one by hand."
+              action={
+                <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                  <PlusIcon className="size-4" />
+                  Add by hand
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={MegaphoneIcon}
+              title={`Nothing ${TAB_LABEL[tab].toLowerCase()} here`}
+              action={
+                (tab !== 'all' || sessionFilter !== 'all' || targetFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab('all');
+                      setSessionFilter('all');
+                      setTargetFilter('all');
+                    }}
+                    className={buttonClass({ style: 'outline', color: 'gray' })}
+                  >
+                    Show every call
+                  </button>
+                )
+              }
+            />
+          )
         ) : (
           <ul className="divide-y divide-border">
             {shown.map((c) => (
@@ -271,22 +273,22 @@ function Board({ edition }: { edition: Edition }) {
                   />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 text-xs text-[#7c7c7c]">
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-hint">
                     <Tag tone="primary">To {c.directedAt}</Tag>
                     <Tag tone={c.type === 'pledge' ? 'green' : 'gray'}>{TYPE_LABEL[c.type]}</Tag>
                     {c.needsDetail && <Tag tone="gold">Needs detail</Tag>}
                     {c.status !== 'suggested' && <Tag tone={c.status === 'approved' ? 'green' : 'gray'}>{STATUS_LABEL[c.status]}</Tag>}
                     {c.source === 'manual' && <span>added by hand</span>}
                   </p>
-                  <p className="mt-1.5 text-[15px] font-medium text-ink">{c.shortText}</p>
-                  {c.action !== c.shortText && <p className="mt-0.5 text-sm text-[#525252]">{c.action}</p>}
-                  <p className="mt-1 text-xs text-[#525252]">{[c.deadline && `By ${c.deadline.replace(/^by\s+/i, '')}`, c.amount, c.theme].filter(Boolean).join(' · ')}</p>
+                  <p className="mt-1.5 text-[0.9375rem] font-medium text-ink">{c.shortText}</p>
+                  {c.action !== c.shortText && <p className="mt-0.5 text-sm text-ink-soft">{c.action}</p>}
+                  <p className="mt-1 text-xs text-ink-soft">{[c.deadline && `By ${c.deadline.replace(/^by\s+/i, '')}`, c.amount, c.theme].filter(Boolean).join(' · ')}</p>
                   {c.quote && (
-                    <blockquote className="mt-2 border-l-2 border-border pl-3 text-sm italic text-[#525252]">
-                      “{c.quote}”<span className="not-italic text-xs text-[#7c7c7c]"> {[voices(c), titleOf(c.sessionId), c.saidAt && hm(c.saidAt)].filter(Boolean).join(' · ')}</span>
+                    <blockquote className="mt-2 border-l-2 border-border pl-3 text-sm italic text-ink-soft">
+                      “{c.quote}”<span className="not-italic text-xs text-hint"> {[voices(c), titleOf(c.sessionId), c.saidAt && hm(c.saidAt)].filter(Boolean).join(' · ')}</span>
                     </blockquote>
                   )}
-                  {!c.quote && voices(c) && <p className="mt-1 text-xs text-[#7c7c7c]">{voices(c)}</p>}
+                  {!c.quote && voices(c) && <p className="mt-1 text-xs text-hint">{voices(c)}</p>}
                 </div>
                 {c.status !== 'merged' && (
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -318,7 +320,7 @@ function Board({ edition }: { edition: Edition }) {
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
 
       {deckOpen && <DeckDialog open edition={edition} items={items} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setDeckOpen(false)} />}
 

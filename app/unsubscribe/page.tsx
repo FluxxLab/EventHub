@@ -17,7 +17,7 @@ type Status = { email: string; unsubscribed: boolean };
  */
 export default function UnsubscribePage() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[#f6f6f6] px-5">
+    <div className="flex min-h-dvh items-center justify-center bg-surface-soft px-5">
       <Suspense>
         <Unsubscribe />
       </Suspense>
@@ -56,20 +56,20 @@ function Unsubscribe() {
   };
 
   return (
-    <main className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+    <main className="w-full max-w-md rounded-xl border border-border bg-surface p-8 text-center shadow-sm">
       <Image src="/pic-logo.png" alt="Policy Innovation Centre" width={64} height={64} className="mx-auto" priority />
       {error ? (
         <>
           <h1 className="mt-5 text-xl font-medium text-ink">That did not work</h1>
-          <p className="mt-2 text-sm text-[#525252]">{error}</p>
+          <p className="mt-2 text-sm text-ink-soft">{error}</p>
         </>
       ) : !status ? (
-        <p className="mt-5 text-sm text-[#7c7c7c]">One moment…</p>
+        <p className="mt-5 text-sm text-hint">One moment…</p>
       ) : status.unsubscribed ? (
         <>
           <CheckCircleIcon className="mx-auto mt-5 size-10 text-success" />
           <h1 className="mt-2 text-xl font-medium text-ink">You are unsubscribed</h1>
-          <p className="mt-2 text-sm text-[#525252]">
+          <p className="mt-2 text-sm text-ink-soft">
             <span className="text-ink">{status.email}</span> will not get event emails from the Policy Innovation Centre. Your tickets and sign-in codes still arrive.
           </p>
           <button type="button" disabled={pending} onClick={() => void change(false)} className={buttonClass({ style: 'borderless', color: 'gray', className: 'mt-4' })}>
@@ -79,7 +79,7 @@ function Unsubscribe() {
       ) : (
         <>
           <h1 className="mt-5 text-xl font-medium text-ink">Stop event emails?</h1>
-          <p className="mt-2 text-sm text-[#525252]">
+          <p className="mt-2 text-sm text-ink-soft">
             <span className="text-ink">{status.email}</span> will stop getting announcements and updates about Policy Innovation Centre events. Tickets and sign-in codes still arrive.
           </p>
           <button type="button" disabled={pending} onClick={() => void change(true)} className={buttonClass({ className: 'mt-6 w-full' })}>

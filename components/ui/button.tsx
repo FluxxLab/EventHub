@@ -20,19 +20,19 @@ const COLORS: Record<ButtonStyle, Record<ButtonColor, string>> = {
   },
   soft: {
     primary: 'bg-primary-soft text-primary hover:bg-primary/15',
-    gray: 'bg-[#f1f1f1] text-ink hover:bg-[#e6e6e6]',
+    gray: 'bg-surface-soft text-ink hover:bg-surface-sunken',
     danger: 'bg-danger-soft text-danger hover:bg-danger/15',
     green: 'bg-success-soft text-success hover:bg-success/15',
   },
   outline: {
     primary: 'border border-primary text-primary hover:bg-primary-soft',
-    gray: 'border border-border text-ink hover:bg-[#f1f1f1]',
+    gray: 'border border-border text-ink hover:bg-surface-soft',
     danger: 'border border-danger text-danger hover:bg-danger-soft',
     green: 'border border-success text-success hover:bg-success-soft',
   },
   borderless: {
     primary: 'text-primary hover:bg-primary-soft',
-    gray: 'text-ink hover:bg-[#f1f1f1]',
+    gray: 'text-ink hover:bg-surface-soft',
     danger: 'text-danger hover:bg-danger-soft',
     green: 'text-success hover:bg-success-soft',
   },

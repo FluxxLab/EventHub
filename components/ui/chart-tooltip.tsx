@@ -16,7 +16,7 @@ export function ChartTooltip({ x, y, children, className }: { x: number | string
       className={cn('pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full pb-2', className)}
       style={{ left: x, top: y }}
     >
-      <div className="relative whitespace-nowrap rounded bg-ink px-2 py-1 text-xs leading-[18px] text-[#fdfdfd] shadow-md">
+      <div className="relative whitespace-nowrap rounded bg-ink px-2 py-1 text-xs leading-[18px] text-on-primary shadow-md">
         {children}
         <span aria-hidden className="absolute left-1/2 top-full h-1.5 w-3 -translate-x-1/2 bg-ink [clip-path:polygon(0_0,100%_0,50%_100%)]" />
       </div>
@@ -30,7 +30,7 @@ export function TipRow({ colour, value, label }: { colour?: string; value: React
     <span className="flex items-center gap-1.5">
       {colour && <span className="size-2 shrink-0 rounded-[2px]" style={{ background: colour }} aria-hidden />}
       <span className="tabular-nums">{value}</span>
-      {label && <span className="text-[#fdfdfd]/70">{label}</span>}
+      {label && <span className="text-on-primary/70">{label}</span>}
     </span>
   );
 }

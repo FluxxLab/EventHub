@@ -10,6 +10,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useSession } from '@/lib/auth/session';
@@ -19,9 +21,7 @@ import { removalBlocker, ROLE_HINT, ROLE_LABEL, STAFF_ROLES, staffSchema, tempor
 import { useStaff, useStaffActions } from '@/lib/team/use-team';
 import { cn } from '@/lib/utils';
 
-const cardClass =
-  'overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_12px_16px_-4px_rgba(36,36,36,0.08),0_4px_6px_-2px_rgba(36,36,36,0.03)]';
-const th = 'h-15 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
+const th = 'h-15 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 
 /** Role as choice cards, each saying what the role can do. */
@@ -38,7 +38,7 @@ function RolePicker({ value, onChange }: { value: StaffRole; onChange: (role: St
           className={cn('rounded-lg border px-3 py-2.5 text-left transition-colors', value === role ? 'border-primary bg-primary-soft' : 'border-border hover:bg-surface-soft')}
         >
           <span className={cn('block text-sm', value === role ? 'font-medium text-primary' : 'text-ink')}>{ROLE_LABEL[role]}</span>
-          <span className="block text-xs leading-5 text-[#7c7c7c]">{ROLE_HINT[role]}</span>
+          <span className="block text-xs leading-5 text-hint">{ROLE_HINT[role]}</span>
         </button>
       ))}
     </div>
@@ -68,12 +68,12 @@ function EventsPicker({ value, onChange, error }: { value: string[]; onChange: (
                   onClick={() => onChange(on ? value.filter((v) => v !== e.id) : [...value, e.id])}
                   className={cn('flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left hover:bg-surface-soft', on && 'bg-primary-soft/50')}
                 >
-                  <span className={cn('flex size-4.5 shrink-0 items-center justify-center rounded border', on ? 'border-primary bg-primary text-on-primary' : 'border-[#bdbdbd]')} aria-hidden>
+                  <span className={cn('flex size-4.5 shrink-0 items-center justify-center rounded border', on ? 'border-primary bg-primary text-on-primary' : 'border-border-strong')} aria-hidden>
                     {on && <CheckIcon className="size-3.5" />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-ink">{e.name}</span>
-                    <span className="block text-xs text-[#7c7c7c]">
+                    <span className="block text-xs text-hint">
                       {e.shortName} · {dateRange(e.startsAt, e.endsAt)}
                     </span>
                   </span>
@@ -265,12 +265,24 @@ export default function TeamPage() {
       { id: changing.id, role: newRole, editionIds: newEvents },
       {
         onSuccess: () => {
-          toast.push({ title: 'Role changed', leading: { kind: 'avatar', name: changing.name }, body: `${changing.name} is now ${ROLE_LABEL[newRole].toLowerCase()}${newRole === 'event_admin' ? ` for ${newEvents.map(eventName).join(', ')}` : ''}.` });
+          toast.push({
+            title: 'Role changed',
+            leading: { kind: 'avatar', name: changing.name },
+            body: `${changing.name} is now ${ROLE_LABEL[newRole].toLowerCase()}${newRole === 'event_admin' ? ` for ${newEvents.map(eventName).join(', ')}` : ''}.`,
+          });
           setChanging(null);
         },
       },
     );
   };
+  const addButton = (
+    <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
+      <PlusIcon className="size-4" />
+      Add staff
+    </button>
+  );
+  // the role or events differ from what the dialog opened with
+  const roleDirty = !!changing && (newRole !== changing.accessTier || [...newEvents].sort().join() !== [...(changing.managedEditionIds ?? [])].sort().join());
   const confirmRemove = () =>
     removing &&
     remove.mutate(removing.id, {
@@ -283,29 +295,13 @@ export default function TeamPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
       <h1 className="sr-only">Team</h1>
-      <section aria-labelledby="team-title" className={cardClass}>
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-6">
-          <div>
-            <h2 id="team-title" className="flex items-center gap-2 text-xl font-medium text-ink">
-              Staff
-              {staff.data && <Tag>{members.length}</Tag>}
-            </h2>
-            <p className="mt-0.5 text-sm text-[#7c7c7c]">People who can open this console. Delegates are listed separately.</p>
-          </div>
-          <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
-            <PlusIcon className="size-4" />
-            Add staff
-          </button>
-        </header>
-
+      <Panel title="Staff" count={staff.data ? members.length : undefined} description="People who can open this console. Delegates are listed separately." actions={addButton}>
         {staff.isError && !staff.data ? (
-          <div role="alert" className="p-10 text-center">
-            <p className="font-medium text-ink">Staff could not load.</p>
-            <p className="mt-1 text-sm text-muted">{staff.error.message}</p>
-            <button type="button" onClick={() => void staff.refetch()} className={buttonClass({ className: 'mt-4' })}>
-              Try again
-            </button>
-          </div>
+          <ErrorState title="Staff could not load." error={staff.error} onRetry={() => void staff.refetch()} />
+        ) : staff.isPending ? (
+          <LoadingRows rows={3} />
+        ) : members.length === 0 ? (
+          <EmptyState icon={UserGroupIcon} title="No staff yet" body="Add the people who run your events." action={addButton} />
         ) : (
           <div className="relative overflow-x-auto">
             <table className="w-full min-w-[44rem] border-collapse">
@@ -325,86 +321,71 @@ export default function TeamPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody aria-busy={staff.isPending}>
-                {staff.isPending
-                  ? [0, 1, 2].map((i) => (
-                      <tr key={i} className="even:bg-[#f6f6f6]">
-                        <td colSpan={4} className={td}>
-                          <Skeleton className="h-8" />
-                        </td>
-                      </tr>
-                    ))
-                  : members.map((m) => {
-                      const blocker = removalBlocker(m, members, selfId);
-                      return (
-                        <tr key={m.id} className="even:bg-[#f6f6f6] last:[&>td]:border-b-0">
-                          <td className={td}>
-                            <div className="flex items-center gap-2">
-                              <Avatar name={m.name} size={32} />
-                              <div className="min-w-0 leading-tight">
-                                <p className="truncate text-[#525252]">
-                                  {m.name}
-                                  {m.id === selfId && <span className="ml-1.5 text-xs text-[#7c7c7c]">(you)</span>}
-                                </p>
-                                <p className="truncate text-xs text-placeholder">{m.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className={td}>
-                            <Tag tone={m.accessTier === 'admin' ? 'primary' : m.accessTier === 'event_admin' ? 'gold' : 'gray'}>{ROLE_LABEL[m.accessTier]}</Tag>
-                            {m.accessTier === 'event_admin' && (
-                              <p className="mt-1 max-w-56 truncate text-xs text-[#7c7c7c]" title={(m.managedEditionIds ?? []).map(eventName).join(', ')}>
-                                {(m.managedEditionIds ?? []).map(eventName).join(', ') || 'No events yet'}
-                              </p>
-                            )}
-                          </td>
-                          <td className={cn(td, 'whitespace-nowrap text-[#525252]')}>
-                            {new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </td>
-                          <td className={cn(td, 'text-right')}>
-                            <div className="flex justify-end gap-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setChanging(m);
-                                  setNewRole(m.accessTier);
-                                  setNewEvents(m.managedEditionIds ?? []);
-                                  setEventsError(undefined);
-                                  setRole.reset();
-                                }}
-                                disabled={m.accessTier === 'admin' && organisers <= 1}
-                                title={m.accessTier === 'admin' && organisers <= 1 ? 'The last organiser keeps the organiser role.' : undefined}
-                                className={buttonClass({ style: 'outline', color: 'gray' })}
-                              >
-                                {m.accessTier === 'event_admin' ? 'Role & events' : 'Change role'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRemoving(m)}
-                                disabled={!!blocker}
-                                title={blocker ?? undefined}
-                                className={buttonClass({ style: 'borderless', color: 'danger' })}
-                              >
-                                Remove access
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+              <tbody>
+                {members.map((m) => {
+                  const blocker = removalBlocker(m, members, selfId);
+                  return (
+                    <tr key={m.id} className="even:bg-surface-soft last:[&>td]:border-b-0">
+                      <td className={td}>
+                        <div className="flex items-center gap-2">
+                          <Avatar name={m.name} size={32} />
+                          <div className="min-w-0 leading-tight">
+                            <p className="truncate text-ink-soft">
+                              {m.name}
+                              {m.id === selfId && <span className="ml-1.5 text-xs text-hint">(you)</span>}
+                            </p>
+                            <p className="truncate text-xs text-placeholder">{m.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className={td}>
+                        <Tag tone={m.accessTier === 'admin' ? 'primary' : m.accessTier === 'event_admin' ? 'gold' : 'gray'}>{ROLE_LABEL[m.accessTier]}</Tag>
+                        {m.accessTier === 'event_admin' && (
+                          <p className="mt-1 max-w-56 truncate text-xs text-hint" title={(m.managedEditionIds ?? []).map(eventName).join(', ')}>
+                            {(m.managedEditionIds ?? []).map(eventName).join(', ') || 'No events yet'}
+                          </p>
+                        )}
+                      </td>
+                      <td className={cn(td, 'whitespace-nowrap text-ink-soft')}>{new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                      <td className={cn(td, 'text-right')}>
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChanging(m);
+                              setNewRole(m.accessTier);
+                              setNewEvents(m.managedEditionIds ?? []);
+                              setEventsError(undefined);
+                              setRole.reset();
+                            }}
+                            disabled={m.accessTier === 'admin' && organisers <= 1}
+                            title={m.accessTier === 'admin' && organisers <= 1 ? 'The last organiser keeps the organiser role.' : undefined}
+                            className={buttonClass({ style: 'outline', color: 'gray' })}
+                          >
+                            {m.accessTier === 'event_admin' ? 'Role & events' : 'Change role'}
+                          </button>
+                          <button type="button" onClick={() => setRemoving(m)} disabled={!!blocker} title={blocker ?? undefined} className={buttonClass({ style: 'borderless', color: 'danger' })}>
+                            Remove access
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
-      </section>
+      </Panel>
 
       <AddStaffDialog open={adding} onClose={() => setAdding(false)} />
       <FormDialog
         open={!!changing}
         icon={UserGroupIcon}
         title={`Role for ${changing?.name ?? 'them'}`}
-        subtitle="What they can open in the console. The change takes effect on their next page load."
+        subtitle="What they can open in the console, from their next page load."
         pending={setRole.isPending}
+        dirty={roleDirty}
         submitLabel="Save"
         error={setRole.error?.message ?? null}
         onSubmit={confirmRole}
@@ -438,7 +419,7 @@ export default function TeamPage() {
         onConfirm={() => void confirmRemove()}
         onCancel={() => setRemoving(null)}
       >
-        They can no longer open the console. Their account stays as an ordinary delegate, and this change is logged.
+        They can no longer open the console; their account stays as an ordinary delegate.
         {remove.error && <span className="mt-2 block text-xs text-danger">{remove.error.message}</span>}
       </ConfirmDialog>
     </div>

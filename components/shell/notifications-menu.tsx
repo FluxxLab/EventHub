@@ -96,7 +96,7 @@ export function NotificationsMenu() {
       >
         <BellIcon className="size-5" />
         {unread > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-surface bg-danger px-1 text-[10px] font-medium leading-none text-on-primary">
+          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-surface bg-danger px-1 text-[0.625rem] font-medium leading-none text-on-primary">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -111,7 +111,7 @@ export function NotificationsMenu() {
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <p className="text-sm font-medium text-ink">Notifications</p>
-            <Link href="/security" onClick={() => setOpen(false)} className="text-xs text-[#7c7c7c] hover:text-primary">
+            <Link href="/security" onClick={() => setOpen(false)} className="text-xs text-hint hover:text-primary">
               Security log
             </Link>
           </div>
@@ -141,8 +141,8 @@ export function NotificationsMenu() {
                         <severity.icon className="size-4" title={severity.label} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm leading-5 text-[#525252]">{item.description}</p>
-                        <p className="mt-0.5 text-xs text-[#7c7c7c]">{ago(item.at)}</p>
+                        <p className="text-sm leading-5 text-ink-soft">{item.description}</p>
+                        <p className="mt-0.5 text-xs text-hint">{ago(item.at)}</p>
                       </div>
                       {isNew && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-label="New" role="img" />}
                     </li>

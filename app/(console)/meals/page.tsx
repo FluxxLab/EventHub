@@ -1,15 +1,17 @@
 'use client';
 
 import { BuildingStorefrontIcon, CakeIcon, CheckCircleIcon, ClipboardDocumentIcon, LinkIcon, NoSymbolIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/card';
 import { Field, TextInput } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
+import { Panel } from '@/components/ui/panel';
 import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
+import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag, type TagTone } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { QUARTER_HOURS } from '@/lib/calendar';
@@ -18,11 +20,11 @@ import { usePageEdition } from '@/lib/events/use-page-edition';
 import { counterLink, mealProblem, mealState, mealToForm, mealWindow, toMealBody, type Meal, type MealCounter, type MealForm, type MealState } from '@/lib/meals/meals';
 import { useMealActions, useMeals } from '@/lib/meals/use-meals';
 import { useNow } from '@/lib/use-now';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
-const th = 'border-b border-border px-4 py-3 text-left text-xs font-medium text-[#7c7c7c]';
-const td = 'border-b border-divider px-4 py-3 text-sm text-[#525252]';
+const th = 'h-12 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
+const td = 'border-b border-divider px-4 py-3 text-sm text-ink-soft';
 const TIMES = QUARTER_HOURS.map((t) => ({ value: t, label: t }));
 const STATE: Record<MealState, { label: string; tone: TagTone }> = {
   upcoming: { label: 'Later', tone: 'gray' },
@@ -45,50 +47,15 @@ export default function MealsPage() {
 }
 
 const TABS = [
-  { key: 'meals', label: 'Meals', icon: CakeIcon },
-  { key: 'counters', label: 'Food counters', icon: BuildingStorefrontIcon },
+  { value: 'meals', label: 'Meals', icon: CakeIcon },
+  { value: 'counters', label: 'Food counters', icon: BuildingStorefrontIcon },
 ] as const;
-type Tab = (typeof TABS)[number]['key'];
-
-/** Meals and food counters, one at a time, as Ticketing shows tiers and sales. */
-function Tabs({ tab, onChange, counts }: { tab: Tab; onChange: (tab: Tab) => void; counts: Record<Tab, number> }) {
-  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    const next = TABS[(TABS.findIndex((t) => t.key === tab) + 1) % TABS.length]!.key;
-    onChange(next);
-    document.getElementById(`meals-tab-${next}`)?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Meals sections" onKeyDown={onKey} className="flex gap-6 border-b border-border">
-      {TABS.map((t) => {
-        const selected = tab === t.key;
-        return (
-          <button
-            key={t.key}
-            id={`meals-tab-${t.key}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls="meals-panel"
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(t.key)}
-            className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm transition-colors',
-              selected ? 'border-primary font-medium text-primary' : 'border-transparent text-[#525252] hover:text-ink',
-            )}
-          >
-            <t.icon className="size-4" />
-            {t.label}
-            <Tag tone={selected ? 'primary' : 'gray'}>{counts[t.key]}</Tag>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+type Tab = (typeof TABS)[number]['value'];
+const TAB_VALUES: readonly Tab[] = TABS.map((t) => t.value);
 
 function Board({ edition }: { edition: Edition }) {
-  const [tab, setTab] = useState<Tab>('meals');
+  // Meals and food counters, one at a time, as Ticketing shows tiers and sales.
+  const [tab, setTab] = useUrlParam<Tab>('tab', 'meals', TAB_VALUES);
   const board = useMeals(edition.id);
   const actions = useMealActions(edition.id);
   const toast = useToast();
@@ -99,163 +66,141 @@ function Board({ edition }: { edition: Edition }) {
   const [removingCounter, setRemovingCounter] = useState<MealCounter | null>(null);
   const [link, setLink] = useState<{ counter: string; url: string } | null>(null);
 
-  if (board.isPending) return <Skeleton className="h-96 w-full rounded-2xl" />;
-  if (board.isError) {
-    return (
-      <div role="alert" className={cn(cardClass, 'p-10 text-center')}>
-        <p className="font-medium text-ink">Meals could not load.</p>
-        <p className="mt-1 text-sm text-muted">{board.error.message}</p>
-      </div>
-    );
-  }
+  if (board.isPending) return <LoadingRows className="rounded-xl border border-border bg-surface" />;
+  if (board.isError) return <ErrorState framed title="Meals could not load." error={board.error} onRetry={() => void board.refetch()} />;
   const { meals, counters, people } = board.data;
+  const addMeal = (
+    <button type="button" onClick={() => setEditing({ meal: null })} className={buttonClass()}>
+      <PlusIcon className="size-4" /> Add meal
+    </button>
+  );
+  const addCounter = (
+    <button type="button" onClick={() => setAddingCounter(true)} className={buttonClass({ style: 'soft', color: 'primary' })}>
+      <PlusIcon className="size-4" /> Add counter
+    </button>
+  );
   const showLink = (counter: string, key: string) => setLink({ counter, url: counterLink(window.location.origin, key) });
 
   return (
     <div className="flex flex-col gap-5">
-      <Tabs tab={tab} onChange={setTab} counts={{ meals: meals.length, counters: counters.length }} />
-      <div id="meals-panel" role="tabpanel" aria-labelledby={`meals-tab-${tab}`}>
-      {tab === 'meals' && (
-      <section aria-labelledby="meals-title" className={cardClass}>
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-          <div>
-            <h2 id="meals-title" className="text-base font-medium text-ink">
-              Meals
-            </h2>
-            <p className="text-sm text-[#7c7c7c]">
-              {people.toLocaleString('en-GB')} {people === 1 ? 'person holds' : 'people hold'} tickets. Each collects each meal once.
-            </p>
-          </div>
-          <button type="button" onClick={() => setEditing({ meal: null })} className={buttonClass()}>
-            <PlusIcon className="size-4" /> Add meal
-          </button>
-        </header>
-        {meals.length === 0 ? (
-          <p className="px-6 py-12 text-center text-sm text-[#7c7c7c]">
-            No meals yet.{' '}
-            <button type="button" onClick={() => setEditing({ meal: null })} className="font-medium text-primary hover:underline">
-              Add the first one
-            </button>
-          </p>
-        ) : (
-          <div className="relative overflow-x-auto">
-            <table className="w-full min-w-[44rem] border-collapse">
-              <thead>
-                <tr>
-                  <th scope="col" className={th}>
-                    Meal
-                  </th>
-                  <th scope="col" className={th}>
-                    Served
-                  </th>
-                  <th scope="col" className={th}>
-                    Status
-                  </th>
-                  <th scope="col" className={cn(th, 'w-64')}>
-                    Collected
-                  </th>
-                  <th scope="col" className={cn(th, 'w-24')}>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {meals.map((m) => {
-                  const state = STATE[mealState(m, now)];
-                  const share = people ? Math.min(100, Math.round((m.served / people) * 100)) : 0;
-                  return (
-                    <tr key={m.id} className="last:[&>td]:border-b-0">
-                      <td className={cn(td, 'font-medium text-ink')}>{m.name}</td>
-                      <td className={cn(td, 'whitespace-nowrap tabular-nums')}>{mealWindow(m)}</td>
-                      <td className={td}>
-                        <Tag tone={state.tone} dot>
-                          {state.label}
-                        </Tag>
-                      </td>
-                      <td className={td}>
-                        <div className="flex items-center gap-3">
-                          <div className="h-2 flex-1 rounded-full bg-surface-soft" aria-hidden>
-                            <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
-                          </div>
-                          <span className="whitespace-nowrap text-xs tabular-nums text-ink">
-                            {m.served.toLocaleString('en-GB')} of {people.toLocaleString('en-GB')}
-                          </span>
-                        </div>
-                      </td>
-                      <td className={cn(td, 'text-right')}>
-                        <RowActions
-                          name={m.name}
-                          onEdit={() => setEditing({ meal: m })}
-                          onDelete={() => {
-                            actions.remove.reset();
-                            setDeleting(m);
-                          }}
-                        />
-                      </td>
+      <UnderlineTabs label="Meals sections" idBase="meals" options={TABS.map((t) => ({ ...t, count: t.value === 'meals' ? meals.length : counters.length }))} value={tab} onChange={setTab} />
+      <div id={tabPanelId('meals', tab)} role="tabpanel" aria-labelledby={tabId('meals', tab)}>
+        {tab === 'meals' && (
+          <Panel title="Meals" description={`${people.toLocaleString('en-GB')} ${people === 1 ? 'person holds' : 'people hold'} tickets. Each collects each meal once.`} actions={addMeal}>
+            {meals.length === 0 ? (
+              <EmptyState icon={CakeIcon} title="No meals yet" body="Add each meal the event serves, with its serving window." action={addMeal} />
+            ) : (
+              <div className="relative overflow-x-auto">
+                <table className="w-full min-w-[44rem] border-collapse">
+                  <thead>
+                    <tr>
+                      <th scope="col" className={th}>
+                        Meal
+                      </th>
+                      <th scope="col" className={th}>
+                        Served
+                      </th>
+                      <th scope="col" className={th}>
+                        Status
+                      </th>
+                      <th scope="col" className={cn(th, 'w-64')}>
+                        Collected
+                      </th>
+                      <th scope="col" className={cn(th, 'w-24')}>
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {meals.map((m) => {
+                      const state = STATE[mealState(m, now)];
+                      const share = people ? Math.min(100, Math.round((m.served / people) * 100)) : 0;
+                      return (
+                        <tr key={m.id} className="last:[&>td]:border-b-0">
+                          <td className={cn(td, 'font-medium text-ink')}>{m.name}</td>
+                          <td className={cn(td, 'whitespace-nowrap tabular-nums')}>{mealWindow(m)}</td>
+                          <td className={td}>
+                            <Tag tone={state.tone} dot>
+                              {state.label}
+                            </Tag>
+                          </td>
+                          <td className={td}>
+                            <div className="flex items-center gap-3">
+                              <div className="h-2 flex-1 rounded-full bg-surface-soft" aria-hidden>
+                                <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
+                              </div>
+                              <span className="whitespace-nowrap text-xs tabular-nums text-ink">
+                                {m.served.toLocaleString('en-GB')} of {people.toLocaleString('en-GB')}
+                              </span>
+                            </div>
+                          </td>
+                          <td className={cn(td, 'text-right')}>
+                            <RowActions
+                              name={m.name}
+                              onEdit={() => setEditing({ meal: m })}
+                              onDelete={() => {
+                                actions.remove.reset();
+                                setDeleting(m);
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
         )}
-      </section>
-      )}
 
-      {tab === 'counters' && (
-      <section aria-labelledby="counters-title" className={cardClass}>
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-          <div>
-            <h2 id="counters-title" className="text-base font-medium text-ink">
-              Food counters
-            </h2>
-            <p className="text-sm text-[#7c7c7c]">Each counter gets a private link. Catering staff open it on a phone and scan tickets; no account needed.</p>
-          </div>
-          <button type="button" onClick={() => setAddingCounter(true)} className={buttonClass({ style: 'soft', color: 'primary' })}>
-            <PlusIcon className="size-4" /> Add counter
-          </button>
-        </header>
-        {counters.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-[#7c7c7c]">No counters yet. Add one for each place food is handed out.</p>
-        ) : (
-          <ul className="divide-y divide-divider">
-            {counters.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-3 px-6 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-ink">{c.name}</p>
-                  <p className="text-xs tabular-nums text-[#7c7c7c]">{c.served.toLocaleString('en-GB')} plates served</p>
-                </div>
-                <Tag tone={c.linkOn ? 'green' : 'gray'} dot>
-                  {c.linkOn ? 'Link on' : 'Link off'}
-                </Tag>
-                <RowActions
-                  name={c.name}
-                  actions={[
-                    {
-                      label: c.linkOn ? 'New link' : 'Switch on',
-                      icon: LinkIcon,
-                      disabled: actions.newLink.isPending,
-                      onSelect: () => actions.newLink.mutate(c.id, { onSuccess: ({ key }) => showLink(c.name, key), onError: (e) => toast.push({ title: 'No new link', body: e.message }) }),
-                    },
-                    ...(c.linkOn
-                      ? [
-                          {
-                            label: 'Switch off',
-                            icon: NoSymbolIcon,
-                            disabled: actions.unlink.isPending,
-                            onSelect: () => actions.unlink.mutate(c.id, { onSuccess: () => toast.push({ title: 'Link switched off', leading: { kind: 'icon' as const, icon: NoSymbolIcon }, body: `${c.name} can’t scan until you make a new link.` }) }),
-                          },
-                        ]
-                      : []),
-                  ]}
-                  onDelete={() => setRemovingCounter(c)}
-                />
-              </li>
-            ))}
-          </ul>
+        {tab === 'counters' && (
+          <Panel title="Food counters" description="Each gets a private link catering staff open on a phone to scan tickets." actions={addCounter}>
+            {counters.length === 0 ? (
+              <EmptyState icon={BuildingStorefrontIcon} title="No counters yet" body="Add one for each place food is handed out." action={addCounter} />
+            ) : (
+              <ul className="divide-y divide-divider">
+                {counters.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center gap-3 px-6 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink">{c.name}</p>
+                      <p className="text-xs tabular-nums text-hint">{c.served.toLocaleString('en-GB')} plates served</p>
+                    </div>
+                    <Tag tone={c.linkOn ? 'green' : 'gray'} dot>
+                      {c.linkOn ? 'Link on' : 'Link off'}
+                    </Tag>
+                    <RowActions
+                      name={c.name}
+                      actions={[
+                        {
+                          label: c.linkOn ? 'New link' : 'Switch on',
+                          icon: LinkIcon,
+                          disabled: actions.newLink.isPending,
+                          onSelect: () => actions.newLink.mutate(c.id, { onSuccess: ({ key }) => showLink(c.name, key), onError: (e) => toast.push({ title: 'No new link', body: e.message }) }),
+                        },
+                        ...(c.linkOn
+                          ? [
+                              {
+                                label: 'Switch off',
+                                icon: NoSymbolIcon,
+                                disabled: actions.unlink.isPending,
+                                onSelect: () =>
+                                  actions.unlink.mutate(c.id, {
+                                    onSuccess: () =>
+                                      toast.push({ title: 'Link switched off', leading: { kind: 'icon' as const, icon: NoSymbolIcon }, body: `${c.name} can’t scan until you make a new link.` }),
+                                  }),
+                              },
+                            ]
+                          : []),
+                      ]}
+                      onDelete={() => setRemovingCounter(c)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
         )}
-      </section>
-      )}
       </div>
 
       <MealDialog
@@ -362,7 +307,9 @@ function MealDialog({
   onClose: () => void;
   onSave: (body: ReturnType<typeof toMealBody>) => void;
 }) {
-  const [form, setForm] = useState<MealForm>(() => (meal ? mealToForm(meal) : { name: '', date: firstDay.slice(0, 10), start: '12:00', end: '14:00' }));
+  const [initial] = useState<MealForm>(() => (meal ? mealToForm(meal) : { name: '', date: firstDay.slice(0, 10), start: '12:00', end: '14:00' }));
+  const [form, setForm] = useState<MealForm>(initial);
+  const dirty = (Object.keys(initial) as (keyof MealForm)[]).some((k) => form[k] !== initial[k]);
   const [problem, setProblem] = useState<string | null>(null);
   const set = (key: keyof MealForm, value: string) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -375,7 +322,18 @@ function MealDialog({
     onSave(toMealBody(form));
   };
   return (
-    <FormDialog open={open} icon={CakeIcon} title={meal ? 'Edit meal' : 'Add meal'} subtitle="Counters can serve it only in this window." pending={pending} submitLabel={meal ? 'Save' : 'Add meal'} error={problem ?? error} onClose={onClose} onSubmit={submit}>
+    <FormDialog
+      open={open}
+      icon={CakeIcon}
+      title={meal ? 'Edit meal' : 'Add meal'}
+      subtitle="Counters can serve it only in this window."
+      pending={pending}
+      submitLabel={meal ? 'Save' : 'Add meal'}
+      error={problem ?? error}
+      dirty={dirty}
+      onClose={onClose}
+      onSubmit={submit}
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="meal-name" label="Meal" className="sm:col-span-2">
           <TextInput id="meal-name" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Lunch, Day 1" maxLength={120} autoFocus />
@@ -406,6 +364,7 @@ function CounterDialog({ open, pending, error, onClose, onSave }: { open: boolea
       pending={pending}
       submitLabel="Add counter"
       error={problem ?? error}
+      dirty={name.trim() !== ''}
       onClose={() => {
         setName('');
         onClose();
@@ -442,7 +401,7 @@ function LinkDialog({ link, onClose }: { link: { counter: string; url: string } 
       open={!!link}
       icon={LinkIcon}
       title={`Scanner link: ${link?.counter ?? ''}`}
-      subtitle="Send it to the counter’s catering staff. It is shown only now; a new link switches this one off."
+      subtitle="Send it to the counter’s staff. Shown only now; a new link switches this one off."
       pending={false}
       submitLabel="Done"
       error={null}
@@ -457,7 +416,13 @@ function LinkDialog({ link, onClose }: { link: { counter: string; url: string } 
       }}
     >
       <div className="flex flex-col gap-2">
-        <input readOnly value={link?.url ?? ''} onFocus={(e) => e.currentTarget.select()} className="h-10 w-full rounded-lg border border-border bg-surface-soft px-3 font-mono text-xs text-ink" aria-label="Scanner link" />
+        <input
+          readOnly
+          value={link?.url ?? ''}
+          onFocus={(e) => e.currentTarget.select()}
+          className="h-10 w-full rounded-lg border border-border bg-surface-soft px-3 font-mono text-xs text-ink"
+          aria-label="Scanner link"
+        />
         <button
           type="button"
           onClick={() =>

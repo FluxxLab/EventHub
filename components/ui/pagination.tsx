@@ -5,7 +5,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { pageItems } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 
-const item = 'inline-flex h-9 min-w-9 items-center justify-center gap-2 rounded px-3 text-sm text-ink transition-colors hover:bg-[#f6f6f6] disabled:pointer-events-none disabled:opacity-40';
+const item = 'inline-flex h-9 min-w-9 items-center justify-center gap-2 rounded px-3 text-sm text-ink transition-colors hover:bg-surface-soft disabled:pointer-events-none disabled:opacity-40';
 
 /**
  * The design system's pagination: Previous, the page numbers (the current one on #F1F1F1, gaps as
@@ -21,7 +21,7 @@ export function Pagination({ page, pages, onChange, label = 'Pages', className }
           …
         </span>
       ) : (
-        <button key={n} type="button" onClick={() => go(n)} aria-current={n === page ? 'page' : undefined} aria-label={`Page ${n}`} className={cn(item, n === page && 'bg-[#f1f1f1] hover:bg-[#f1f1f1]')}>
+        <button key={n} type="button" onClick={() => go(n)} aria-current={n === page ? 'page' : undefined} aria-label={`Page ${n}`} className={cn(item, n === page && 'bg-surface-soft hover:bg-surface-soft')}>
           {n}
         </button>
       ),

@@ -107,12 +107,12 @@ function Setup({ onStart }: { onStart: (c: DisplayConfig) => void }) {
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-5 py-10">
-      <form onSubmit={start} className="flex w-full max-w-lg flex-col gap-5 rounded-2xl border border-border bg-surface p-7 shadow-sm">
+      <form onSubmit={start} className="flex w-full max-w-lg flex-col gap-5 rounded-xl border border-border bg-surface p-7 shadow-sm">
         <div className="flex items-center gap-3">
           <Image src="/pic-logo.png" alt="" width={44} height={44} priority />
           <div>
             <h1 className="text-xl font-medium text-ink">Display board</h1>
-            <p className="text-sm text-[#7c7c7c]">For a TV or projector at the venue. Shows the current event, live.</p>
+            <p className="text-sm text-hint">For a TV or projector at the venue. Shows the current event, live.</p>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ function Setup({ onStart }: { onStart: (c: DisplayConfig) => void }) {
           ).map(([k, label, hint]) => (
             <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={cn('rounded-lg border px-3 py-3 text-left', kind === k ? 'border-primary bg-primary-soft/40' : 'border-border')}>
               <span className="block text-sm font-medium text-ink">{label}</span>
-              <span className="block text-xs text-[#7c7c7c]">{hint}</span>
+              <span className="block text-xs text-hint">{hint}</span>
             </button>
           ))}
         </div>
@@ -134,8 +134,8 @@ function Setup({ onStart }: { onStart: (c: DisplayConfig) => void }) {
         {kind !== 'lobby' && (
           <div className="flex flex-col gap-1">
             <span className="text-sm text-ink">Room</span>
-            {rooms.length ? <Select label="Room" value={chosenRoom} options={rooms.map((r) => ({ value: r, label: r }))} onChange={setRoom} /> : <p className="text-sm text-[#7c7c7c]">{board.isPending ? 'Loading rooms…' : 'No sessions have rooms yet.'}</p>}
-            {kind === 'discussion' && <span className="text-xs text-[#7c7c7c]">Follows whichever session is on in this room. Reported comments stay off the screen until a moderator keeps them.</span>}
+            {rooms.length ? <Select label="Room" value={chosenRoom} options={rooms.map((r) => ({ value: r, label: r }))} onChange={setRoom} /> : <p className="text-sm text-hint">{board.isPending ? 'Loading rooms…' : 'No sessions have rooms yet.'}</p>}
+            {kind === 'discussion' && <span className="text-xs text-hint">Follows whichever session is on in this room. Reported comments stay off the screen until a moderator keeps them.</span>}
           </div>
         )}
         {kind === 'room' && (
@@ -150,18 +150,18 @@ function Setup({ onStart }: { onStart: (c: DisplayConfig) => void }) {
         )}
 
         <label className="flex flex-col gap-1 text-sm text-ink">
-          Link to get the app <span className="-mt-1 text-xs text-[#7c7c7c]">Shown as a QR code; leave empty for none.</span>
+          Link to get the app <span className="-mt-1 text-xs text-hint">Shown as a QR code; leave empty for none.</span>
           <input name="display-app-link" type="url" autoComplete="off" data-1p-ignore data-lpignore="true" value={appUrl} onChange={(e) => setAppUrl(e.target.value)} placeholder="https://" className={input} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-ink">
-          Wi-Fi line <span className="-mt-1 text-xs text-[#7c7c7c]">Optional, e.g. “PIC-Guest · password summit2027”.</span>
+          Wi-Fi line <span className="-mt-1 text-xs text-hint">Optional, e.g. “PIC-Guest · password summit2027”.</span>
           <input name="display-wifi-line" type="text" autoComplete="off" data-1p-ignore data-lpignore="true" value={wifi} onChange={(e) => setWifi(e.target.value)} maxLength={80} className={input} />
         </label>
         <div className="flex flex-col gap-1">
           <span className="text-sm text-ink">Seconds per page</span>
           <Select label="Seconds per page" value={seconds} options={PAGE_SECONDS.map((n) => ({ value: String(n), label: `${n} seconds` }))} onChange={setSeconds} />
         </div>
-        <p className="rounded-lg bg-surface-soft px-3 py-2 text-xs text-[#525252]">
+        <p className="rounded-lg bg-surface-soft px-3 py-2 text-xs text-ink-soft">
           Press <kbd className="rounded border border-border bg-white px-1.5 font-sans">F</kbd> on the board for full screen, and F or <kbd className="rounded border border-border bg-white px-1.5 font-sans">Esc</kbd> to leave it. The arrow at the bottom right comes back here.
         </p>
 

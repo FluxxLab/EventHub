@@ -123,9 +123,7 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
     try {
       // loaded only when a workbook is chosen, so the Delegates page stays light
       const { default: readXlsxFile } = await import('read-excel-file/browser');
-      const withRows = (await readXlsxFile(file))
-        .map(({ sheet, data }) => ({ name: sheet, data: data as SheetCell[][] }))
-        .filter((s) => sheetHasRows(s.data));
+      const withRows = (await readXlsxFile(file)).map(({ sheet, data }) => ({ name: sheet, data: data as SheetCell[][] })).filter((s) => sheetHasRows(s.data));
       if (withRows.length === 0) return setProblem('That workbook has no sheet with rows under a heading row.');
       if (withRows.length === 1) return load(tableFromSheet(withRows[0]!.data), `${file.name} · ${withRows[0]!.name}`);
       setWorkbook({ file: file.name, sheets: withRows, picked: withRows[0]!.name });
@@ -160,7 +158,9 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
   const sample = (field: ImportField) => (mapping && table && mapping[field] >= 0 ? table.rows.find((r) => r[mapping[field]]?.trim())?.[mapping[field]] : undefined);
   const tierOptions = tierList.map((t) => ({ value: t.id, label: t.name }));
 
-  const subtitle = edition ? `Everyone on the list gets a ticket to ${edition.name}, with an account waiting for them if they have none. People who already hold a ticket are skipped.` : 'Choose the event first.';
+  const subtitle = edition
+    ? `Everyone on the list gets a ticket to ${edition.name}, with an account waiting for them if they have none. People who already hold a ticket are skipped.`
+    : 'Choose the event first.';
 
   return (
     <dialog
@@ -178,8 +178,12 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
           {!finished && !running && (
             <ol className="mt-4 flex gap-2 text-xs" aria-label="Steps">
               {(['source', 'columns', 'review'] as const).map((s, i) => (
-                <li key={s} aria-current={step === s ? 'step' : undefined} className={cn('flex items-center gap-1.5 rounded-full px-2.5 py-1', step === s ? 'bg-primary-soft text-primary' : 'text-[#7c7c7c]')}>
-                  <span className={cn('flex size-4 items-center justify-center rounded-full text-[10px]', step === s ? 'bg-primary text-white' : 'bg-[#e5e5e5]')}>{i + 1}</span>
+                <li
+                  key={s}
+                  aria-current={step === s ? 'step' : undefined}
+                  className={cn('flex items-center gap-1.5 rounded-full px-2.5 py-1', step === s ? 'bg-primary-soft text-primary' : 'text-hint')}
+                >
+                  <span className={cn('flex size-4 items-center justify-center rounded-full text-[0.625rem]', step === s ? 'bg-primary text-on-primary' : 'bg-surface-sunken')}>{i + 1}</span>
                   {['The list', 'Columns', 'Check and import'][i]}
                 </li>
               ))}
@@ -207,12 +211,20 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
                 }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={onDrop}
-                className={cn('flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors', dragging ? 'border-primary bg-primary-soft/40' : 'border-border hover:border-[#bdbdbd]')}
+                className={cn(
+                  'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors',
+                  dragging ? 'border-primary bg-primary-soft/40' : 'border-border hover:border-border-strong',
+                )}
               >
-                <DocumentArrowUpIcon className="size-10 text-[#7c7c7c]" strokeWidth={1.25} />
+                <DocumentArrowUpIcon className="size-10 text-hint" strokeWidth={1.25} />
                 <span className="text-sm text-ink">{reading ? 'Reading the workbook…' : 'Drop an Excel or CSV file here, or click to choose one'}</span>
-                <span className="text-xs text-[#7c7c7c]">Excel workbooks (.xlsx) and CSV exports from EventX, Eventbrite or Google Forms work as they are. The first row must name the columns.</span>
-                <input type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(e) => void readFile(e.target.files?.[0])} />
+                <span className="text-xs text-hint">Excel or CSV exports (EventX, Eventbrite, Google Forms) work as they are; the first row names the columns.</span>
+                <input
+                  type="file"
+                  accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  className="sr-only"
+                  onChange={(e) => void readFile(e.target.files?.[0])}
+                />
               </label>
               <div className="flex flex-col gap-1">
                 <label htmlFor={`${titleId}-paste`} className="text-sm text-ink">
@@ -224,7 +236,7 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
                   onChange={(e) => setPasted(e.target.value)}
                   rows={5}
                   placeholder={'Select the cells, heading row included, copy, and paste here.\nName\tEmail\tOrganisation\tTicket type'}
-                  className="rounded-lg border border-border bg-white px-3 py-2 font-mono text-xs text-ink outline-none placeholder:font-sans placeholder:text-placeholder focus:border-primary"
+                  className="rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-ink outline-none placeholder:font-sans placeholder:text-placeholder focus:border-primary"
                 />
               </div>
               {workbook && (
@@ -240,7 +252,7 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
                         role="radio"
                         aria-checked={workbook.picked === sh.name}
                         onClick={() => setWorkbook({ ...workbook, picked: sh.name })}
-                        className={cn('rounded-lg border px-3 py-1.5 text-sm', workbook.picked === sh.name ? 'border-primary bg-primary text-white' : 'border-border bg-white text-[#525252]')}
+                        className={cn('rounded-lg border px-3 py-1.5 text-sm', workbook.picked === sh.name ? 'border-primary bg-primary text-on-primary' : 'border-border bg-surface text-ink-soft')}
                       >
                         {sh.name} <span className="opacity-70">· {count(tableFromSheet(sh.data).rows.length)}</span>
                       </button>
@@ -259,8 +271,9 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
           {/* ------------------------------------------------ 2: columns */}
           {!running && !finished && step === 'columns' && table && mapping && (
             <>
-              <p className="text-sm text-[#525252]">
-                {fileName ? <span className="text-ink">{fileName}</span> : 'The pasted cells'}: {count(table.rows.length)} {table.rows.length === 1 ? 'row' : 'rows'}. Check which column holds what; we guessed from the headings.
+              <p className="text-sm text-ink-soft">
+                {fileName ? <span className="text-ink">{fileName}</span> : 'The pasted cells'}: {count(table.rows.length)} {table.rows.length === 1 ? 'row' : 'rows'}. Check which column holds what; we
+                guessed from the headings.
               </p>
               <ul className="grid gap-x-5 gap-y-3 sm:grid-cols-2">
                 {COLUMN_FIELDS.map((field) => (
@@ -268,10 +281,16 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
                     <span className="text-sm text-ink">
                       {FIELD_LABEL[field]}
                       {field === 'email' && <span className="text-danger"> *</span>}
-                      {field === 'name' && <span className="text-[#7c7c7c]"> (or first and last)</span>}
+                      {field === 'name' && <span className="text-hint"> (or first and last)</span>}
                     </span>
-                    <Select label={FIELD_LABEL[field]} value={String(mapping[field])} options={columnOptions} onChange={(v) => setColumn(field, v)} invalid={(field === 'email' && emailMissing) || (field === 'name' && nameMissing)} />
-                    <span className="truncate text-xs text-[#7c7c7c]">{sample(field) ? `e.g. ${sample(field)}` : ' '}</span>
+                    <Select
+                      label={FIELD_LABEL[field]}
+                      value={String(mapping[field])}
+                      options={columnOptions}
+                      onChange={(v) => setColumn(field, v)}
+                      invalid={(field === 'email' && emailMissing) || (field === 'name' && nameMissing)}
+                    />
+                    <span className="truncate text-xs text-hint">{sample(field) ? `e.g. ${sample(field)}` : ' '}</span>
                   </li>
                 ))}
               </ul>
@@ -279,14 +298,16 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
               {mapping.tier >= 0 ? (
                 <div className="flex flex-col gap-2 rounded-xl border border-border p-4">
                   <p className="text-sm font-medium text-ink">Ticket tiers</p>
-                  <p className={cn('-mt-1 text-xs', unassigned ? 'text-danger' : 'text-[#7c7c7c]')}>
-                    {unassigned ? `Choose a tier for ${unassigned === 1 ? 'the value' : `all ${unassigned} values`} marked in red to continue.` : `What each value in the file becomes at ${edition?.shortName}.`}
+                  <p className={cn('-mt-1 text-xs', unassigned ? 'text-danger' : 'text-hint')}>
+                    {unassigned
+                      ? `Choose a tier for ${unassigned === 1 ? 'the value' : `all ${unassigned} values`} marked in red to continue.`
+                      : `What each value in the file becomes at ${edition?.shortName}.`}
                   </p>
                   <ul className="flex flex-col gap-2">
                     {values.map(({ value, rows: n }) => (
                       <li key={value} className="grid grid-cols-[minmax(0,1fr)_12rem] items-center gap-3">
-                        <span className="truncate text-sm text-[#525252]">
-                          {value || <em className="text-[#7c7c7c]">blank</em>} <span className="text-xs text-[#7c7c7c]">· {count(n)}</span>
+                        <span className="truncate text-sm text-ink-soft">
+                          {value || <em className="text-hint">blank</em>} <span className="text-xs text-hint">· {count(n)}</span>
                         </span>
                         <Select
                           label={`Tier for ${value || 'blank'}`}
@@ -318,11 +339,11 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-success/5 p-4 ring-1 ring-success/20">
                   <p className="text-3xl font-medium tabular-nums text-ink">{count(ready.length)}</p>
-                  <p className="text-sm text-[#525252]">ready to import</p>
+                  <p className="text-sm text-ink-soft">ready to import</p>
                 </div>
-                <div className={cn('rounded-xl p-4 ring-1', faulty.length ? 'bg-gold/10 ring-gold/30' : 'bg-[#f6f6f6] ring-border')}>
+                <div className={cn('rounded-xl p-4 ring-1', faulty.length ? 'bg-gold/10 ring-gold/30' : 'bg-surface-soft ring-border')}>
                   <p className="text-3xl font-medium tabular-nums text-ink">{count(faulty.length)}</p>
-                  <p className="text-sm text-[#525252]">{faulty.length ? 'will be left out' : 'problems'}</p>
+                  <p className="text-sm text-ink-soft">{faulty.length ? 'will be left out' : 'problems'}</p>
                 </div>
               </div>
               {faulty.length > 0 && (
@@ -331,9 +352,9 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
                   <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-lg border border-border text-sm scrollbar-thin">
                     {faulty.slice(0, 200).map((r) => (
                       <li key={r.line} className="flex items-center gap-3 px-3 py-2">
-                        <span className="w-14 shrink-0 text-xs tabular-nums text-[#7c7c7c]">Line {r.line}</span>
+                        <span className="w-14 shrink-0 text-xs tabular-nums text-hint">Line {r.line}</span>
                         <span className="min-w-0 flex-1 truncate text-ink">{r.name || r.email || '—'}</span>
-                        <span className="shrink-0 text-xs text-[#8a6d00]">{PROBLEM_LABEL[r.problem!]}</span>
+                        <span className="shrink-0 text-xs text-warning">{PROBLEM_LABEL[r.problem!]}</span>
                       </li>
                     ))}
                   </ul>
@@ -344,7 +365,7 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
                   <p id={`${titleId}-notify`} className="text-sm text-ink">
                     Email each person their ticket
                   </p>
-                  <p className="text-xs text-[#7c7c7c]">Leave off when moving past records across; turn on for people who should hear about it now.</p>
+                  <p className="text-xs text-hint">Leave off when moving past records across.</p>
                 </div>
                 <Switch checked={notify} onChange={setNotify} labelledBy={`${titleId}-notify`} />
               </div>
@@ -355,7 +376,15 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
           {finished ? (
             <>
-              <button type="button" onClick={() => importer.progress.state !== 'idle' && importer.progress.state !== 'running' && download(`${edition?.shortName ?? 'import'}-import-report.csv`, reportCsv(rows, importer.progress.results, importer.progress.state === 'stopped' ? importer.progress.done : null))} className={cancelClass}>
+              <button
+                type="button"
+                onClick={() =>
+                  importer.progress.state !== 'idle' &&
+                  importer.progress.state !== 'running' &&
+                  download(`${edition?.shortName ?? 'import'}-import-report.csv`, reportCsv(rows, importer.progress.results, importer.progress.state === 'stopped' ? importer.progress.done : null))
+                }
+                className={cancelClass}
+              >
                 <ArrowDownTrayIcon className="size-4" />
                 Download report
               </button>
@@ -400,7 +429,19 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
   );
 }
 
-function Progress({ progress, rows, faulty, notify, edition }: { progress: ReturnType<typeof useImportAttendees>['progress']; rows: unknown[]; faulty: number; notify: boolean; edition: Edition | undefined }) {
+function Progress({
+  progress,
+  rows,
+  faulty,
+  notify,
+  edition,
+}: {
+  progress: ReturnType<typeof useImportAttendees>['progress'];
+  rows: unknown[];
+  faulty: number;
+  notify: boolean;
+  edition: Edition | undefined;
+}) {
   if (progress.state === 'running') {
     const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
     return (
@@ -408,10 +449,10 @@ function Progress({ progress, rows, faulty, notify, edition }: { progress: Retur
         <p className="text-sm text-ink">
           Issuing tickets… {count(progress.done)} of {count(progress.total)}
         </p>
-        <div className="h-2 overflow-hidden rounded-full bg-[#f1f1f1]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-2 overflow-hidden rounded-full bg-surface-soft" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${pct}%` }} />
         </div>
-        <p className="text-xs text-[#7c7c7c]">Keep this window open until it finishes.</p>
+        <p className="text-xs text-hint">Keep this window open until it finishes.</p>
       </div>
     );
   }
@@ -427,11 +468,11 @@ function Progress({ progress, rows, faulty, notify, edition }: { progress: Retur
         <div className="text-sm">
           <p className="font-medium text-ink">{stopped ? 'The import stopped part-way' : `${count(results.issued.length)} tickets issued for ${edition?.shortName ?? 'the event'}`}</p>
           {stopped ? (
-            <p className="mt-1 text-[#525252]">
+            <p className="mt-1 text-ink-soft">
               {progress.message} {count(results.issued.length)} tickets were issued before it stopped. Fix the problem and import the same list again: people who already have their ticket are skipped.
             </p>
           ) : (
-            <p className="mt-1 text-[#525252]">
+            <p className="mt-1 text-ink-soft">
               They appear on Delegates and Badges now, and can be checked in at the door.
               {notify ? ' Each is being emailed their ticket.' : ' Nobody was emailed.'}
             </p>
@@ -444,13 +485,13 @@ function Progress({ progress, rows, faulty, notify, edition }: { progress: Retur
           ['New accounts', newAccounts],
           ['Already had one', had],
         ].map(([label, n]) => (
-          <div key={label as string} className="rounded-lg bg-[#f6f6f6] px-3 py-3">
+          <div key={label as string} className="rounded-lg bg-surface-soft px-3 py-3">
             <dd className="text-2xl font-medium tabular-nums text-ink">{count(n as number)}</dd>
-            <dt className="text-xs text-[#7c7c7c]">{label}</dt>
+            <dt className="text-xs text-hint">{label}</dt>
           </div>
         ))}
       </dl>
-      <p className="text-xs text-[#7c7c7c]">
+      <p className="text-xs text-hint">
         {count(rows.length)} rows read{faulty ? `, ${count(faulty)} left out for problems` : ''}. The report lists what happened to each row, with ticket codes.
       </p>
     </div>

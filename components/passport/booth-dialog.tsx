@@ -36,6 +36,8 @@ export function BoothDialog({
     setForm(booth ? boothFormOf(booth) : emptyBooth());
     setErrors({});
   }
+  // Changed since it opened: Cancel asks before throwing it away.
+  const dirty = open && JSON.stringify(form) !== JSON.stringify(booth ? boothFormOf(booth) : emptyBooth());
   const set = (k: keyof BoothForm, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
     if (errors[k]) setErrors((e) => ({ ...e, [k]: undefined }));
@@ -50,6 +52,7 @@ export function BoothDialog({
       pending={pending}
       submitLabel={booth ? 'Save stand' : 'Add stand'}
       error={error}
+      dirty={dirty}
       onClose={() => {
         setOpenedFor(undefined);
         onClose();
@@ -67,7 +70,16 @@ export function BoothDialog({
       }}
     >
       <Field id={id('name')} label="Stand" error={errors.name}>
-        <TextInput id={id('name')} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="UN Women Nigeria" invalid={!!errors.name} maxLength={120} aria-describedby={describedBy(id('name'), errors.name)} autoFocus />
+        <TextInput
+          id={id('name')}
+          value={form.name}
+          onChange={(e) => set('name', e.target.value)}
+          placeholder="UN Women Nigeria"
+          invalid={!!errors.name}
+          maxLength={120}
+          aria-describedby={describedBy(id('name'), errors.name)}
+          autoFocus
+        />
       </Field>
       <Field id={id('location')} label="Where it is" optional error={errors.location} hint="Helps delegates find it, for example “Exhibition hall, stand 14”.">
         <TextInput id={id('location')} value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Exhibition hall, stand 14" invalid={!!errors.location} maxLength={120} />
@@ -80,7 +92,7 @@ export function BoothDialog({
           onChange={(e) => set('description', e.target.value)}
           placeholder="What delegates can see or do there."
           maxLength={2000}
-          className="w-full resize-none rounded-lg border border-[#bdbdbd] bg-surface px-3 py-2.5 text-sm leading-5 text-ink shadow-xs outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]"
+          className="w-full resize-none rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm leading-5 text-ink shadow-xs outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]"
         />
       </Field>
     </FormDialog>

@@ -1,20 +1,21 @@
 'use client';
 
 import { CheckIcon, MicrophoneIcon, PlusIcon, TrashIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/field';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import { AUDIENCE, MAX_MICS, nextMic, useSetSessionMics, type SessionMic } from '@/lib/captions/mics';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { timeRange, type Session } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
 import { cn } from '@/lib/utils';
-
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
 
 /** How a mic row is held while editing: a speaker, the audience, or a name typed in. */
 type Row = { mic: number; who: string; other: string };
@@ -26,7 +27,11 @@ const toRows = (mics: SessionMic[] = []): Row[] =>
 
 const toMics = (rows: Row[]): SessionMic[] =>
   rows.map((r) =>
-    r.who === AUDIENCE ? { mic: r.mic, speakerId: null, label: AUDIENCE } : r.who === OTHER ? { mic: r.mic, speakerId: null, label: r.other.trim() || null } : { mic: r.mic, speakerId: r.who || null, label: null },
+    r.who === AUDIENCE
+      ? { mic: r.mic, speakerId: null, label: AUDIENCE }
+      : r.who === OTHER
+        ? { mic: r.mic, speakerId: null, label: r.other.trim() || null }
+        : { mic: r.mic, speakerId: r.who || null, label: null },
   );
 
 /**
@@ -43,30 +48,40 @@ export function MicsPanel() {
   const list = useMemo(() => (sessions.data ?? []).filter((s) => s.type !== 'break').sort((a, b) => a.startsAt.localeCompare(b.startsAt)), [sessions.data]);
   const open = list.find((s) => s.id === openId) ?? list.find((s) => s.status === 'live') ?? list[0] ?? null;
 
-  if (editions.isPending || (editionId && sessions.isPending)) return <Skeleton className="h-96 rounded-2xl" />;
+  if (editions.isPending || (editionId && sessions.isPending)) return <Skeleton className="h-96 rounded-xl" />;
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-      <section aria-label="Sessions" className={cardClass}>
-        <header className="flex flex-col gap-3 border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-base font-medium text-ink">Sessions</h2>
-            <p className="text-xs text-[#7c7c7c]">Pick one to name its mics.</p>
-          </div>
-          {(editions.data?.length ?? 0) > 1 && (
-            <Select
-              label="Event"
-              value={editionId ?? ''}
-              options={(editions.data ?? []).map((e) => ({ value: e.id, label: e.shortName }))}
-              onChange={(v) => {
-                working.setEditionId(v);
-                setOpenId(null);
-              }}
-            />
-          )}
-        </header>
+      <Panel
+        title="Sessions"
+        count={list.length}
+        description="Pick one to name its mics."
+        toolbar={
+          (editions.data?.length ?? 0) > 1 && (
+            <div className="w-full">
+              <Select
+                label="Event"
+                value={editionId ?? ''}
+                options={(editions.data ?? []).map((e) => ({ value: e.id, label: e.shortName }))}
+                onChange={(v) => {
+                  working.setEditionId(v);
+                  setOpenId(null);
+                }}
+              />
+            </div>
+          )
+        }
+      >
         {list.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-[#7c7c7c]">No sessions yet. Add them in Programme.</p>
+          <EmptyState
+            icon={MicrophoneIcon}
+            title="No sessions yet"
+            action={
+              <Link href="/programme" className={buttonClass()}>
+                Add sessions
+              </Link>
+            }
+          />
         ) : (
           <ul className="max-h-[36rem] divide-y divide-border overflow-y-auto">
             {list.map((s) => {
@@ -80,7 +95,7 @@ export function MicsPanel() {
                     className={cn('flex w-full flex-col gap-0.5 px-5 py-3 text-left hover:bg-surface-soft', open?.id === s.id && 'bg-primary-soft/40')}
                   >
                     <span className="truncate text-sm text-ink">{s.title}</span>
-                    <span className="flex flex-wrap items-center gap-x-2 text-xs text-[#7c7c7c]">
+                    <span className="flex flex-wrap items-center gap-x-2 text-xs text-hint">
                       Day {s.day} · {timeRange(s.startsAt, s.endsAt)} · {s.room}
                       {s.status === 'live' && <span className="font-medium text-danger">Live</span>}
                       <span className={named ? 'text-primary' : ''}>{named ? `${named} ${named === 1 ? 'mic' : 'mics'} named` : 'Mics not named'}</span>
@@ -91,7 +106,7 @@ export function MicsPanel() {
             })}
           </ul>
         )}
-      </section>
+      </Panel>
 
       {open ? <MicsEditor key={`${open.id}:${JSON.stringify(open.mics ?? [])}`} session={open} editionId={editionId} /> : <div />}
     </div>
@@ -121,31 +136,26 @@ function MicsEditor({ session, editionId }: { session: Session; editionId: strin
     save.mutate(
       { sessionId: session.id, mics: toMics(rows) },
       {
-        onSuccess: (mics) => toast.push({ title: 'Mics saved', body: `${mics.length} ${mics.length === 1 ? 'mic' : 'mics'} named for “${session.title}”.`, leading: { kind: 'icon', icon: CheckIcon, tone: 'success' } }),
+        onSuccess: (mics) =>
+          toast.push({ title: 'Mics saved', body: `${mics.length} ${mics.length === 1 ? 'mic' : 'mics'} named for “${session.title}”.`, leading: { kind: 'icon', icon: CheckIcon, tone: 'success' } }),
         onError: (e) => toast.push({ title: 'Mics not saved', body: e.message, leading: { kind: 'icon', icon: XCircleIcon, tone: 'danger' } }),
       },
     );
 
   return (
-    <section aria-labelledby="mics-title" className={cardClass}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
-        <div className="min-w-0">
-          <h2 id="mics-title" className="truncate text-base font-medium text-ink">
-            {session.title}
-          </h2>
-          <p className="text-sm text-[#7c7c7c]">
-            Day {session.day} · {timeRange(session.startsAt, session.endsAt)} · {session.room}
-          </p>
-        </div>
+    <Panel
+      title={<span className="truncate">{session.title}</span>}
+      description={`Day ${session.day} · ${timeRange(session.startsAt, session.endsAt)} · ${session.room}`}
+      actions={
         <button type="button" disabled={!dirty || save.isPending} onClick={submit} className={buttonClass()}>
           <CheckIcon className="size-4" />
           {save.isPending ? 'Saving…' : 'Save mics'}
         </button>
-      </header>
-
+      }
+    >
       <div className="flex flex-col gap-4 px-6 py-5">
-        {session.speakers.length === 0 && <p className="rounded-lg bg-gold-soft px-3 py-2 text-sm text-[#7a5d00]">This session has no speakers in Programme yet. Add them there to pick them here.</p>}
-        <p className="text-xs text-[#7c7c7c]">Mic numbers are the sound desk’s channels for {session.room}. The name on each mic goes on that mic’s captions.</p>
+        {session.speakers.length === 0 && <p className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">No speakers in Programme yet: add them there to pick them here.</p>}
+        <p className="text-xs text-hint">Mic numbers are the sound desk’s channels for {session.room}; each name labels that mic’s captions.</p>
 
         <ul className="flex flex-col gap-3">
           {rows.map((r, i) => (
@@ -160,9 +170,23 @@ function MicsEditor({ session, editionId }: { session: Session; editionId: strin
               />
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                 <Select label={`Who is on mic ${r.mic}`} value={r.who} options={who} onChange={(v) => set(i, { who: v })} className="min-w-0 flex-1" />
-                {r.who === OTHER && <TextInput value={r.other} maxLength={60} onChange={(e) => set(i, { other: e.target.value })} placeholder="Name and organisation" aria-label={`Name on mic ${r.mic}`} className="sm:w-64" />}
+                {r.who === OTHER && (
+                  <TextInput
+                    value={r.other}
+                    maxLength={60}
+                    onChange={(e) => set(i, { other: e.target.value })}
+                    placeholder="Name and organisation"
+                    aria-label={`Name on mic ${r.mic}`}
+                    className="sm:w-64"
+                  />
+                )}
               </div>
-              <button type="button" onClick={() => setRows((all) => all.filter((_, j) => j !== i))} aria-label={`Remove mic ${r.mic}`} className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'hover:text-danger' })}>
+              <button
+                type="button"
+                onClick={() => setRows((all) => all.filter((_, j) => j !== i))}
+                aria-label={`Remove mic ${r.mic}`}
+                className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'hover:text-danger' })}
+              >
                 <TrashIcon className="size-4" />
               </button>
             </li>
@@ -176,11 +200,11 @@ function MicsEditor({ session, editionId }: { session: Session; editionId: strin
           </button>
         </div>
         {rows.length === 0 && (
-          <p className="flex items-center gap-2 text-sm text-[#7c7c7c]">
+          <p className="flex items-center gap-2 text-sm text-hint">
             <MicrophoneIcon className="size-4" /> No mics named: captions for this session stay unlabelled.
           </p>
         )}
       </div>
-    </section>
+    </Panel>
   );
 }

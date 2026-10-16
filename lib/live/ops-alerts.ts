@@ -25,6 +25,14 @@ export type OpsProblem = {
 const sameRoom = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
+/** How long a session has overrun, in units that read well: "25 min", "3 h 10 min", "36 days". */
+export function overrunLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`;
+  const days = Math.floor(minutes / (24 * 60));
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
 /** Whole minutes a live session has run past its end, or 0 while it is within the grace. */
 export function overrunMinutes(session: Pick<LiveSessionLike, 'endsAt'>, now: Date): number {
   const over = Math.floor((now.getTime() - Date.parse(session.endsAt)) / 60_000);
@@ -74,7 +82,7 @@ export function opsProblems(
         key: `overrun:${session.id}`,
         kind: 'overrun',
         room: session.room,
-        title: `Still live ${over} min past its end`,
+        title: `Still live ${overrunLabel(over)} past its end`,
         body: `“${session.title}” in ${session.room} was due to end at ${hm(session.endsAt)}. End it if it is over: captions run until it is.`,
       });
     }

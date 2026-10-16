@@ -39,7 +39,7 @@ export function LineChart({ days, format, label }: { days: DayValue[]; format: (
   return (
     <div className="grid grid-cols-[auto_1fr] gap-x-3">
       {/* y-axis labels, at the same heights as the gridlines */}
-      <div className="relative h-56 w-12 text-right text-xs tabular-nums text-ink/40" aria-hidden>
+      <div className="relative h-56 w-12 text-right text-xs tabular-nums text-hint" aria-hidden>
         {ticks.map((tick) => (
           <span key={tick} className="absolute right-0 -translate-y-1/2" style={{ top: `${y(tick)}%` }}>
             {format(tick)}
@@ -73,22 +73,18 @@ export function LineChart({ days, format, label }: { days: DayValue[]; format: (
               aria-hidden
             />
             <ChartTooltip x={`${Math.min(92, Math.max(8, x(hover)))}%`} y={`${y(point.value)}%`}>
-              <span className="block text-[#fdfdfd]/70">{shortDay(point.day)}</span>
+              <span className="block text-on-primary/70">{shortDay(point.day)}</span>
               <TipRow colour="var(--chart-1)" value={format(point.value)} />
             </ChartTooltip>
           </>
         )}
       </div>
       <div />
-      <div className="relative mt-2 h-4 text-xs text-ink/40" aria-hidden>
+      <div className="relative mt-2 h-4 text-xs text-hint" aria-hidden>
         {days.map((d, i) =>
           // Counted back from the newest day, so the last label never crowds its neighbour.
           (days.length - 1 - i) % labelEvery === 0 ? (
-            <span
-              key={d.day}
-              className="absolute whitespace-nowrap"
-              style={{ left: `${x(i)}%`, transform: i === 0 ? 'none' : i === days.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}
-            >
+            <span key={d.day} className="absolute whitespace-nowrap" style={{ left: `${x(i)}%`, transform: i === 0 ? 'none' : i === days.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}>
               {shortDay(d.day)}
             </span>
           ) : null,

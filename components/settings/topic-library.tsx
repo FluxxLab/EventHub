@@ -1,13 +1,25 @@
 'use client';
 
-import { ArchiveBoxArrowDownIcon, ArrowUturnLeftIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, RectangleStackIcon, TagIcon, TrashIcon } from '@heroicons/react/24/outline';
+import {
+  ArchiveBoxArrowDownIcon,
+  ArrowUturnLeftIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  MagnifyingGlassIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  RectangleStackIcon,
+  TagIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 import { useId, useState, type FormEvent } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Field, TextInput } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -21,13 +33,13 @@ type Kind = 'track' | 'interest';
 const COPY = {
   track: {
     title: 'Tracks',
-    description: 'The themes sessions are filed under and delegates follow. Each event picks its own from this list; General Programme is every event’s and is not listed.',
+    description: 'Themes sessions are filed under; each event picks its own. General Programme is always included.',
     add: 'Add track',
     icon: RectangleStackIcon,
   },
   interest: {
     title: 'Interests',
-    description: 'What delegates choose on their profile to meet people. Each event picks which of these its delegates see.',
+    description: 'What delegates pick on their profile to meet people; each event chooses which to show.',
     add: 'Add interest',
     icon: TagIcon,
   },
@@ -73,7 +85,11 @@ function OptionDialog({ kind, open, option, library, onClose }: { kind: Kind; op
       if (option) await update.mutateAsync([{ id: option.id, label: name, ...(kind === 'track' ? { hint: hint.trim() } : {}) }]);
       else if (kind === 'track') await createTrack.mutateAsync({ label: name, hint: hint.trim() || undefined });
       else await createInterest.mutateAsync(name);
-      toast.push({ title: option ? 'Saved' : `${kind === 'track' ? 'Track' : 'Interest'} added`, body: option ? `“${name}” is updated everywhere it shows.` : `Events can now pick “${name}”.`, leading: { kind: 'icon', icon: COPY[kind].icon, tone: 'success' } });
+      toast.push({
+        title: option ? 'Saved' : `${kind === 'track' ? 'Track' : 'Interest'} added`,
+        body: option ? `“${name}” is updated everywhere it shows.` : `Events can now pick “${name}”.`,
+        leading: { kind: 'icon', icon: COPY[kind].icon, tone: 'success' },
+      });
       close();
     } catch {
       // the dialog shows the API's reason
@@ -85,7 +101,7 @@ function OptionDialog({ kind, open, option, library, onClose }: { kind: Kind; op
       open={open}
       icon={COPY[kind].icon}
       title={option ? `Edit ${kind}` : COPY[kind].add}
-      subtitle={option ? `Stored as “${option.value}”, which stays the same so sessions and profiles keep it.` : 'Added to the shared list. Tick it for an event on the Events page.'}
+      subtitle={option ? `Stored as “${option.value}”; that never changes, so sessions and profiles keep it.` : 'Tick it for an event on the Events page.'}
       pending={pending}
       submitLabel={option ? 'Save' : 'Add'}
       error={error?.message ?? null}
@@ -149,75 +165,116 @@ export function TopicLibrary({ kind }: { kind: Kind }) {
     });
 
   return (
-    <section aria-label={COPY[kind].title} className="overflow-hidden rounded-lg border border-[#dcdcdc] bg-[#fdfdfd]">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[#dcdcdc] px-5 py-4">
-        <div className="min-w-0 max-w-2xl">
-          <h2 className="text-xl font-medium leading-[30px] text-ink">{COPY[kind].title}</h2>
-          <p className="text-sm leading-5 text-[#525252]">{COPY[kind].description}</p>
-        </div>
+    <Panel
+      title={COPY[kind].title}
+      count={library.data ? all.length : undefined}
+      description={COPY[kind].description}
+      actions={
         <button type="button" onClick={() => setEditing({ option: null })} className={buttonClass()}>
           <PlusIcon className="size-4" /> {COPY[kind].add}
         </button>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-3 border-b border-[#dcdcdc] px-5 py-3">
-        <div className="w-full sm:w-72">
-          <TextInput icon={MagnifyingGlassIcon} aria-label={`Search ${COPY[kind].title.toLowerCase()}`} placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} />
-        </div>
-        {library.data && (
-          <p className="text-xs text-[#7c7c7c] sm:ml-auto">
-            {all.length - retired} in use{retired > 0 && ` · ${retired} retired`}
-          </p>
-        )}
-      </div>
-
+      }
+      toolbar={
+        <>
+          <div className="w-full sm:w-72">
+            <TextInput icon={MagnifyingGlassIcon} aria-label={`Search ${COPY[kind].title.toLowerCase()}`} placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
+          {library.data && (
+            <p className="text-xs text-hint sm:ml-auto">
+              {all.length - retired} in use{retired > 0 && ` · ${retired} retired`}
+            </p>
+          )}
+        </>
+      }
+    >
       {library.isPending ? (
-        <div className="grid gap-3 p-5">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12" />
-          ))}
-        </div>
+        <LoadingRows rows={4} />
       ) : library.isError ? (
-        <p role="alert" className="p-5 text-sm text-danger">
-          {library.error.message}
-        </p>
+        <ErrorState title={`${COPY[kind].title} could not load`} error={library.error} onRetry={() => void library.refetch()} />
       ) : rows.length === 0 ? (
-        <p className="px-5 py-12 text-center text-sm text-[#7c7c7c]">{q ? `Nothing matches “${query}”.` : `No ${kind}s yet.`}</p>
+        q ? (
+          <EmptyState
+            icon={MagnifyingGlassIcon}
+            title={`Nothing matches “${query}”`}
+            action={
+              <button type="button" onClick={() => setQuery('')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                Clear search
+              </button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={COPY[kind].icon}
+            title={`No ${kind}s yet`}
+            action={
+              <button type="button" onClick={() => setEditing({ option: null })} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <PlusIcon className="size-4" /> {COPY[kind].add}
+              </button>
+            }
+          />
+        )
       ) : (
         <ul className={cn('transition-opacity', update.isPending && 'opacity-70')}>
           {rows.map((o) => {
             const index = all.indexOf(o);
             const count = used.get(o.value) ?? 0;
             return (
-              <li key={o.id} className={cn('flex items-center gap-3 border-b border-[#f1f1f1] px-5 py-3 last:border-b-0', !o.isActive && 'bg-[#f6f6f6]/60')}>
+              <li key={o.id} className={cn('flex items-center gap-3 border-b border-border px-6 py-3 last:border-b-0', !o.isActive && 'bg-surface-soft/60')}>
                 {/* reordering works on the whole list, so it pauses while searching */}
                 <div className={cn('flex shrink-0 flex-col', q && 'invisible')}>
-                  <button type="button" onClick={() => move(o, -1)} disabled={index === 0 || update.isPending} aria-label={`Move ${o.label} up`} className="rounded p-0.5 text-[#7c7c7c] hover:bg-[#f1f1f1] hover:text-ink disabled:opacity-30">
+                  <button
+                    type="button"
+                    onClick={() => move(o, -1)}
+                    disabled={index === 0 || update.isPending}
+                    aria-label={`Move ${o.label} up`}
+                    className="rounded p-0.5 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                  >
                     <ChevronUpIcon className="size-4" />
                   </button>
-                  <button type="button" onClick={() => move(o, 1)} disabled={index === all.length - 1 || update.isPending} aria-label={`Move ${o.label} down`} className="rounded p-0.5 text-[#7c7c7c] hover:bg-[#f1f1f1] hover:text-ink disabled:opacity-30">
+                  <button
+                    type="button"
+                    onClick={() => move(o, 1)}
+                    disabled={index === all.length - 1 || update.isPending}
+                    aria-label={`Move ${o.label} down`}
+                    className="rounded p-0.5 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                  >
                     <ChevronDownIcon className="size-4" />
                   </button>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className={cn('flex flex-wrap items-center gap-2 text-sm', o.isActive ? 'text-ink' : 'text-[#7c7c7c]')}>
+                  <p className={cn('flex flex-wrap items-center gap-2 text-sm', o.isActive ? 'text-ink' : 'text-hint')}>
                     <span className="truncate">{o.label}</span>
                     {!o.isActive && <Tag>Retired</Tag>}
                   </p>
-                  <p className="truncate text-xs text-[#7c7c7c]">{'hint' in o && o.hint ? o.hint : kind === 'track' ? 'No hint line' : `Stored as “${o.value}”`}</p>
+                  <p className="truncate text-xs text-hint">{'hint' in o && o.hint ? o.hint : kind === 'track' ? 'No hint line' : `Stored as “${o.value}”`}</p>
                 </div>
-                <span className="hidden shrink-0 text-xs text-[#525252] sm:block">{count ? `${count} event${count === 1 ? '' : 's'}` : 'No events'}</span>
+                <span className="hidden shrink-0 text-xs text-ink-soft sm:block">{count ? `${count} event${count === 1 ? '' : 's'}` : 'No events'}</span>
                 <div className="flex shrink-0 items-center gap-1">
-                  <button type="button" onClick={() => setActive(o, !o.isActive)} disabled={update.isPending} className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8 px-2 text-xs' })}>
+                  <button
+                    type="button"
+                    onClick={() => setActive(o, !o.isActive)}
+                    disabled={update.isPending}
+                    className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8 px-2 text-xs' })}
+                  >
                     {o.isActive ? 'Retire' : 'Restore'}
                   </button>
                   <Tooltip label="Edit">
-                    <button type="button" onClick={() => setEditing({ option: o })} aria-label={`Edit ${o.label}`} className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}>
+                    <button
+                      type="button"
+                      onClick={() => setEditing({ option: o })}
+                      aria-label={`Edit ${o.label}`}
+                      className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}
+                    >
                       <PencilSquareIcon className="size-4" />
                     </button>
                   </Tooltip>
                   <Tooltip label="Delete" align="end">
-                    <button type="button" onClick={() => setDeleting(o)} aria-label={`Delete ${o.label}`} className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8 hover:text-danger' })}>
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(o)}
+                      aria-label={`Delete ${o.label}`}
+                      className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8 hover:text-danger' })}
+                    >
                       <TrashIcon className="size-4" />
                     </button>
                   </Tooltip>
@@ -258,6 +315,6 @@ export function TopicLibrary({ kind }: { kind: Kind }) {
           'Events stop offering it. Delegates who already picked it keep it on their profile.'
         )}
       </ConfirmDialog>
-    </section>
+    </Panel>
   );
 }

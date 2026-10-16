@@ -5,13 +5,13 @@ import { crumbsFor, navFor, pageFor, titleFor } from '@/lib/nav';
 
 describe('navFor', () => {
   it('gives organisers every group', () => {
-    expect(navFor('admin').map((g) => g.label)).toEqual(['Overview', 'Event setup', 'People', 'Live', 'Engagement', 'Records', 'Settings']);
+    expect(navFor('admin').map((g) => g.label)).toEqual(['Overview', 'Event setup', 'People', 'On the day', 'Live sessions', 'Engagement', 'Outcomes', 'Admin']);
   });
 
   it('gives session operators only the live-room tools', () => {
     const groups = navFor('session_admin');
-    expect(groups.map((g) => g.label)).toEqual(['Live']);
-    expect(groups[0]!.pages.map((p) => p.href)).toEqual(['/check-in', '/kiosk', '/display', '/live', '/captions', '/questions', '/polls', '/discussions']);
+    expect(groups.map((g) => g.label)).toEqual(['On the day', 'Live sessions']);
+    expect(groups.flatMap((g) => g.pages.map((p) => p.href))).toEqual(['/check-in', '/kiosk', '/display', '/live', '/captions', '/questions', '/polls', '/discussions']);
   });
 
   it('gives event organisers the event-running pages and none of the platform ones', () => {
@@ -27,25 +27,25 @@ describe('navFor', () => {
       '/badges',
       '/check-in',
       '/kiosk',
-      '/display',
       '/meals',
+      '/display',
       '/live',
       '/captions',
       '/questions',
       '/polls',
-      '/pitchathon',
-      '/trivia',
       '/discussions',
       '/notifications',
       '/campaigns',
+      '/pitchathon',
+      '/trivia',
+      '/passport',
+      '/gallery',
       '/materials',
       '/library',
-      '/gallery',
-      '/feedback',
-      '/passport',
-      '/exhibition',
-      '/certificates',
       '/calls-to-action',
+      '/feedback',
+      '/certificates',
+      '/exhibition',
     ]);
     for (const platform of ['/team', '/analytics', '/security', '/settings']) {
       expect(hrefs).not.toContain(platform);
@@ -73,7 +73,10 @@ describe('crumbsFor', () => {
       { label: 'Badges', href: '/badges' },
     ]);
     expect(crumbsFor('/delegates/abc').at(-1)).toEqual({ label: 'Delegates', href: '/delegates' });
-    expect(crumbsFor('/profile')).toEqual([{ label: 'Dashboard', href: '/' }, { label: 'Profile', href: '/profile' }]);
+    expect(crumbsFor('/profile')).toEqual([
+      { label: 'Dashboard', href: '/' },
+      { label: 'Profile', href: '/profile' },
+    ]);
     expect(crumbsFor('/')).toEqual([{ label: 'Dashboard', href: '/' }]);
     expect(crumbsFor('/nowhere')).toEqual([]);
   });

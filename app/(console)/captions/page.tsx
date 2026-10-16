@@ -19,14 +19,17 @@ import {
   TvIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
+import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
@@ -40,6 +43,7 @@ import { currentDay } from '@/lib/live/live';
 import { useBoard } from '@/lib/live/use-live';
 import type { Session } from '@/lib/programme/programme';
 import { useRooms } from '@/lib/venue/use-venue';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 import { MicsPanel } from '@/components/captions/mics-panel';
 import { VocabularyPanel } from '@/components/captions/vocabulary-panel';
@@ -54,47 +58,13 @@ const TABS = [
 const hms = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 type Tab = (typeof TABS)[number]['key'];
-
-function Tabs({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void }) {
-  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    const next = TABS[(TABS.findIndex((t) => t.key === tab) + 1) % TABS.length]!.key;
-    onChange(next);
-    document.getElementById(`captions-tab-${next}`)?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Captions sections" onKeyDown={onKey} className="flex gap-6 border-b border-border">
-      {TABS.map((t) => {
-        const selected = tab === t.key;
-        return (
-          <button
-            key={t.key}
-            id={`captions-tab-${t.key}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls={`captions-panel-${t.key}`}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(t.key)}
-            className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm transition-colors',
-              selected ? 'border-primary font-medium text-primary' : 'border-transparent text-[#525252] hover:text-ink',
-            )}
-          >
-            <t.icon className="size-4" />
-            {t.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const TAB_KEYS = TABS.map((t) => t.key);
 
 function ConnectionDot() {
   const connection = useRealtimeStatus();
   const label = { live: 'Connected', connecting: 'Connecting…', offline: 'Not connected', demo: 'Demo data' }[connection];
   return (
-    <p className="flex items-center gap-2 text-xs text-[#7c7c7c]" aria-live="polite">
+    <p className="flex items-center gap-2 text-xs text-hint" aria-live="polite">
       <span
         className={cn('size-2 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
         aria-hidden
@@ -133,15 +103,12 @@ function CaptionStream({ session }: { session: Session }) {
     );
 
   return (
-    <section aria-label={`Captions for ${session.title}`} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div className="min-w-0">
-          <p className="truncate text-base font-medium text-ink">{session.title}</p>
-          <p className="text-xs text-[#7c7c7c]">
-            {session.room} · {feed.finals.length} {feed.finals.length === 1 ? 'line' : 'lines'} on screen
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <Panel
+      className="flex flex-col"
+      title={<span className="truncate">{session.title}</span>}
+      description={`${session.room} · ${feed.finals.length} ${feed.finals.length === 1 ? 'line' : 'lines'} on screen`}
+      actions={
+        <>
           <button type="button" onClick={() => download('csv')} disabled={exportTranscript.isPending} className={buttonClass({ style: 'outline', color: 'gray' })}>
             <ArrowDownTrayIcon className="size-4" />
             CSV
@@ -154,43 +121,39 @@ function CaptionStream({ session }: { session: Session }) {
             <TrashIcon className="size-4" />
             Clear
           </button>
-        </div>
-      </header>
-
+        </>
+      }
+      footer={
+        !following && (
+          <button type="button" onClick={() => setFollowing(true)} className={buttonClass({ style: 'borderless', className: 'ml-auto h-8' })}>
+            Jump to latest
+          </button>
+        )
+      }
+    >
       <div ref={scroller} onScroll={onScroll} aria-live="off" className="relative h-[28rem] overflow-y-auto px-5 py-4">
         {blocks.length === 0 && !feed.interim ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-sm text-[#7c7c7c]">
-            <MicrophoneIcon className="mb-2 size-8" />
-            Waiting for the first words. Captions appear here as soon as the capture desk sends audio.
-          </div>
+          <EmptyState className="h-full justify-center" icon={MicrophoneIcon} title="Waiting for the first words" body="Captions appear here as soon as the capture desk sends audio." />
         ) : (
           <div className="flex flex-col gap-4">
             {blocks.map((p) => (
               <div key={p.lines[0]!.seq} className="flex gap-4">
-                <p className="w-16 shrink-0 pt-0.5 text-xs tabular-nums text-[#7c7c7c]">{hms(p.at)}</p>
+                <p className="w-16 shrink-0 pt-0.5 text-xs tabular-nums text-hint">{hms(p.at)}</p>
                 <div className="min-w-0">
                   {p.who && <p className="mb-0.5 text-xs font-medium text-primary">{p.who}</p>}
-                  <p className="text-[15px] leading-7 text-ink">{p.lines.map((l) => l.text).join(' ')}</p>
+                  <p className="text-[0.9375rem] leading-7 text-ink">{p.lines.map((l) => l.text).join(' ')}</p>
                 </div>
               </div>
             ))}
             {feed.interim && (
               <div className="flex gap-4">
-                <p className="w-16 shrink-0 pt-0.5 text-xs text-[#7c7c7c]">now</p>
-                <p className="text-[15px] leading-7 text-[#7c7c7c] italic">{feed.interim.text}</p>
+                <p className="w-16 shrink-0 pt-0.5 text-xs text-hint">now</p>
+                <p className="text-[0.9375rem] leading-7 text-hint italic">{feed.interim.text}</p>
               </div>
             )}
           </div>
         )}
       </div>
-
-      {!following && (
-        <div className="border-t border-border bg-[#f6f6f6] px-5 py-2 text-right">
-          <button type="button" onClick={() => setFollowing(true)} className={buttonClass({ style: 'borderless', className: 'h-8' })}>
-            Jump to latest
-          </button>
-        </div>
-      )}
 
       <ConfirmDialog
         open={confirmClear}
@@ -212,7 +175,7 @@ function CaptionStream({ session }: { session: Session }) {
         The caption screen empties for everyone following this session, in the app and on the stream. The full transcript is kept and can still be downloaded.
         {clear.error && <span className="mt-2 block text-xs text-danger">{clear.error.message}</span>}
       </ConfirmDialog>
-    </section>
+    </Panel>
   );
 }
 
@@ -222,10 +185,17 @@ function Monitor({ sessions }: { sessions: Session[] }) {
 
   if (!session) {
     return (
-      <div className="rounded-2xl border border-border bg-surface p-10 text-center text-sm text-[#7c7c7c]">
-        <SignalIcon className="mx-auto mb-2 size-8" />
-        No session is live right now. Start one from Live ops, and its captions appear here.
-      </div>
+      <EmptyState
+        framed
+        icon={SignalIcon}
+        title="No session is live right now"
+        body="Start one from Live ops and its captions appear here."
+        action={
+          <Link href="/live" className={buttonClass()}>
+            Open Live ops
+          </Link>
+        }
+      />
     );
   }
   return (
@@ -235,7 +205,7 @@ function Monitor({ sessions }: { sessions: Session[] }) {
       )}
       {/* Keyed so switching sessions starts a fresh feed. */}
       <CaptionStream key={session.id} session={session} />
-      <p className="text-xs text-[#7c7c7c]">Watching here counts as one caption listener on Live ops.</p>
+      <p className="text-xs text-hint">Watching here counts as one caption listener on Live ops.</p>
     </div>
   );
 }
@@ -252,7 +222,7 @@ function ChannelMeter({ level, label }: { level: ChannelLevel | undefined; label
   const hold = level?.hold ?? FLOOR_DB;
   return (
     <div
-      className="relative mx-auto h-16 w-2 overflow-hidden rounded-sm bg-[#ececec]"
+      className="relative mx-auto h-16 w-2 overflow-hidden rounded-sm bg-surface-sunken"
       role="meter"
       aria-label={`${label} level`}
       aria-valuemin={FLOOR_DB}
@@ -274,7 +244,7 @@ function RoomStatusTag({ state, patched, elsewhere }: { state: RoomState | undef
       </Tag>
     );
   }
-  if (!state) return patched ? <Tag>Ready</Tag> : <span className="text-xs text-[#7c7c7c]">Not patched</span>;
+  if (!state) return patched ? <Tag>Ready</Tag> : <span className="text-xs text-hint">Not patched</span>;
   if (state.status === 'capturing') {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-danger px-2 text-xs leading-5 text-on-primary">
@@ -318,25 +288,25 @@ function DeskSetup({
   onConnect: () => void;
 }) {
   return (
-    <section aria-labelledby="desk-setup" className="rounded-2xl border border-border bg-surface p-6 md:p-8">
+    <section aria-labelledby="desk-setup" className="rounded-xl border border-border bg-surface p-6 md:p-8">
       {streamed.length > 0 && (
         <p className="mb-6 flex items-start gap-2 rounded-lg bg-success-soft px-4 py-3 text-sm text-success">
           <SignalIcon className="mt-0.5 size-4 shrink-0" />
-          {streamed.length === 1 ? `${streamed[0]} is` : `${streamed.length} rooms are`} captioned from the venue stream, with no desk needed. Set this desk up as a backup: a room on stand-by takes
-          over by itself if its stream stops.
+          {streamed.length === 1 ? `${streamed[0]} is` : `${streamed.length} rooms are`} captioned from the venue stream. Set this desk up as a backup: a room on stand-by takes over if its stream
+          stops.
         </p>
       )}
       <h2 id="desk-setup" className="text-lg font-medium text-ink">
         Caption every room from the sound desk
       </h2>
-      <p className="mt-1 max-w-2xl text-sm text-[#525252]">One computer next to the venue mixer takes each room&apos;s audio on its own channel, so no room needs an operator with a microphone.</p>
+      <p className="mt-1 max-w-2xl text-sm text-hint">One computer beside the venue mixer takes each room&apos;s audio on its own channel.</p>
 
       <ol className="mt-6 grid gap-3 md:grid-cols-3">
         {SETUP_STEPS.map((step, i) => (
           <li key={step.title} className="rounded-xl border border-border p-4">
             <span className="flex size-6 items-center justify-center rounded-full bg-primary-soft text-xs font-medium text-primary">{i + 1}</span>
             <p className="mt-3 text-sm font-medium text-ink">{step.title}</p>
-            <p className="mt-0.5 text-sm text-[#525252]">{step.body}</p>
+            <p className="mt-0.5 text-sm text-ink-soft">{step.body}</p>
           </li>
         ))}
       </ol>
@@ -363,9 +333,7 @@ function DeskSetup({
             <AdjustmentsVerticalIcon className="size-4" />
             {connecting ? 'Connecting…' : 'Connect audio interface'}
           </button>
-          {permission !== 'granted' && (
-            <p className="max-w-md text-xs text-[#7c7c7c]">The browser will ask to use your microphone. Choose Allow: that is how it reaches the interface. Audio goes only to the caption service.</p>
-          )}
+          {permission !== 'granted' && <p className="max-w-md text-xs text-hint">Choose Allow when the browser asks for the microphone; audio goes only to the caption service.</p>}
         </div>
       )}
 
@@ -515,36 +483,57 @@ function SoundDesk({ live }: { live: Session[] }) {
         </FigureCard>
       </div>
 
-      <section aria-label="Patch" className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-          <div>
-            <h2 className="text-base font-medium text-ink">Patch</h2>
-            <p className="text-xs text-[#7c7c7c]">Click where a room meets its channel. Captions go to whichever session is live in the room.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {running.length > 0 && (
-              <button type="button" onClick={() => setConfirm({ kind: 'all' })} className={buttonClass({ style: 'outline', color: 'danger' })}>
-                <StopCircleIcon className="size-4" />
-                Stop all
-              </button>
-            )}
-            {startable.length > 0 && (
-              <button type="button" onClick={() => startable.forEach(startRoom)} className={buttonClass()}>
-                <PlayCircleIcon className="size-4" />
-                {startable.length === 1 ? `Start ${startable[0]}` : `Start ${startable.length} rooms`}
-              </button>
-            )}
-          </div>
-        </header>
-
+      <Panel
+        title="Patch"
+        description="Click where a room meets its channel; captions go to the session live in that room."
+        actions={
+          (running.length > 0 || startable.length > 0) && (
+            <>
+              {running.length > 0 && (
+                <button type="button" onClick={() => setConfirm({ kind: 'all' })} className={buttonClass({ style: 'outline', color: 'danger' })}>
+                  <StopCircleIcon className="size-4" />
+                  Stop all
+                </button>
+              )}
+              {startable.length > 0 && (
+                <button type="button" onClick={() => startable.forEach(startRoom)} className={buttonClass()}>
+                  <PlayCircleIcon className="size-4" />
+                  {startable.length === 1 ? `Start ${startable[0]}` : `Start ${startable.length} rooms`}
+                </button>
+              )}
+            </>
+          )
+        }
+        footer={
+          <>
+            <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-sm bg-success" /> below −12 dBFS
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-sm bg-gold" /> −12 to −3, good for speech
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-sm bg-danger" /> above −3, turn the send down
+              </span>
+            </p>
+            <Link href="/venue" className="text-xs text-primary hover:underline">
+              Room missing? Add it in Venue &amp; rooms
+            </Link>
+          </>
+        }
+      >
         {rooms.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-[#7c7c7c]">
-            No rooms yet.{' '}
-            <Link href="/venue" className="text-primary hover:underline">
-              Add the venue&apos;s rooms
-            </Link>{' '}
-            and they appear here.
-          </p>
+          <EmptyState
+            icon={BuildingOffice2Icon}
+            title="No rooms yet"
+            body="Add the venue's rooms and they appear here."
+            action={
+              <Link href="/venue" className={buttonClass()}>
+                Add rooms
+              </Link>
+            }
+          />
         ) : (
           <div className="relative overflow-x-auto">
             <table className="w-full border-separate border-spacing-0 text-sm">
@@ -553,12 +542,12 @@ function SoundDesk({ live }: { live: Session[] }) {
                   <th
                     rowSpan={2}
                     scope="col"
-                    className="sticky left-0 z-10 min-w-36 border-b border-border bg-surface px-3 md:min-w-56 md:px-5 py-2 text-left align-bottom text-xs font-normal text-[#7c7c7c]"
+                    className="sticky left-0 z-10 min-w-36 border-b border-border bg-surface px-3 md:min-w-56 md:px-5 py-2 text-left align-bottom text-xs font-normal text-hint"
                   >
                     Room
                   </th>
                   {inputs.map((input) => (
-                    <th key={input.deviceId} colSpan={input.channels} scope="colgroup" className="border-b border-l border-border px-2 pt-2 pb-1 text-left text-xs font-normal text-[#525252]">
+                    <th key={input.deviceId} colSpan={input.channels} scope="colgroup" className="border-b border-l border-border px-2 pt-2 pb-1 text-left text-xs font-normal text-ink-soft">
                       <span className="block max-w-[14rem] truncate" title={input.label}>
                         {input.label}
                       </span>
@@ -567,7 +556,7 @@ function SoundDesk({ live }: { live: Session[] }) {
                   <th
                     rowSpan={2}
                     scope="col"
-                    className="min-w-64 md:sticky md:right-0 md:z-10 border-b border-l border-border bg-surface px-4 py-2 text-left align-bottom text-xs font-normal text-[#7c7c7c]"
+                    className="min-w-64 md:sticky md:right-0 md:z-10 border-b border-l border-border bg-surface px-4 py-2 text-left align-bottom text-xs font-normal text-hint"
                   >
                     Captions
                   </th>
@@ -579,7 +568,7 @@ function SoundDesk({ live }: { live: Session[] }) {
                       return (
                         <th key={key} scope="col" className={cn('w-11 border-b border-border px-1 pt-1 pb-2 text-center font-normal', channel === 0 && 'border-l')}>
                           <ChannelMeter level={desk.levels[key]} label={`${input.label} channel ${channel + 1}`} />
-                          <span className="mt-1 block text-[11px] tabular-nums text-[#7c7c7c]">{channel + 1}</span>
+                          <span className="mt-1 block text-[0.6875rem] tabular-nums text-hint">{channel + 1}</span>
                         </th>
                       );
                     }),
@@ -598,12 +587,12 @@ function SoundDesk({ live }: { live: Session[] }) {
                       <th
                         scope="row"
                         className={cn(
-                          'sticky left-0 z-10 max-w-36 border-b border-border bg-surface px-3 py-2.5 md:max-w-none md:px-5 text-left font-normal group-hover:bg-[#fafafa]',
+                          'sticky left-0 z-10 max-w-36 border-b border-border bg-surface px-3 py-2.5 md:max-w-none md:px-5 text-left font-normal group-hover:bg-surface-soft',
                           alarm && 'shadow-[inset_3px_0_0_var(--color-danger)]',
                         )}
                       >
                         <p className="truncate text-sm font-medium text-ink">{room}</p>
-                        <p className={cn('max-w-56 truncate text-xs', session ? 'text-success' : 'text-[#7c7c7c]')} title={session?.title}>
+                        <p className={cn('max-w-56 truncate text-xs', session ? 'text-success' : 'text-hint')} title={session?.title}>
                           {session ? `Live · ${session.title}` : 'Nothing on air'}
                         </p>
                       </th>
@@ -614,7 +603,7 @@ function SoundDesk({ live }: { live: Session[] }) {
                         return (
                           <td
                             key={c.value}
-                            className={cn('border-b border-border p-0 text-center group-hover:bg-[#fafafa]', firstOfInput && i > 0 && 'border-l', firstOfInput && i === 0 && 'border-l')}
+                            className={cn('border-b border-border p-0 text-center group-hover:bg-surface-soft', firstOfInput && i > 0 && 'border-l', firstOfInput && i === 0 && 'border-l')}
                           >
                             <button
                               type="button"
@@ -633,9 +622,9 @@ function SoundDesk({ live }: { live: Session[] }) {
                             >
                               <span
                                 className={cn(
-                                  'flex items-center justify-center rounded-full border text-[10px] font-medium text-white transition-colors',
+                                  'flex items-center justify-center rounded-full border text-[0.625rem] font-medium text-on-primary transition-colors',
                                   micNo ? 'size-5' : 'size-3.5',
-                                  patched ? (busy ? 'border-danger bg-danger' : 'border-primary bg-primary') : 'border-[#dcdcdc] group-hover:border-[#bdbdbd]',
+                                  patched ? (busy ? 'border-danger bg-danger' : 'border-primary bg-primary') : 'border-border group-hover:border-border-strong',
                                   !busy && !patched && 'hover:!border-primary hover:bg-primary-soft',
                                 )}
                               >
@@ -645,18 +634,18 @@ function SoundDesk({ live }: { live: Session[] }) {
                           </td>
                         );
                       })}
-                      <td className="border-b md:sticky md:right-0 md:z-10 border-l border-border bg-surface px-4 py-2 group-hover:bg-[#fafafa]">
+                      <td className="border-b md:sticky md:right-0 md:z-10 border-l border-border bg-surface px-4 py-2 group-hover:bg-surface-soft">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <RoomStatusTag state={state} patched={ready(room)} elsewhere={elsewhere(room)} />
                             {state?.message && (
-                              <p className={cn('mt-0.5 max-w-44 truncate text-xs', state.status === 'error' ? 'text-danger' : 'text-[#7a5d00]')} title={state.message}>
+                              <p className={cn('mt-0.5 max-w-44 truncate text-xs', state.status === 'error' ? 'text-danger' : 'text-warning')} title={state.message}>
                                 {state.message}
                               </p>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-[#7c7c7c]" aria-hidden title="One mic per channel: each mic captioned on its own, named in Captions › Mics.">
+                            <span className="text-xs text-hint" aria-hidden title="One mic per channel: each mic captioned on its own, named in Captions › Mics.">
                               Mics
                             </span>
                             <Switch
@@ -667,7 +656,7 @@ function SoundDesk({ live }: { live: Session[] }) {
                             />
                             {!isMulti(room) && (
                               <>
-                                <span className="text-xs text-[#7c7c7c]" aria-hidden title="Label who is speaking, for panels. Adds a little delay.">
+                                <span className="text-xs text-hint" aria-hidden title="Label who is speaking, for panels. Adds a little delay.">
                                   Speakers
                                 </span>
                                 <Switch
@@ -706,24 +695,7 @@ function SoundDesk({ live }: { live: Session[] }) {
             </table>
           </div>
         )}
-
-        <footer className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-border bg-[#f6f6f6] px-5 py-3 text-xs text-[#7c7c7c]">
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-sm bg-success" /> below −12 dBFS
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-sm bg-gold" /> −12 to −3, good for speech
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-sm bg-danger" /> above −3, turn the send down
-            </span>
-          </p>
-          <Link href="/venue" className="text-primary hover:underline">
-            Room missing? Add it in Venue &amp; rooms
-          </Link>
-        </footer>
-      </section>
+      </Panel>
 
       <ConfirmDialog
         open={!!confirm}
@@ -745,39 +717,33 @@ function SoundDesk({ live }: { live: Session[] }) {
 
 export default function CaptionsPage() {
   const live = useLiveSessions();
-  const [tab, setTab] = useState<Tab>('monitor');
+  const [tab, setTab] = useUrlParam<Tab>('tab', 'monitor', TAB_KEYS);
   const sessions = useMemo(() => [...(live.data ?? [])].sort((a, b) => a.room.localeCompare(b.room)), [live.data]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <h1 className="sr-only">Captions</h1>
-      <Tabs tab={tab} onChange={setTab} />
+      <UnderlineTabs label="Captions sections" idBase="captions" options={TABS.map((t) => ({ value: t.key, label: t.label, icon: t.icon }))} value={tab} onChange={setTab} />
 
       {live.isPending ? (
-        <Skeleton className="h-96 rounded-2xl" />
+        <Skeleton className="h-96 rounded-xl" />
       ) : live.isError && !live.data ? (
-        <div role="alert" className="rounded-2xl border border-border bg-surface p-10 text-center">
-          <p className="font-medium text-ink">Live sessions could not load.</p>
-          <p className="mt-1 text-sm text-muted">{live.error.message}</p>
-          <button type="button" onClick={() => void live.refetch()} className={buttonClass({ className: 'mt-4' })}>
-            Try again
-          </button>
-        </div>
+        <ErrorState framed title="Live sessions could not load" error={live.error} onRetry={() => void live.refetch()} />
       ) : (
         <>
           {/* Both stay mounted so a running desk keeps capturing while the operator checks the monitor. */}
-          <div id="captions-panel-monitor" role="tabpanel" aria-labelledby="captions-tab-monitor" hidden={tab !== 'monitor'}>
+          <div id={tabPanelId('captions', 'monitor')} role="tabpanel" aria-labelledby={tabId('captions', 'monitor')} hidden={tab !== 'monitor'}>
             <Monitor sessions={sessions} />
           </div>
-          <div id="captions-panel-desk" role="tabpanel" aria-labelledby="captions-tab-desk" hidden={tab !== 'desk'}>
+          <div id={tabPanelId('captions', 'desk')} role="tabpanel" aria-labelledby={tabId('captions', 'desk')} hidden={tab !== 'desk'}>
             <SoundDesk live={sessions} />
           </div>
         </>
       )}
-      <div id="captions-panel-mics" role="tabpanel" aria-labelledby="captions-tab-mics" hidden={tab !== 'mics'}>
+      <div id={tabPanelId('captions', 'mics')} role="tabpanel" aria-labelledby={tabId('captions', 'mics')} hidden={tab !== 'mics'}>
         {tab === 'mics' && <MicsPanel />}
       </div>
-      <div id="captions-panel-vocabulary" role="tabpanel" aria-labelledby="captions-tab-vocabulary" hidden={tab !== 'vocabulary'}>
+      <div id={tabPanelId('captions', 'vocabulary')} role="tabpanel" aria-labelledby={tabId('captions', 'vocabulary')} hidden={tab !== 'vocabulary'}>
         {tab === 'vocabulary' && <VocabularyPanel />}
       </div>
     </div>

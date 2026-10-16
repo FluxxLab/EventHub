@@ -57,17 +57,22 @@ export function defaultTopics(tracks: Parameters<typeof activeValues>[0] | undef
   return { trackValues: activeValues(tracks ?? []), interestValues: activeValues(interests ?? []) };
 }
 
+/** The lists as one comparable string; order does not count. */
+const topicsKey = (topics: EditionTopics | null) => (topics ? `${[...topics.trackValues].sort().join(',')}|${[...topics.interestValues].sort().join(',')}` : '');
+
 /** Changes an existing event's tracks and interests. */
 export function EventTopicsDialog({ edition, onClose }: { edition: Edition | null; onClose: () => void }) {
   const toast = useToast();
   const save = useSaveEditionTopics();
   const [draft, setDraft] = useState<EditionTopics | null>(null);
   const [openedFor, setOpenedFor] = useState<string | null>(null);
+  // an event saved before tracks were per event has none stored: start from everything
+  const stored = edition && (edition.trackValues || edition.interestValues) ? { trackValues: edition.trackValues ?? [], interestValues: edition.interestValues ?? [] } : null;
   if (edition && openedFor !== edition.id) {
     setOpenedFor(edition.id);
-    // an event saved before tracks were per event has none stored: start from everything
-    setDraft(edition.trackValues || edition.interestValues ? { trackValues: edition.trackValues ?? [], interestValues: edition.interestValues ?? [] } : null);
+    setDraft(stored);
   }
+  const dirty = edition !== null && topicsKey(draft) !== topicsKey(stored);
   const tracks = useTrackLibrary();
   const interests = useInterestLibrary();
 
@@ -84,7 +89,11 @@ export function EventTopicsDialog({ edition, onClose }: { edition: Edition | nul
       { editionId: edition.id, ...topics },
       {
         onSuccess: () => {
-          toast.push({ title: 'Tracks and interests saved', body: `${edition.shortName}’s programme and delegate profiles use the new lists.`, leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' } });
+          toast.push({
+            title: 'Tracks and interests saved',
+            body: `${edition.shortName}’s programme and delegate profiles use the new lists.`,
+            leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' },
+          });
           close();
         },
       },
@@ -102,6 +111,7 @@ export function EventTopicsDialog({ edition, onClose }: { edition: Edition | nul
       error={save.error?.message ?? null}
       onClose={close}
       onSubmit={submit}
+      dirty={dirty}
     >
       <div className="grid gap-6">
         <EventTopicsFields id="edit-topics" value={draft} onChange={setDraft} />

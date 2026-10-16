@@ -125,7 +125,7 @@ export function PollDialog({
               <label htmlFor={id('question')} className="text-sm font-medium text-ink">
                 Question
               </label>
-              <span className={cn('text-xs tabular-nums', form.question.trim().length > 180 ? 'text-[#7a5d00]' : 'text-[#7c7c7c]')}>{form.question.trim().length}/200</span>
+              <span className={cn('text-xs tabular-nums', form.question.trim().length > 180 ? 'text-warning' : 'text-hint')}>{form.question.trim().length}/200</span>
             </div>
             <textarea
               id={id('question')}
@@ -141,8 +141,8 @@ export function PollDialog({
               aria-describedby={errors.question ? id('question-error') : undefined}
               autoFocus
               className={cn(
-                'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-[15px] leading-6 text-ink shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-                errors.question ? 'border-danger' : 'border-[#bdbdbd]',
+                'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-[0.9375rem] leading-6 text-ink shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
+                errors.question ? 'border-danger' : 'border-border-strong',
               )}
             />
             {errors.question && (
@@ -156,7 +156,7 @@ export function PollDialog({
           <fieldset>
             <div className="mb-1.5 flex items-baseline justify-between">
               <legend className="text-sm font-medium text-ink">Answers</legend>
-              <span className="text-xs text-[#7c7c7c]">
+              <span className="text-xs text-hint">
                 {MIN_OPTIONS}–{MAX_OPTIONS}
               </span>
             </div>
@@ -168,10 +168,10 @@ export function PollDialog({
                     <div
                       className={cn(
                         'flex items-center rounded-lg border bg-surface shadow-[0_1px_2px_rgba(16,24,40,0.05)] focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-                        optionError ? 'border-danger' : 'border-[#bdbdbd]',
+                        optionError ? 'border-danger' : 'border-border-strong',
                       )}
                     >
-                      <span className="flex h-10 w-9 shrink-0 items-center justify-center border-r border-border text-xs tabular-nums text-[#7c7c7c]" aria-hidden>
+                      <span className="flex h-10 w-9 shrink-0 items-center justify-center border-r border-border text-xs tabular-nums text-hint" aria-hidden>
                         {String.fromCharCode(65 + i)}
                       </span>
                       <input
@@ -196,7 +196,7 @@ export function PollDialog({
                           type="button"
                           onClick={() => removeOption(i)}
                           aria-label={`Remove answer ${i + 1}`}
-                          className="mr-1 flex size-8 items-center justify-center rounded-md text-[#7c7c7c] hover:bg-[#f1f1f1] hover:text-ink"
+                          className="mr-1 flex size-8 items-center justify-center rounded-md text-hint hover:bg-surface-soft hover:text-ink"
                         >
                           <XMarkIcon className="size-4" />
                         </button>
@@ -223,7 +223,7 @@ export function PollDialog({
                 <label htmlFor={id('session')} className="text-sm text-ink">
                   Session
                 </label>
-                <p className="text-xs text-[#7c7c7c]">For your records.</p>
+                <p className="text-xs text-hint">For your records.</p>
               </div>
               <Select
                 id={id('session')}
@@ -236,14 +236,14 @@ export function PollDialog({
             <div className="flex items-center justify-between gap-4 px-4 py-3">
               <div id={id('results')} className="min-w-0">
                 <p className="text-sm text-ink">Show results while it runs</p>
-                <p className="text-xs text-[#7c7c7c]">Off for a guess, so an early lead does not sway the room.</p>
+                <p className="text-xs text-hint">Off for a guess, so an early lead does not sway the room.</p>
               </div>
               <Switch checked={form.showResults} onChange={(showResults) => setForm((f) => ({ ...f, showResults }))} labelledBy={id('results')} />
             </div>
           </div>
 
           {onAir && onAir.id !== poll?.id && (
-            <p className="rounded-lg bg-[#fdf6e0] px-3 py-2 text-xs text-[#7a5d00]">“{onAir.question}” is live. Starting this poll stops it and shows its results.</p>
+            <p className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning">“{onAir.question}” is live. Starting this poll stops it and shows its results.</p>
           )}
           {error && (
             <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">

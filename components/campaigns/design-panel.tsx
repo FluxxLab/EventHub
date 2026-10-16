@@ -45,7 +45,7 @@ export function DesignPanel({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-medium text-ink">Design</p>
-          <p className="text-xs text-[#7c7c7c]">How the email looks. It starts from the event’s branding.</p>
+          <p className="text-xs text-hint">How the email looks. It starts from the event’s branding.</p>
         </div>
         {onReset && (
           <button type="button" onClick={onReset} className={buttonClass({ style: 'borderless', color: 'gray' })}>
@@ -86,7 +86,7 @@ export function DesignPanel({
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-eyebrow`} className="text-sm text-ink">
-            Header line <span className="text-[#7c7c7c]">(above the event name; empty hides it)</span>
+            Header line <span className="text-hint">(above the event name; empty hides it)</span>
           </label>
           <TextInput id={`${id}-eyebrow`} value={design.eyebrow} maxLength={80} onChange={(e) => edit({ eyebrow: e.target.value })} placeholder="Policy Innovation Centre" />
         </div>
@@ -100,7 +100,7 @@ export function DesignPanel({
 
       <div className="flex flex-col gap-1">
         <label htmlFor={`${id}-footer`} className="text-sm text-ink">
-          Footer <span className="text-[#7c7c7c]">(optional: contacts, sponsors)</span>
+          Footer <span className="text-hint">(optional: contacts, sponsors)</span>
         </label>
         <textarea
           id={`${id}-footer`}
@@ -109,26 +109,14 @@ export function DesignPanel({
           rows={2}
           onChange={(e) => edit({ footer: e.target.value })}
           placeholder="Questions? Write to events@policycentre.org"
-          className="rounded-lg border border-border bg-white px-3 py-2.5 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary disabled:bg-[#f6f6f6]"
+          className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary disabled:bg-surface-soft"
         />
       </div>
     </div>
   );
 }
 
-function PictureSlot({
-  part,
-  editionId,
-  src,
-  onPicked,
-  onRemove,
-}: {
-  part: Part;
-  editionId: string;
-  src: string | null;
-  onPicked: (key: string, preview: string) => void;
-  onRemove: () => void;
-}) {
+function PictureSlot({ part, editionId, src, onPicked, onRemove }: { part: Part; editionId: string; src: string | null; onPicked: (key: string, preview: string) => void; onRemove: () => void }) {
   const input = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const [progress, setProgress] = useState<number | null>(null);
@@ -152,7 +140,7 @@ function PictureSlot({
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-ink">{label}</p>
-      <div className={cn('flex items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-[#f6f6f6]', part === 'logo' ? 'h-20' : 'h-28')}>
+      <div className={cn('flex items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-surface-soft', part === 'logo' ? 'h-20' : 'h-28')}>
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element -- a signed or just-picked picture, shown as is
           <img src={src} alt={`${label} preview`} className={cn('max-h-full', part === 'logo' ? 'max-w-[70%] object-contain p-2' : 'w-full object-cover')} />
@@ -160,9 +148,17 @@ function PictureSlot({
           <PhotoIcon className="size-7 text-placeholder" aria-hidden />
         )}
       </div>
-      <p className="text-xs text-[#7c7c7c]">{hint}</p>
+      <p className="text-xs text-hint">{hint}</p>
       <div className="flex flex-wrap gap-2">
-        <input ref={input} type="file" accept={CAMPAIGN_IMAGE_TYPES.join(',')} className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void pick(e.target.files?.[0]).finally(() => (e.target.value = ''))} />
+        <input
+          ref={input}
+          type="file"
+          accept={CAMPAIGN_IMAGE_TYPES.join(',')}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => void pick(e.target.files?.[0]).finally(() => (e.target.value = ''))}
+        />
         <button type="button" disabled={progress !== null} onClick={() => input.current?.click()} className={buttonClass({ style: 'outline', color: 'gray' })}>
           <PhotoIcon className="size-4" />
           {progress !== null ? `Uploading ${Math.round(progress * 100)}%` : src ? `Replace ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}

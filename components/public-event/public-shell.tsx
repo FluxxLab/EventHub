@@ -59,7 +59,7 @@ export function AppLinks({ appHref, className }: { appHref: string; className?: 
 function StoreLink({ href, store }: { href: string | null; store: string }) {
   const body = (
     <>
-      <span className="text-[11px] leading-none text-muted">{href ? (store === 'App Store' ? 'Download on the' : 'Get it on') : 'Coming soon to'}</span>
+      <span className="text-[0.6875rem] leading-none text-muted">{href ? (store === 'App Store' ? 'Download on the' : 'Get it on') : 'Coming soon to'}</span>
       <span className="text-sm leading-tight font-medium">{store}</span>
     </>
   );

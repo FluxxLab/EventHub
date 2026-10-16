@@ -31,8 +31,8 @@ export function NewsletterForm() {
           <label htmlFor={id} className="text-sm text-ink">
             Email
           </label>
-          <div className="flex h-10 items-center gap-1.5 rounded-lg border border-[#bdbdbd] bg-surface px-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)] focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]">
-            <EnvelopeIcon className="size-5 shrink-0 text-[#525252]" aria-hidden />
+          <div className="flex h-10 items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)] focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]">
+            <EnvelopeIcon className="size-5 shrink-0 text-ink-soft" aria-hidden />
             <input
               id={id}
               type="email"
@@ -44,7 +44,7 @@ export function NewsletterForm() {
               }}
               placeholder="you@organisation.org"
               aria-invalid={note?.error || undefined}
-              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-[#bdbdbd]"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-placeholder"
             />
           </div>
         </div>
@@ -53,7 +53,7 @@ export function NewsletterForm() {
         </button>
       </div>
       {note && (
-        <p className={note.error ? 'text-xs text-danger' : 'text-xs text-[#7c7c7c]'} role={note.error ? 'alert' : undefined}>
+        <p className={note.error ? 'text-xs text-danger' : 'text-xs text-hint'} role={note.error ? 'alert' : undefined}>
           {note.text}
         </p>
       )}

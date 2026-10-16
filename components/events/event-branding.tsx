@@ -75,12 +75,12 @@ function GuidePick({
           {name ? 'Replace' : 'Choose the PDF'}
         </button>
         {name && (
-          <button type="button" onClick={() => onChange(null)} className="text-[#525252] hover:underline">
+          <button type="button" onClick={() => onChange(null)} className="text-ink-soft hover:underline">
             Remove
           </button>
         )}
         {file !== undefined && (
-          <button type="button" onClick={() => onChange(undefined)} className="text-[#525252] hover:underline">
+          <button type="button" onClick={() => onChange(undefined)} className="text-ink-soft hover:underline">
             Undo
           </button>
         )}
@@ -164,12 +164,12 @@ function ImagePick({
           {shown ? 'Replace' : kind === 'cover' ? 'Choose a picture' : 'Choose a logo'}
         </button>
         {shown && (
-          <button type="button" onClick={() => onChange(null)} className="text-[#525252] hover:underline">
+          <button type="button" onClick={() => onChange(null)} className="text-ink-soft hover:underline">
             Remove
           </button>
         )}
         {file !== undefined && (
-          <button type="button" onClick={() => onChange(undefined)} className="text-[#525252] hover:underline">
+          <button type="button" onClick={() => onChange(undefined)} className="text-ink-soft hover:underline">
             Undo
           </button>
         )}
@@ -222,7 +222,7 @@ export function ColourPick({ id, value, onChange, checkPale = true }: { id: stri
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Pick any colour" className="h-10 w-12 cursor-pointer rounded-lg border border-border bg-white p-1" />
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Pick any colour" className="h-10 w-12 cursor-pointer rounded-lg border border-border bg-surface p-1" />
         <input
           id={id}
           value={typed}
@@ -234,7 +234,7 @@ export function ColourPick({ id, value, onChange, checkPale = true }: { id: stri
           spellCheck={false}
           autoComplete="off"
           maxLength={7}
-          className="h-10 w-28 rounded-lg border border-border bg-white px-3 font-mono text-sm uppercase text-ink outline-none focus:border-primary"
+          className="h-10 w-28 rounded-lg border border-border bg-surface px-3 font-mono text-sm uppercase text-ink outline-none focus:border-primary"
         />
       </div>
       {warning && <p className="text-xs text-gold">{warning}</p>}
@@ -245,7 +245,7 @@ export function ColourPick({ id, value, onChange, checkPale = true }: { id: stri
 /** How the event's page starts in the app: cover, logo and name, and a button in its colour. */
 function AppPreview({ current, cover, logo, colour }: { current: Current; cover: string | null; logo: string | null; colour: string }) {
   return (
-    <div className="w-full max-w-xs overflow-hidden rounded-2xl border border-border bg-white shadow-sm" aria-label="How it looks in the app">
+    <div className="w-full max-w-xs overflow-hidden rounded-xl border border-border bg-surface" aria-label="How it looks in the app">
       <div className="aspect-[16/9] bg-surface-soft">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element -- preview
@@ -260,7 +260,7 @@ function AppPreview({ current, cover, logo, colour }: { current: Current; cover:
             // eslint-disable-next-line @next/next/no-img-element -- preview
             <img src={logo} alt="" className="size-9 rounded-lg border border-border object-contain p-0.5" />
           ) : (
-            <span className="flex size-9 items-center justify-center rounded-lg text-[10px] font-medium" style={{ background: colour, color: textOn(colour) }}>
+            <span className="flex size-9 items-center justify-center rounded-lg text-[0.625rem] font-medium" style={{ background: colour, color: textOn(colour) }}>
               {current.shortName.slice(0, 4) || 'PIC'}
             </span>
           )}
@@ -291,19 +291,13 @@ export function EventBrandingFields({ id, current, value, onChange }: { id: stri
       <Field id={`${id}-logo`} label="Logo" optional hint="Square, with a transparent or white background; up to 2 MB.">
         <ImagePick id={`${id}-logo`} kind="logo" file={value.logo} shown={logo} onChange={(logo) => onChange({ ...value, logo })} />
       </Field>
-      <Field id={`${id}-logo-dark`} label="Logo for dark backgrounds" optional hint="The version for dark slides and panels (usually a white wordmark). Used in the call-to-action decks.">
+      <Field id={`${id}-logo-dark`} label="Logo for dark backgrounds" optional hint="For dark slides, usually a white wordmark; used in call-to-action decks.">
         <ImagePick id={`${id}-logo-dark`} kind="logo" dark file={value.logoDark} shown={logoDark} onChange={(logoDark) => onChange({ ...value, logoDark })} />
       </Field>
-      <Field
-        id={`${id}-guide`}
-        label="Brand guide"
-        optional
-        className="sm:col-span-2"
-        hint={`The event's brand guidelines as a PDF, up to ${MAX_GUIDE_MB} MB. Call-to-action decks are designed from it: its colours, fonts and logo rules.`}
-      >
+      <Field id={`${id}-guide`} label="Brand guide" optional className="sm:col-span-2" hint={`A PDF up to ${MAX_GUIDE_MB} MB; call-to-action decks follow its colours, fonts and logo rules.`}>
         <GuidePick id={`${id}-guide`} file={value.guide} current={{ url: current.brandGuideUrl, name: current.brandGuideName }} onChange={(guide) => onChange({ ...value, guide })} />
       </Field>
-      <Field id={`${id}-colour`} label="Button colour" hint="For the event’s buttons and highlights in the app. The text on it turns white or black to stay readable.">
+      <Field id={`${id}-colour`} label="Button colour" hint="Buttons and highlights in the app; the text on it turns white or black to stay readable.">
         <ColourPick id={`${id}-colour`} value={colour} onChange={(hex) => onChange({ ...value, brandColor: hex === PIC_NAVY && !current.brandColor ? undefined : hex })} />
       </Field>
       <div className="flex flex-col gap-2 sm:col-span-2">
@@ -361,6 +355,7 @@ export function EventBrandingDialog({ edition, onClose }: { edition: Edition | n
       error={save.error?.message ?? null}
       onClose={close}
       onSubmit={submit}
+      dirty={edition !== null && !brandingUnchanged(change)}
     >
       {edition && (
         <div className="grid gap-5 sm:grid-cols-2">

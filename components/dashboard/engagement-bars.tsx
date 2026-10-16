@@ -28,7 +28,7 @@ export function EngagementBars({ days }: { days: DashboardView['spark']['engagem
 
   return (
     <div className="grid grid-cols-[auto_1fr] gap-x-3">
-      <div className="relative h-56 w-12 text-right text-xs tabular-nums text-ink/40" aria-hidden>
+      <div className="relative h-56 w-12 text-right text-xs tabular-nums text-hint" aria-hidden>
         {ticks.map((tick) => (
           <span key={tick} className="absolute right-0 -translate-y-1/2" style={{ top: at(tick) }}>
             {compact(tick)}
@@ -37,7 +37,7 @@ export function EngagementBars({ days }: { days: DashboardView['spark']['engagem
       </div>
       <div className="relative h-56">
         {ticks.map((tick) => (
-          <span key={tick} className="absolute inset-x-0 h-px bg-ink/5" style={{ top: at(tick) }} aria-hidden />
+          <span key={tick} className="absolute inset-x-0 h-px bg-surface-sunken" style={{ top: at(tick) }} aria-hidden />
         ))}
         <ol className="absolute inset-0 flex items-end gap-[6%] px-[2%]" aria-label="Questions and poll votes per day">
           {days.map((d, i) => (
@@ -45,9 +45,7 @@ export function EngagementBars({ days }: { days: DashboardView['spark']['engagem
               key={d.day}
               tabIndex={0}
               aria-label={`${shortDay(d.day)}: ${count(d.questions)} questions, ${count(d.pollVotes)} poll votes`}
-              className={`relative flex h-full min-w-0 flex-1 cursor-default flex-col justify-end outline-none transition-opacity ${
-                active !== null && active !== i ? 'opacity-50' : ''
-              }`}
+              className={`relative flex h-full min-w-0 flex-1 cursor-default flex-col justify-end outline-none transition-opacity ${active !== null && active !== i ? 'opacity-50' : ''}`}
               onPointerEnter={() => setActive(i)}
               onPointerLeave={() => setActive(null)}
               onFocus={() => setActive(i)}
@@ -61,11 +59,8 @@ export function EngagementBars({ days }: { days: DashboardView['spark']['engagem
           ))}
         </ol>
         {active !== null && days[active] && (
-          <ChartTooltip
-            x={`${Math.min(90, Math.max(10, 2 + ((active + 0.5) / days.length) * 96))}%`}
-            y={at(days[active].questions + days[active].pollVotes)}
-          >
-            <span className="block text-[#fdfdfd]/70">{shortDay(days[active].day)}</span>
+          <ChartTooltip x={`${Math.min(90, Math.max(10, 2 + ((active + 0.5) / days.length) * 96))}%`} y={at(days[active].questions + days[active].pollVotes)}>
+            <span className="block text-on-primary/70">{shortDay(days[active].day)}</span>
             {ENGAGEMENT_SERIES.map((series) => (
               <TipRow key={series.key} colour={series.key === 'questions' ? 'var(--chart-1)' : 'var(--chart-2)'} value={count(days[active][series.key])} label={series.label} />
             ))}
@@ -73,7 +68,7 @@ export function EngagementBars({ days }: { days: DashboardView['spark']['engagem
         )}
       </div>
       <div />
-      <div className="mt-2 flex gap-[6%] px-[2%] text-xs text-ink/40" aria-hidden>
+      <div className="mt-2 flex gap-[6%] px-[2%] text-xs text-hint" aria-hidden>
         {days.map((d, i) => (
           <span key={d.day} className="min-w-0 flex-1 whitespace-nowrap text-center">
             {(days.length - 1 - i) % labelEvery === 0 ? shortDay(d.day) : ''}

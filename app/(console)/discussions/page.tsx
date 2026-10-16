@@ -1,12 +1,15 @@
 'use client';
 
 import { ArrowDownTrayIcon, ChatBubbleLeftRightIcon, CheckIcon, EyeIcon, EyeSlashIcon, FlagIcon, HandThumbDownIcon, HandThumbUpIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useMemo, useState } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/field';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
+import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { runsEvents, useSession } from '@/lib/auth/session';
@@ -14,9 +17,9 @@ import { commentState, sortThreads, threadMatches, type ModComment, type Thread 
 import { useComments, useDiscussionActions, useThreads, type CommentView } from '@/lib/discussions/use-discussions';
 import { ago, count } from '@/lib/format';
 import { useNow } from '@/lib/use-now';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
 const REVIEW = '__review__';
 
 function ListButton({ selected, onSelect, children }: { selected: boolean; onSelect: () => void; children: React.ReactNode }) {
@@ -27,7 +30,7 @@ function ListButton({ selected, onSelect, children }: { selected: boolean; onSel
       aria-pressed={selected}
       onClick={onSelect}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect())}
-      className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-[#f6f6f6]')}
+      className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
     >
       {children}
     </div>
@@ -42,7 +45,7 @@ function ThreadItem({ thread, selected, now, onSelect }: { thread: Thread; selec
           <p className="truncate text-sm text-ink" title={thread.title}>
             {thread.title}
           </p>
-          <p className="mt-0.5 truncate text-xs text-[#7c7c7c]">
+          <p className="mt-0.5 truncate text-xs text-hint">
             {thread.comments ? `${count(thread.comments)} ${thread.comments === 1 ? 'comment' : 'comments'}` : 'No comments'}
             {thread.lastAt && ` · ${ago(thread.lastAt, now).toLowerCase()}`}
           </p>
@@ -81,8 +84,8 @@ function CommentRow({
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             <span className="font-medium text-ink">{comment.authorName}</span>
-            {comment.authorOrganisation && <span className="text-xs text-[#7c7c7c]">{comment.authorOrganisation}</span>}
-            <span className="text-xs text-[#7c7c7c]">· {ago(comment.createdAt, now).toLowerCase()}</span>
+            {comment.authorOrganisation && <span className="text-xs text-hint">{comment.authorOrganisation}</span>}
+            <span className="text-xs text-hint">· {ago(comment.createdAt, now).toLowerCase()}</span>
             {state === 'reported' && (
               <Tag tone="danger">
                 <FlagIcon className="size-3" /> Reported
@@ -95,8 +98,8 @@ function CommentRow({
             )}
           </p>
           {showSession && <p className="mt-0.5 truncate text-xs text-primary">{comment.sessionTitle}</p>}
-          <p className={cn('mt-1.5 text-[15px] leading-6 whitespace-pre-line', state === 'hidden' ? 'text-[#7c7c7c] line-through decoration-[#bdbdbd]' : 'text-ink')}>{comment.body}</p>
-          <p className="mt-2 flex items-center gap-4 text-xs tabular-nums text-[#7c7c7c]">
+          <p className={cn('mt-1.5 text-[0.9375rem] leading-6 whitespace-pre-line', state === 'hidden' ? 'text-hint line-through decoration-border-strong' : 'text-ink')}>{comment.body}</p>
+          <p className="mt-2 flex items-center gap-4 text-xs tabular-nums text-hint">
             <span className="flex items-center gap-1" aria-label={`${comment.likes} likes`}>
               <HandThumbUpIcon className="size-3.5" /> {count(comment.likes)}
             </span>
@@ -139,36 +142,11 @@ const FILTERS: { key: CommentView['filter']; label: string }[] = [
   { key: 'reported', label: 'Reported' },
   { key: 'hidden', label: 'Hidden' },
 ];
-
-function Filters({ value, counts, onChange }: { value: CommentView['filter']; counts: Record<CommentView['filter'], number>; onChange: (v: CommentView['filter']) => void }) {
-  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    const i = FILTERS.findIndex((f) => f.key === value);
-    onChange(FILTERS[(i + (event.key === 'ArrowRight' ? 1 : FILTERS.length - 1)) % FILTERS.length]!.key);
-  };
-  return (
-    <div role="tablist" aria-label="Show" onKeyDown={onKey} className="flex w-fit gap-1 rounded-lg bg-[#f1f1f1] p-1">
-      {FILTERS.map((f) => (
-        <button
-          key={f.key}
-          type="button"
-          role="tab"
-          aria-selected={value === f.key}
-          tabIndex={value === f.key ? 0 : -1}
-          onClick={() => onChange(f.key)}
-          className={cn('flex items-center gap-1.5 rounded-md px-3 py-1 text-sm', value === f.key ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink')}
-        >
-          {f.label}
-          <span className="text-xs tabular-nums text-[#7c7c7c]">{counts[f.key]}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
+const FILTER_KEYS = FILTERS.map((f) => f.key);
 
 /** A thread's comments, or the review queue (every reported comment still showing). */
 function Comments({ thread, review, reviewCount, now }: { thread: Thread | null; review: boolean; reviewCount: number; now: number }) {
-  const [filter, setFilter] = useState<CommentView['filter']>('all');
+  const [filter, setFilter] = useUrlParam<CommentView['filter']>('show', 'all', FILTER_KEYS);
   const view: CommentView = review ? { sessionId: null, filter: 'reported' } : { sessionId: thread!.sessionId, filter };
   const comments = useComments(view, true);
   const { hide, unhide, keep, exportThread } = useDiscussionActions();
@@ -181,19 +159,16 @@ function Comments({ thread, review, reviewCount, now }: { thread: Thread | null;
   const subtitle = review
     ? reviewCount
       ? `${reviewCount} reported ${reviewCount === 1 ? 'comment' : 'comments'} still showing, across all sessions.`
-      : 'Nothing reported. Delegates can report a comment from the app.'
+      : 'Delegates can report a comment from the app.'
     : `${thread!.room} · ${count(thread!.comments)} ${thread!.comments === 1 ? 'comment' : 'comments'}`;
 
   return (
-    <section aria-labelledby="thread-title" className={cn(cardClass, 'flex flex-col')}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
-        <div className="min-w-0">
-          <h2 id="thread-title" className="text-lg text-ink">
-            {title}
-          </h2>
-          <p className="mt-0.5 text-sm text-[#7c7c7c]">{subtitle}</p>
-        </div>
-        {!review && thread!.comments > 0 && (
+    <Panel
+      className="flex flex-col"
+      title={title}
+      description={subtitle}
+      actions={
+        !review && thread!.comments > 0 ? (
           <button
             type="button"
             disabled={exportThread.isPending}
@@ -208,31 +183,39 @@ function Comments({ thread, review, reviewCount, now }: { thread: Thread | null;
             <ArrowDownTrayIcon className="size-4" />
             {exportThread.isPending ? 'Exporting…' : 'Export CSV'}
           </button>
-        )}
-      </header>
-
-      {!review && thread!.comments > 0 && (
-        <div className="border-b border-border px-6 py-3">
-          <Filters value={filter} counts={{ all: thread!.comments, reported: thread!.flagged, hidden: thread!.hidden }} onChange={setFilter} />
-        </div>
-      )}
-
+        ) : undefined
+      }
+      toolbar={
+        !review && thread!.comments > 0 ? (
+          <SegmentedTabs
+            label="Show"
+            options={FILTERS.map((f) => ({ value: f.key, label: f.label, count: { all: thread!.comments, reported: thread!.flagged, hidden: thread!.hidden }[f.key] }))}
+            value={filter}
+            onChange={setFilter}
+          />
+        ) : undefined
+      }
+    >
       {comments.isPending ? (
-        <div className="flex flex-col gap-3 p-6">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-16" />
-          ))}
-        </div>
+        <LoadingRows rows={3} />
       ) : comments.isError && !comments.data ? (
-        <div role="alert" className="p-10 text-center">
-          <p className="font-medium text-ink">Comments could not load.</p>
-          <p className="mt-1 text-sm text-muted">{comments.error.message}</p>
-        </div>
+        <ErrorState title="Comments could not load" error={comments.error} onRetry={() => void comments.refetch()} />
       ) : list.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-6 py-12 text-center text-sm text-[#7c7c7c]">
-          <ChatBubbleLeftRightIcon className="size-8" />
-          {review ? 'Nothing needs review.' : filter === 'all' ? 'No comments in this session yet.' : `No ${filter} comments here.`}
-        </div>
+        review ? (
+          <EmptyState icon={FlagIcon} title="Nothing needs review" />
+        ) : filter === 'all' ? (
+          <EmptyState icon={ChatBubbleLeftRightIcon} title="No comments in this session yet" />
+        ) : (
+          <EmptyState
+            icon={ChatBubbleLeftRightIcon}
+            title={`No ${filter} comments here`}
+            action={
+              <button type="button" onClick={() => setFilter('all')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                Show all comments
+              </button>
+            }
+          />
+        )
       ) : (
         <>
           <ul className="divide-y divide-border">
@@ -288,7 +271,7 @@ function Comments({ thread, review, reviewCount, now }: { thread: Thread | null;
       >
         It disappears from the app for everyone, straight away. It stays in the records and in exports, and you can unhide it here.
       </ConfirmDialog>
-    </section>
+    </Panel>
   );
 }
 
@@ -297,7 +280,8 @@ export default function DiscussionsPage() {
   const isAdmin = session.status === 'signed-in' && runsEvents(session.user.tier);
   const threads = useThreads(isAdmin);
   const now = useNow(30_000).getTime();
-  const [picked, setPicked] = useState<string | null>(null);
+  const [pickedParam, setPicked] = useUrlParam<string>('thread', '');
+  const picked = pickedParam || null;
   const [search, setSearch] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
 
@@ -313,36 +297,24 @@ export default function DiscussionsPage() {
 
   if (!isAdmin) {
     return (
-      <div className={cn(cardClass, 'mx-auto max-w-lg p-10 text-center')}>
-        <ChatBubbleLeftRightIcon className="mx-auto size-8 text-[#7c7c7c]" />
-        <p className="mt-2 font-medium text-ink">Discussions are moderated by organisers</p>
-        <p className="mt-1 text-sm text-[#7c7c7c]">Ask an organiser if a comment needs attention.</p>
-      </div>
+      <EmptyState framed className="mx-auto w-full max-w-lg" icon={ChatBubbleLeftRightIcon} title="Discussions are moderated by organisers" body="Ask an organiser if a comment needs attention." />
     );
   }
-  if (threads.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
+  if (threads.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
   if (threads.isError && !threads.data) {
-    return (
-      <div role="alert" className="mx-auto max-w-6xl rounded-2xl border border-border bg-surface p-10 text-center">
-        <p className="font-medium text-ink">Discussions could not load.</p>
-        <p className="mt-1 text-sm text-muted">{threads.error.message}</p>
-        <button type="button" onClick={() => void threads.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
+    return <ErrorState framed className="mx-auto w-full max-w-6xl" title="Discussions could not load" error={threads.error} onRetry={() => void threads.refetch()} />;
   }
 
   return (
     <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
-      <section aria-label="Threads" className={cardClass}>
+      <Panel title="Threads" count={all.length}>
         <ul className="border-b border-border">
           <li>
             <ListButton selected={review} onSelect={() => setPicked(REVIEW)}>
-              <FlagIcon className={cn('size-5 shrink-0', reviewCount ? 'text-danger' : 'text-[#7c7c7c]')} />
+              <FlagIcon className={cn('size-5 shrink-0', reviewCount ? 'text-danger' : 'text-hint')} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-ink">Needs review</p>
-                <p className="text-xs text-[#7c7c7c]">Reported comments, all sessions</p>
+                <p className="text-xs text-hint">Reported comments, all sessions</p>
               </div>
               {reviewCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-xs tabular-nums text-on-primary">{reviewCount}</span>}
             </ListButton>
@@ -356,16 +328,32 @@ export default function DiscussionsPage() {
             <ThreadItem key={t.sessionId} thread={t} selected={t.sessionId === selectedId} now={now} onSelect={() => setPicked(t.sessionId)} />
           ))}
           {showEmpty && silent.map((t) => <ThreadItem key={t.sessionId} thread={t} selected={t.sessionId === selectedId} now={now} onSelect={() => setPicked(t.sessionId)} />)}
-          {active.length === 0 && !showEmpty && <li className="px-4 py-6 text-center text-sm text-[#7c7c7c]">{search ? 'No session matches.' : 'No comments in any session yet.'}</li>}
+          {active.length === 0 && !showEmpty && (
+            <li>
+              {search ? (
+                <EmptyState
+                  className="py-8"
+                  title="No session matches"
+                  action={
+                    <button type="button" onClick={() => setSearch('')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                      Clear search
+                    </button>
+                  }
+                />
+              ) : (
+                <EmptyState className="py-8" title="No comments in any session yet" />
+              )}
+            </li>
+          )}
         </ul>
         {silent.length > 0 && (
           <div className="border-t border-border px-4 py-2">
-            <button type="button" onClick={() => setShowEmpty((v) => !v)} className="text-xs text-[#525252] hover:text-ink">
+            <button type="button" onClick={() => setShowEmpty((v) => !v)} className="text-xs text-ink-soft hover:text-ink">
               {showEmpty ? 'Hide' : 'Show'} {silent.length} {silent.length === 1 ? 'session' : 'sessions'} without comments
             </button>
           </div>
         )}
-      </section>
+      </Panel>
 
       {/* Keyed so each thread starts on its own filter and first page. */}
       <Comments key={selectedId} thread={thread} review={review} reviewCount={reviewCount} now={now} />

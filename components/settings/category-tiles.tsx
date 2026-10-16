@@ -7,6 +7,8 @@ import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { Field, TextInput } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
+import { Panel } from '@/components/ui/panel';
+import { ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import { moveOption } from '@/lib/catalog/topics';
 import { tileProblem, useCategories, useUpdateCategories, type Category } from '@/lib/catalog/use-categories';
@@ -75,12 +77,12 @@ function TileDialog({ category, onClose }: { category: Category | null; onClose:
       </Field>
       <div className="grid gap-2">
         <p className="text-sm text-ink">Picture</p>
-        <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-[#f1f1f1]">
+        <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface-soft">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element -- a signed or local preview URL
             <img src={preview} alt="" className="size-full object-cover" />
           ) : (
-            <div className="flex size-full flex-col items-center justify-center gap-1 text-center text-sm text-[#7c7c7c]">
+            <div className="flex size-full flex-col items-center justify-center gap-1 text-center text-sm text-hint">
               <PhotoIcon className="size-7" />
               No picture: the app shows the next event’s cover.
             </div>
@@ -104,7 +106,7 @@ function TileDialog({ category, onClose }: { category: Category | null; onClose:
             </button>
           )}
         </div>
-        <p className={cn('text-xs', problem && label.trim() ? 'text-danger' : 'text-[#7c7c7c]')}>{problem && label.trim() ? problem : 'JPG, PNG, WebP or HEIC, under 5 MB. Landscape, about 4:3, looks best.'}</p>
+        <p className={cn('text-xs', problem && label.trim() ? 'text-danger' : 'text-hint')}>{problem && label.trim() ? problem : 'JPG, PNG, WebP or HEIC, under 5 MB; landscape, about 4:3.'}</p>
       </div>
     </FormDialog>
   );
@@ -127,45 +129,51 @@ export function CategoryTiles() {
   };
 
   return (
-    <section aria-label="Event categories" className="overflow-hidden rounded-lg border border-[#dcdcdc] bg-[#fdfdfd]">
-      <header className="border-b border-[#dcdcdc] px-5 py-4">
-        <h2 className="text-xl font-medium leading-[30px] text-ink">Event categories</h2>
-        <p className="text-sm leading-5 text-[#525252]">The tiles on the app’s My Events screen, in this order. Every event is filed under one when it is created.</p>
-      </header>
+    <Panel title="Event categories" description="The tiles on the app’s My Events screen, in this order.">
       {categories.isPending ? (
-        <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="aspect-[4/3]" />
           ))}
         </div>
       ) : categories.isError ? (
-        <p role="alert" className="p-5 text-sm text-danger">
-          {categories.error.message}
-        </p>
+        <ErrorState title="Categories could not load" error={categories.error} onRetry={() => void categories.refetch()} />
       ) : (
-        <ol className={cn('grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4', reorder.isPending && 'opacity-70')}>
+        <ol className={cn('grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4', reorder.isPending && 'opacity-70')}>
           {list.map((c, i) => (
-            <li key={c.slug} className="flex flex-col overflow-hidden rounded-lg border border-[#dcdcdc] bg-surface shadow-xs">
-              <button type="button" onClick={() => setEditing(c)} className="group relative aspect-[4/3] overflow-hidden bg-[#f1f1f1] text-left" aria-label={`Edit ${c.label}`}>
+            <li key={c.slug} className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface">
+              <button type="button" onClick={() => setEditing(c)} className="group relative aspect-[4/3] overflow-hidden bg-surface-soft text-left" aria-label={`Edit ${c.label}`}>
                 {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- signed tile artwork
                   <img src={c.imageUrl} alt="" className="size-full object-cover transition-transform group-hover:scale-[1.02]" />
                 ) : (
-                  <span className="flex size-full flex-col items-center justify-center gap-1 text-xs text-[#7c7c7c]">
+                  <span className="flex size-full flex-col items-center justify-center gap-1 text-xs text-hint">
                     <PhotoIcon className="size-6" />
                     Add a picture
                   </span>
                 )}
               </button>
               <div className="flex items-center gap-2 px-3 py-2.5">
-                <span className="w-5 shrink-0 text-xs tabular-nums text-[#7c7c7c]">{i + 1}</span>
+                <span className="w-5 shrink-0 text-xs tabular-nums text-hint">{i + 1}</span>
                 <button type="button" onClick={() => setEditing(c)} className="min-w-0 flex-1 truncate text-left text-sm text-ink hover:text-primary">
                   {c.label}
                 </button>
-                <button type="button" onClick={() => move(c, -1)} disabled={i === 0 || reorder.isPending} aria-label={`Move ${c.label} earlier`} className="rounded p-1 text-[#7c7c7c] hover:bg-[#f1f1f1] hover:text-ink disabled:opacity-30">
+                <button
+                  type="button"
+                  onClick={() => move(c, -1)}
+                  disabled={i === 0 || reorder.isPending}
+                  aria-label={`Move ${c.label} earlier`}
+                  className="rounded p-1 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                >
                   <ChevronLeftIcon className="size-4" />
                 </button>
-                <button type="button" onClick={() => move(c, 1)} disabled={i === list.length - 1 || reorder.isPending} aria-label={`Move ${c.label} later`} className="rounded p-1 text-[#7c7c7c] hover:bg-[#f1f1f1] hover:text-ink disabled:opacity-30">
+                <button
+                  type="button"
+                  onClick={() => move(c, 1)}
+                  disabled={i === list.length - 1 || reorder.isPending}
+                  aria-label={`Move ${c.label} later`}
+                  className="rounded p-1 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                >
                   <ChevronRightIcon className="size-4" />
                 </button>
               </div>
@@ -174,6 +182,6 @@ export function CategoryTiles() {
         </ol>
       )}
       <TileDialog category={editing} onClose={() => setEditing(null)} />
-    </section>
+    </Panel>
   );
 }

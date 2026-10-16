@@ -34,7 +34,7 @@ export function StatCard({
   const up = change === null || change >= 0;
   const Trend = up ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
   return (
-    <section aria-label={label} className="flex h-37.5 min-w-0 flex-col gap-1 rounded-lg border border-border bg-surface px-5 pb-4 pt-3">
+    <section aria-label={label} className="flex h-37.5 min-w-0 flex-col gap-1 rounded-xl border border-border bg-surface px-5 pb-4 pt-3">
       <div className="flex items-center justify-between gap-2">
         <span className="flex h-10 w-10 items-center justify-center text-ink">
           <Icon className="size-8" />
@@ -50,7 +50,7 @@ export function StatCard({
         </span>
         {hint && (
           <Tooltip label={hint}>
-            <button type="button" aria-label={`About ${label}`} className="flex size-5 shrink-0 items-center justify-center rounded-full text-[#7c7c7c] hover:text-ink">
+            <button type="button" aria-label={`About ${label}`} className="flex size-5 shrink-0 items-center justify-center rounded-full text-hint hover:text-ink">
               <InformationCircleIcon className="size-4" />
             </button>
           </Tooltip>
@@ -105,7 +105,7 @@ export function FigureCard({
 }) {
   const colour = tone === 'danger' ? 'text-danger' : tone === 'success' ? 'text-success' : 'text-ink';
   return (
-    <section aria-label={label} className={`flex min-h-37.5 min-w-0 flex-col gap-1 rounded-lg border bg-surface px-5 pb-4 pt-3 ${tone === 'danger' ? 'border-danger' : 'border-border'}`}>
+    <section aria-label={label} className={`flex min-h-37.5 min-w-0 flex-col gap-1 rounded-xl border bg-surface px-5 pb-4 pt-3 ${tone === 'danger' ? 'border-danger' : 'border-border'}`}>
       <span className={`flex h-10 w-10 items-center justify-center ${tone === 'danger' ? 'text-danger' : 'text-ink'}`}>
         <Icon className="size-8" />
       </span>
@@ -115,7 +115,7 @@ export function FigureCard({
         </span>
         {hint && (
           <Tooltip label={hint}>
-            <button type="button" aria-label={`About ${label}`} className="flex size-5 shrink-0 items-center justify-center rounded-full text-[#7c7c7c] hover:text-ink">
+            <button type="button" aria-label={`About ${label}`} className="flex size-5 shrink-0 items-center justify-center rounded-full text-hint hover:text-ink">
               <InformationCircleIcon className="size-4" />
             </button>
           </Tooltip>
@@ -123,7 +123,7 @@ export function FigureCard({
       </p>
       {value !== undefined && <p className={`truncate text-3xl font-medium tabular-nums ${colour}`}>{value}</p>}
       {note && (
-        <p className={`truncate text-sm ${tone === 'danger' ? 'text-danger' : 'text-[#7c7c7c]'}`} title={note}>
+        <p className={`truncate text-sm ${tone === 'danger' ? 'text-danger' : 'text-hint'}`} title={note}>
           {note}
         </p>
       )}

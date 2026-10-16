@@ -106,7 +106,7 @@ export function DateRangePicker({
         onClick={() => (open ? setOpen(false) : show())}
         className={cn(fieldBox({ invalid, focused: open }), 'text-left')}
       >
-        <CalendarDaysIcon className="size-5 shrink-0 text-[#525252]" />
+        <CalendarDaysIcon className="size-5 shrink-0 text-ink-soft" />
         <span className={cn('flex-1 truncate', !value.start && 'text-placeholder')}>{value.start ? dayRangeLabel(value) : placeholder}</span>
         {invalid && <ExclamationCircleIcon className="size-4 shrink-0 text-danger" />}
       </button>

@@ -1,14 +1,9 @@
 import {
   AcademicCapIcon,
-  CakeIcon,
-  TvIcon,
-  ComputerDesktopIcon,
-  PhotoIcon,
-  EnvelopeIcon,
-  IdentificationIcon,
-  QrCodeIcon,
+  ArchiveBoxIcon,
   BellIcon,
   BookOpenIcon,
+  CakeIcon,
   CalendarDaysIcon,
   ChartBarIcon,
   ChatBubbleBottomCenterTextIcon,
@@ -16,12 +11,19 @@ import {
   CheckBadgeIcon,
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
+  ComputerDesktopIcon,
   DocumentTextIcon,
+  EnvelopeIcon,
   HandRaisedIcon,
+  IdentificationIcon,
   MapPinIcon,
+  MegaphoneIcon,
   MicrophoneIcon,
+  PaperAirplaneIcon,
+  PhotoIcon,
   PresentationChartBarIcon,
   PresentationChartLineIcon,
+  QrCodeIcon,
   QuestionMarkCircleIcon,
   ShieldCheckIcon,
   SignalIcon,
@@ -29,9 +31,9 @@ import {
   StarIcon,
   TicketIcon,
   TrophyIcon,
+  TvIcon,
   UserGroupIcon,
   UsersIcon,
-  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 
 import type { StaffTier } from '@/lib/auth/session';
@@ -83,58 +85,68 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    label: 'Live',
-    icon: SignalIcon,
+    // arrivals and logistics on the day
+    label: 'On the day',
+    icon: QrCodeIcon,
     pages: [
       { href: '/check-in', label: 'Check-in desk', icon: QrCodeIcon, tiers: STAFF },
       { href: '/kiosk', label: 'Self check-in', icon: ComputerDesktopIcon, tiers: STAFF },
-      { href: '/display', label: 'Display boards', icon: TvIcon, tiers: STAFF },
       { href: '/meals', label: 'Meals', icon: CakeIcon, tiers: EVENTS },
+      { href: '/display', label: 'Display boards', icon: TvIcon, tiers: STAFF },
+    ],
+  },
+  {
+    // the rooms while sessions run
+    label: 'Live sessions',
+    icon: SignalIcon,
+    pages: [
       { href: '/live', label: 'Live ops', icon: SignalIcon, tiers: STAFF },
       { href: '/captions', label: 'Captions', icon: ChatBubbleBottomCenterTextIcon, tiers: STAFF },
       { href: '/questions', label: 'Questions', icon: QuestionMarkCircleIcon, tiers: STAFF },
       { href: '/polls', label: 'Polls', icon: ChartBarIcon, tiers: STAFF },
-      { href: '/pitchathon', label: 'Pitchathon', icon: HandRaisedIcon, tiers: EVENTS },
-      { href: '/trivia', label: 'Trivia', icon: TrophyIcon, tiers: EVENTS },
       { href: '/discussions', label: 'Discussions', icon: ChatBubbleLeftRightIcon, tiers: STAFF },
     ],
   },
   {
+    // reaching delegates, and what they take part in
     label: 'Engagement',
-    icon: BellIcon,
+    icon: PaperAirplaneIcon,
     pages: [
       { href: '/notifications', label: 'Notifications', icon: BellIcon, tiers: EVENTS },
       { href: '/campaigns', label: 'Email campaigns', icon: EnvelopeIcon, tiers: EVENTS },
+      { href: '/pitchathon', label: 'Pitchathon', icon: HandRaisedIcon, tiers: EVENTS },
+      { href: '/trivia', label: 'Trivia', icon: TrophyIcon, tiers: EVENTS },
+      { href: '/passport', label: 'Passport', icon: CheckBadgeIcon, tiers: EVENTS },
+      { href: '/gallery', label: 'Gallery', icon: PhotoIcon, tiers: EVENTS },
       { href: '/materials', label: 'Materials', icon: DocumentTextIcon, tiers: EVENTS },
       { href: '/library', label: 'Learning library', icon: AcademicCapIcon, tiers: EVENTS },
-      { href: '/gallery', label: 'Gallery', icon: PhotoIcon, tiers: EVENTS },
-      { href: '/feedback', label: 'Feedback', icon: StarIcon, tiers: EVENTS },
-      { href: '/passport', label: 'Passport', icon: CheckBadgeIcon, tiers: EVENTS },
-      { href: '/exhibition', label: 'Exhibition report', icon: PresentationChartBarIcon, tiers: EVENTS },
     ],
   },
   {
-    label: 'Records',
-    icon: BookOpenIcon,
+    // what the event produced
+    label: 'Outcomes',
+    icon: ArchiveBoxIcon,
     pages: [
-      { href: '/certificates', label: 'Certificates & Purple Book', icon: BookOpenIcon, tiers: EVENTS },
       { href: '/calls-to-action', label: 'Calls to action', icon: MegaphoneIcon, tiers: EVENTS },
+      { href: '/feedback', label: 'Feedback', icon: StarIcon, tiers: EVENTS },
+      { href: '/certificates', label: 'Certificates & Purple Book', icon: BookOpenIcon, tiers: EVENTS },
+      { href: '/exhibition', label: 'Exhibition report', icon: PresentationChartBarIcon, tiers: EVENTS },
       { href: '/analytics', label: 'Analytics', icon: PresentationChartLineIcon, tiers: ADMIN },
-      { href: '/security', label: 'Security log', icon: ShieldCheckIcon, tiers: ADMIN },
     ],
   },
   {
-    label: 'Settings',
+    label: 'Admin',
     icon: Cog6ToothIcon,
-    pages: [{ href: '/settings', label: 'Catalog & settings', icon: Cog6ToothIcon, tiers: ADMIN }],
+    pages: [
+      { href: '/security', label: 'Security log', icon: ShieldCheckIcon, tiers: ADMIN },
+      { href: '/settings', label: 'Catalog & settings', icon: Cog6ToothIcon, tiers: ADMIN },
+    ],
   },
 ];
 
 /** The groups and pages this tier may open; empty groups drop out. */
 export function navFor(tier: StaffTier): NavGroup[] {
-  return NAV.map((group) => ({ ...group, pages: group.pages.filter((page) => page.tiers.includes(tier)) })).filter(
-    (group) => group.pages.length > 0,
-  );
+  return NAV.map((group) => ({ ...group, pages: group.pages.filter((page) => page.tiers.includes(tier)) })).filter((group) => group.pages.length > 0);
 }
 
 /** The signed-in user's own page, opened from the account menu rather than the sidebar. */

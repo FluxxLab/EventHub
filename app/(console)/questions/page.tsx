@@ -13,14 +13,18 @@ import {
   TrashIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
 
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState } from '@/components/ui/states';
+import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
@@ -31,6 +35,7 @@ import { useSessions, useSessionsRealtime } from '@/lib/programme/use-sessions';
 import { isNew, matches, tally, type Question, type QuestionStatus } from '@/lib/questions/questions';
 import { useQuestionActions, useQuestions } from '@/lib/questions/use-questions';
 import { useNow } from '@/lib/use-now';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
 const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -49,7 +54,7 @@ function ConnectionDot() {
   const connection = useRealtimeStatus();
   const label = { live: 'Live: questions appear as they are asked', connecting: 'Connecting…', offline: 'Offline: reload for new questions', demo: 'Demo data' }[connection];
   return (
-    <p className="flex items-center gap-2 text-xs text-[#7c7c7c]" aria-live="polite">
+    <p className="flex items-center gap-2 text-xs text-hint" aria-live="polite">
       <span
         className={cn('size-2 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
         aria-hidden
@@ -62,10 +67,10 @@ function ConnectionDot() {
 function Votes({ value, large = false }: { value: number; large?: boolean }) {
   return (
     <div
-      className={cn('flex shrink-0 flex-col items-center justify-center rounded-lg bg-[#f6f6f6] text-center', large ? 'h-20 w-18' : 'h-14 w-14')}
+      className={cn('flex shrink-0 flex-col items-center justify-center rounded-lg bg-surface-soft text-center', large ? 'h-20 w-18' : 'h-14 w-14')}
       aria-label={`${value} ${value === 1 ? 'upvote' : 'upvotes'}`}
     >
-      <ChevronUpIcon className={cn('text-[#7c7c7c]', large ? 'size-5' : 'size-4')} aria-hidden />
+      <ChevronUpIcon className={cn('text-hint', large ? 'size-5' : 'size-4')} aria-hidden />
       <span className={cn('font-medium tabular-nums text-ink', large ? 'text-2xl' : 'text-base')}>{value}</span>
     </div>
   );
@@ -73,7 +78,7 @@ function Votes({ value, large = false }: { value: number; large?: boolean }) {
 
 function Asker({ question, now }: { question: Question; now: number }) {
   return (
-    <p className="text-xs text-[#7c7c7c]">
+    <p className="text-xs text-hint">
       {question.author.name}
       {question.author.organisation && <> · {question.author.organisation}</>} · {ago(question.createdAt, now)}
       {question.status === 'answered' && question.answeredAt && <> · answered {ago(question.answeredAt, now)}</>}
@@ -86,7 +91,7 @@ type Act = (question: Question, status: QuestionStatus) => void;
 /** The top open question, large, for the moderator to read out. */
 function NextUp({ question, now, onStatus }: { question: Question; now: number; onStatus: Act }) {
   return (
-    <section aria-labelledby="next-up" className="rounded-2xl border border-primary/30 bg-primary-soft/40 p-5 md:p-6">
+    <section aria-labelledby="next-up" className="rounded-xl border border-primary/30 bg-primary-soft/40 p-5 md:p-6">
       <p id="next-up" className="text-xs font-medium tracking-wide text-primary uppercase">
         Next up
       </p>
@@ -120,7 +125,7 @@ function QuestionRow({ question, now, onStatus, onDelete }: { question: Question
       {/* Actions sit beside the question on wider screens, below it on a phone. */}
       <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] leading-6 text-ink">
+          <p className="text-[0.9375rem] leading-6 text-ink">
             {question.text}
             {isNew(question, now) && question.status === 'open' && (
               <Tag tone="primary" className="ml-2 align-middle">
@@ -165,53 +170,18 @@ function QuestionRow({ question, now, onStatus, onDelete }: { question: Question
 }
 
 const TABS: { key: QuestionStatus; label: string; empty: string }[] = [
-  { key: 'open', label: 'Open', empty: 'No open questions. New ones appear here as delegates ask them in the app.' },
-  { key: 'answered', label: 'Answered', empty: 'Nothing answered yet.' },
-  { key: 'dismissed', label: 'Dismissed', empty: 'Nothing dismissed. Dismissed questions stay visible to the delegate who asked.' },
+  { key: 'open', label: 'Open', empty: 'New ones appear here as delegates ask them in the app.' },
+  { key: 'answered', label: 'Answered', empty: 'Questions you mark answered collect here.' },
+  { key: 'dismissed', label: 'Dismissed', empty: 'Dismissed questions stay visible to the delegate who asked.' },
 ];
-
-function Tabs({ tab, counts, onChange }: { tab: QuestionStatus; counts: Record<QuestionStatus, number>; onChange: (tab: QuestionStatus) => void }) {
-  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    const i = TABS.findIndex((t) => t.key === tab);
-    const next = TABS[(i + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]!.key;
-    onChange(next);
-    document.getElementById(`questions-tab-${next}`)?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Question status" onKeyDown={onKey} className="flex gap-1 rounded-lg bg-[#f1f1f1] p-1">
-      {TABS.map((t) => {
-        const selected = t.key === tab;
-        return (
-          <button
-            key={t.key}
-            id={`questions-tab-${t.key}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls="questions-panel"
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(t.key)}
-            className={cn(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm',
-              selected ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink',
-            )}
-          >
-            {t.label}
-            <span className="text-xs tabular-nums text-[#7c7c7c]">{counts[t.key]}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const STATUSES = TABS.map((t) => t.key);
 
 function Queue({ session }: { session: Session }) {
   const questions = useQuestions(session.id);
   const { setStatus, remove } = useQuestionActions(session.id);
   const toast = useToast();
   const now = useNow(15_000).getTime();
-  const [tab, setTab] = useState<QuestionStatus>('open');
+  const [tab, setTab] = useUrlParam<QuestionStatus>('status', 'open', STATUSES);
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState<Question | null>(null);
 
@@ -237,18 +207,8 @@ function Queue({ session }: { session: Session }) {
       },
     );
 
-  if (questions.isPending) return <Skeleton className="h-96 rounded-2xl" />;
-  if (questions.isError && !questions.data) {
-    return (
-      <div role="alert" className="rounded-2xl border border-border bg-surface p-10 text-center">
-        <p className="font-medium text-ink">Questions could not load.</p>
-        <p className="mt-1 text-sm text-muted">{questions.error.message}</p>
-        <button type="button" onClick={() => void questions.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
-  }
+  if (questions.isPending) return <Skeleton className="h-96 rounded-xl" />;
+  if (questions.isError && !questions.data) return <ErrorState framed title="Questions could not load" error={questions.error} onRetry={() => void questions.refetch()} />;
 
   return (
     <div className="flex flex-col gap-5">
@@ -261,26 +221,39 @@ function Queue({ session }: { session: Session }) {
 
       {featured && <NextUp question={featured} now={now} onStatus={onStatus} />}
 
-      <section aria-label="Questions" className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-          <Tabs tab={tab} counts={totals} onChange={setTab} />
-          <TextInput
-            icon={MagnifyingGlassIcon}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter by words or asker"
-            aria-label="Filter questions"
-            className="w-full sm:w-72"
-          />
-        </header>
-        <div id="questions-panel" role="tabpanel" aria-labelledby={`questions-tab-${tab}`}>
+      <Panel
+        title="Questions"
+        toolbar={
+          <>
+            <SegmentedTabs label="Question status" options={TABS.map((t) => ({ value: t.key, label: t.label, count: totals[t.key] }))} value={tab} onChange={setTab} />
+            <TextInput
+              icon={MagnifyingGlassIcon}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter by words or asker"
+              aria-label="Filter questions"
+              className="w-full sm:w-72"
+            />
+          </>
+        }
+      >
+        <div role="tabpanel" aria-label={`${TABS.find((t) => t.key === tab)!.label} questions`}>
           {list.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-              <ChatBubbleLeftRightIcon className="size-8 text-[#7c7c7c]" />
-              <p className="max-w-sm text-sm text-[#7c7c7c]">
-                {search.trim() ? `No ${tab} questions match “${search.trim()}”.` : featured ? 'Only the question above is open.' : TABS.find((t) => t.key === tab)!.empty}
-              </p>
-            </div>
+            search.trim() ? (
+              <EmptyState
+                icon={MagnifyingGlassIcon}
+                title={`No ${tab} questions match “${search.trim()}”`}
+                action={
+                  <button type="button" onClick={() => setSearch('')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                    Clear filter
+                  </button>
+                }
+              />
+            ) : featured ? (
+              <EmptyState icon={ChatBubbleLeftRightIcon} title="Only the question above is open" />
+            ) : (
+              <EmptyState icon={ChatBubbleLeftRightIcon} title={`No ${tab} questions`} body={TABS.find((t) => t.key === tab)!.empty} />
+            )
           ) : (
             <ul className="divide-y divide-border">
               {list.map((q) => (
@@ -289,7 +262,7 @@ function Queue({ session }: { session: Session }) {
             </ul>
           )}
         </div>
-      </section>
+      </Panel>
 
       <ConfirmDialog
         open={!!deleting}
@@ -332,14 +305,21 @@ export default function QuestionsPage() {
   );
   const session = options.find((s) => s.id === picked) ?? defaultSession(options, now);
 
-  if (editions.isPending || sessions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
+  if (editions.isPending || sessions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
   if (!session) {
     return (
-      <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-border bg-surface p-10 text-center">
-        <ChatBubbleLeftRightIcon className="mx-auto size-8 text-[#7c7c7c]" />
-        <h1 className="mt-2 text-lg font-medium text-ink">No sessions yet</h1>
-        <p className="mt-1 text-sm text-muted">Questions belong to a session. Add sessions on the Programme page.</p>
-      </div>
+      <EmptyState
+        framed
+        className="mx-auto mt-10 w-full max-w-lg"
+        icon={ChatBubbleLeftRightIcon}
+        title="No sessions yet"
+        body="Questions belong to a session."
+        action={
+          <Link href="/programme" className={buttonClass()}>
+            Add sessions
+          </Link>
+        }
+      />
     );
   }
 
@@ -349,7 +329,7 @@ export default function QuestionsPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="w-full max-w-xl">
           <Select label="Session" value={session.id} options={options.map((s) => ({ value: s.id, label: sessionLabel(s) }))} onChange={setPicked} />
-          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[#7c7c7c]">
+          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-hint">
             {session.status === 'live' ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-danger px-2 leading-5 text-on-primary">
                 <span className="size-1.5 animate-pulse rounded-full bg-on-primary" aria-hidden />

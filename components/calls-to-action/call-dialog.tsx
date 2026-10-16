@@ -9,8 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { EMPTY_FORM, formProblem, toBody, toForm, TYPE_LABEL, type CallToAction, type CallToActionForm } from '@/lib/calls-to-action/calls-to-action';
 
-const textarea =
-  'w-full rounded-lg border border-[#bdbdbd] bg-surface px-3 py-2.5 text-sm leading-6 text-ink shadow-xs outline-none placeholder:text-placeholder focus:border-primary';
+const textarea = 'w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm leading-6 text-ink shadow-xs outline-none placeholder:text-placeholder focus:border-primary';
 
 /**
  * Edits a call to action, or adds one by hand. "Directed at" suggests the event's organisations
@@ -37,7 +36,10 @@ export function CallDialog({
   onClose: () => void;
 }) {
   const id = useId();
-  const [form, setForm] = useState<CallToActionForm>(() => (call ? toForm(call) : EMPTY_FORM));
+  const [initial] = useState<CallToActionForm>(() => (call ? toForm(call) : EMPTY_FORM));
+  const [form, setForm] = useState<CallToActionForm>(initial);
+  // Cancel asks before throwing away edits
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [problem, setProblem] = useState<string | null>(null);
   const set = <K extends keyof CallToActionForm>(key: K, value: CallToActionForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -56,22 +58,38 @@ export function CallDialog({
       open={open}
       icon={MegaphoneIcon}
       title={call ? 'Edit call to action' : 'Add a call to action'}
-      subtitle={call ? 'Make it say exactly what was asked, and of whom.' : 'One the analysis missed, or from your own notes. It is approved as you save it.'}
+      subtitle={call ? 'Make it say exactly what was asked, and of whom.' : 'Approved as you save it.'}
       pending={pending}
       submitLabel={call ? 'Save' : 'Add'}
       error={problem ?? error}
+      dirty={dirty}
       onSubmit={submit}
       onClose={onClose}
     >
       <Field id={`${id}-action`} label="What should be done">
-        <textarea id={`${id}-action`} rows={3} value={form.action} maxLength={2000} onChange={(e) => set('action', e.target.value)} className={textarea} placeholder="Make sex-disaggregated data mandatory in every federal survey" />
+        <textarea
+          id={`${id}-action`}
+          rows={3}
+          value={form.action}
+          maxLength={2000}
+          onChange={(e) => set('action', e.target.value)}
+          className={textarea}
+          placeholder="Make sex-disaggregated data mandatory in every federal survey"
+        />
       </Field>
-      <Field id={`${id}-short`} label="Slide line" optional hint="At most about 25 words. Left empty, the full text is used.">
+      <Field id={`${id}-short`} label="Slide line" optional hint="About 25 words at most; empty uses the full text.">
         <TextInput id={`${id}-short`} value={form.shortText} maxLength={200} onChange={(e) => set('shortText', e.target.value)} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id={`${id}-target`} label="Directed at">
-          <TextInput id={`${id}-target`} list={`${id}-targets`} value={form.directedAt} maxLength={200} onChange={(e) => set('directedAt', e.target.value)} placeholder="Federal Ministry of Women Affairs" />
+          <TextInput
+            id={`${id}-target`}
+            list={`${id}-targets`}
+            value={form.directedAt}
+            maxLength={200}
+            onChange={(e) => set('directedAt', e.target.value)}
+            placeholder="Federal Ministry of Women Affairs"
+          />
           <datalist id={`${id}-targets`}>
             {targets.map((t) => (
               <option key={t} value={t} />

@@ -1,6 +1,6 @@
 'use client';
 
-import { EyeIcon, EyeSlashIcon, MagnifyingGlassIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, MagnifyingGlassIcon, MicrophoneIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useMemo, useState } from 'react';
 
@@ -10,7 +10,9 @@ import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/field';
+import { Panel } from '@/components/ui/panel';
 import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useSession } from '@/lib/auth/session';
@@ -21,7 +23,7 @@ import { searchSpeakers, sessionsBySpeaker, type Speaker } from '@/lib/speakers/
 import { useDeleteSpeaker, useSetSpeakerReveal, useSpeakerReveal, useSpeakers } from '@/lib/speakers/use-speakers';
 import { cn } from '@/lib/utils';
 
-const th = 'h-15 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
+const th = 'h-15 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 
 /** Reads `?q=` (global search lands here); a new search remounts the view with that text. */
@@ -32,7 +34,7 @@ function SpeakersFromUrl() {
 
 export default function SpeakersPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-96 rounded-2xl" />}>
+    <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
       <SpeakersFromUrl />
     </Suspense>
   );
@@ -75,16 +77,11 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
     <div className="flex flex-col gap-4">
       <h1 className="sr-only">Speakers</h1>
 
-      <section
-        aria-labelledby="speakers-title"
-        className="overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
-      >
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-6">
-          <h2 id="speakers-title" className="flex items-center gap-2 text-xl font-medium text-ink">
-            Speakers
-            {speakers.data && <Tag>{speakers.data.length}</Tag>}
-          </h2>
-          <div className="flex flex-wrap items-center gap-3">
+      <Panel
+        title="Speakers"
+        count={speakers.data?.length}
+        actions={
+          <>
             <TextInput
               icon={MagnifyingGlassIcon}
               value={query}
@@ -97,27 +94,18 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
               <PlusIcon className="size-4" />
               Add speaker
             </button>
-          </div>
-        </header>
-
+          </>
+        }
+      >
         {/* The line-up switch: who can see these speakers in the app. */}
         {reveal.data && (
-          <div
-            className={cn(
-              'flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3 text-sm',
-              revealed ? 'bg-success-soft text-success' : 'bg-secondary-soft text-gold',
-            )}
-          >
+          <div className={cn('flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3 text-sm', revealed ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning')}>
             <p className="flex items-center gap-2">
               {revealed ? <EyeIcon className="size-5 shrink-0" /> : <EyeSlashIcon className="size-5 shrink-0" />}
               {revealed ? 'The line-up is live: delegates can see every speaker.' : 'The line-up is hidden: delegates see speakers as “to be announced”.'}
             </p>
             {canReveal && (
-              <button
-                type="button"
-                onClick={() => setConfirming(true)}
-                className={buttonClass({ style: revealed ? 'outline' : 'fill', color: revealed ? 'gray' : 'primary' })}
-              >
+              <button type="button" onClick={() => setConfirming(true)} className={buttonClass({ style: revealed ? 'outline' : 'fill', color: revealed ? 'gray' : 'primary' })}>
                 {revealed ? 'Hide line-up' : 'Reveal line-up'}
               </button>
             )}
@@ -125,13 +113,33 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
         )}
 
         {speakers.isError && !speakers.data ? (
-          <div role="alert" className="p-10 text-center">
-            <p className="font-medium text-ink">Speakers could not load.</p>
-            <p className="mt-1 text-sm text-muted">{speakers.error.message}</p>
-            <button type="button" onClick={() => void speakers.refetch()} className={buttonClass({ className: 'mt-4' })}>
-              Try again
-            </button>
-          </div>
+          <ErrorState title="Speakers could not load" error={speakers.error} onRetry={() => void speakers.refetch()} />
+        ) : speakers.isPending ? (
+          <LoadingRows rows={4} />
+        ) : rows.length === 0 ? (
+          query ? (
+            <EmptyState
+              icon={MagnifyingGlassIcon}
+              title="No speakers match that search"
+              action={
+                <button type="button" onClick={() => setQuery('')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                  Clear search
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={MicrophoneIcon}
+              title="No speakers yet"
+              body="Speakers are shared across events; add one, then put them on sessions."
+              action={
+                <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
+                  <PlusIcon className="size-4" />
+                  Add speaker
+                </button>
+              }
+            />
+          )
         ) : (
           <div className="relative overflow-x-auto">
             <table className="w-full min-w-[48rem] border-collapse">
@@ -151,74 +159,49 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
                   </th>
                 </tr>
               </thead>
-              <tbody aria-busy={speakers.isPending}>
-                {speakers.isPending ? (
-                  [0, 1, 2, 3].map((i) => (
-                    <tr key={i} className="even:bg-[#f6f6f6]">
-                      <td colSpan={4} className={td}>
-                        <Skeleton className="h-8" />
+              <tbody>
+                {rows.map((sp) => {
+                  const theirs = bySpeaker.get(sp.id) ?? [];
+                  return (
+                    <tr key={sp.id} className="even:bg-surface-soft last:[&>td]:border-b-0">
+                      <td className={td}>
+                        <div className="flex items-center gap-2">
+                          <Avatar name={sp.name} src={sp.avatarUrl} size={32} />
+                          <div className="min-w-0 leading-tight">
+                            <p className="truncate text-ink-soft">{sp.name}</p>
+                            <p className="truncate text-xs text-placeholder">{sp.role ?? 'No role set'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className={cn(td, 'text-ink-soft')}>{sp.organisation ?? <span className="text-placeholder">Not set</span>}</td>
+                      <td className={td}>
+                        {theirs.length === 0 ? (
+                          <Tag>Not in the programme</Tag>
+                        ) : (
+                          <ul className="flex flex-col gap-0.5">
+                            {theirs.slice(0, 2).map((s) => (
+                              <li key={s.id} className="flex items-baseline gap-2 text-xs">
+                                <span className="shrink-0 tabular-nums text-hint">
+                                  Day {s.day} · {timeRange(s.startsAt, s.endsAt)}
+                                </span>
+                                <span className="truncate text-ink-soft">{s.title}</span>
+                              </li>
+                            ))}
+                            {theirs.length > 2 && <li className="text-xs text-hint">+{theirs.length - 2} more</li>}
+                          </ul>
+                        )}
+                      </td>
+                      <td className={cn(td, 'text-right')}>
+                        <RowActions name={sp.name} onEdit={() => setEditingSpeaker(sp)} onDelete={() => setDeletingSpeaker(sp)} />
                       </td>
                     </tr>
-                  ))
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-12 text-center text-sm text-muted">
-                      {query ? (
-                        'No speakers match that search.'
-                      ) : (
-                        <>
-                          No speakers yet.{' '}
-                          <button type="button" onClick={() => setAdding(true)} className="font-medium text-primary hover:underline">
-                            Add the first one
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((sp) => {
-                    const theirs = bySpeaker.get(sp.id) ?? [];
-                    return (
-                      <tr key={sp.id} className="even:bg-[#f6f6f6] last:[&>td]:border-b-0">
-                        <td className={td}>
-                          <div className="flex items-center gap-2">
-                            <Avatar name={sp.name} src={sp.avatarUrl} size={32} />
-                            <div className="min-w-0 leading-tight">
-                              <p className="truncate text-[#525252]">{sp.name}</p>
-                              <p className="truncate text-xs text-placeholder">{sp.role ?? 'No role set'}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className={cn(td, 'text-[#525252]')}>{sp.organisation ?? <span className="text-placeholder">Not set</span>}</td>
-                        <td className={td}>
-                          {theirs.length === 0 ? (
-                            <Tag>Not in the programme</Tag>
-                          ) : (
-                            <ul className="flex flex-col gap-0.5">
-                              {theirs.slice(0, 2).map((s) => (
-                                <li key={s.id} className="flex items-baseline gap-2 text-xs">
-                                  <span className="shrink-0 tabular-nums text-[#7c7c7c]">
-                                    Day {s.day} · {timeRange(s.startsAt, s.endsAt)}
-                                  </span>
-                                  <span className="truncate text-[#525252]">{s.title}</span>
-                                </li>
-                              ))}
-                              {theirs.length > 2 && <li className="text-xs text-[#7c7c7c]">+{theirs.length - 2} more</li>}
-                            </ul>
-                          )}
-                        </td>
-                        <td className={cn(td, 'text-right')}>
-                          <RowActions name={sp.name} onEdit={() => setEditingSpeaker(sp)} onDelete={() => setDeletingSpeaker(sp)} />
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
-      </section>
+      </Panel>
 
       <CreateSpeakerDialog open={adding} onClose={() => setAdding(false)} />
       <CreateSpeakerDialog open={editingSpeaker !== null} speaker={editingSpeaker} onClose={() => setEditingSpeaker(null)} />
