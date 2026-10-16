@@ -14,7 +14,19 @@
   --gold: #a46b00;
 
   --background: #fdfdfd;
-  --surface: #fdfdfd;
+
+  /*
+   * The page behind the panels (a cool grey, so white panels lift off it) and the navy sidebar
+   * with its own text, hover and current-page shades.
+   */
+  --canvas: #f3f5f8;
+  --rail: #002d74;
+  --rail-ink: #ffffff;
+  --rail-muted: #c9d3e6;
+  --rail-hover: rgb(255 255 255 / 0.08);
+  --rail-active: rgb(255 255 255 / 0.14);
+  --rail-border: rgb(255 255 255 / 0.12);
+  --surface: #ffffff;
   --surface-soft: #f5f5f5;
   /* wells and tracks: switch tracks, progress bars, segmented controls */
   --surface-sunken: #e8e8e8;
@@ -52,6 +64,13 @@
 
 @theme inline {
   --color-primary: var(--primary);
+  --color-canvas: var(--canvas);
+  --color-rail: var(--rail);
+  --color-rail-ink: var(--rail-ink);
+  --color-rail-muted: var(--rail-muted);
+  --color-rail-hover: var(--rail-hover);
+  --color-rail-active: var(--rail-active);
+  --color-rail-border: var(--rail-border);
   --color-primary-soft: var(--primary-soft);
   --color-on-primary: var(--on-primary);
   --color-secondary: var(--secondary);
@@ -118,6 +137,8 @@ body {
   --secondary-soft: #33290d;
   --gold: #e0b44a;
   --background: #0f1115;
+  --canvas: #0f1115;
+  --rail: #0b1733;
   --surface: #16191f;
   --surface-soft: #1d2129;
   --surface-sunken: #262b34;
@@ -151,6 +172,8 @@ body {
     --secondary-soft: #33290d;
     --gold: #e0b44a;
     --background: #0f1115;
+    --canvas: #0f1115;
+    --rail: #0b1733;
     --surface: #16191f;
     --surface-soft: #1d2129;
     --surface-sunken: #262b34;
@@ -485,6 +508,11 @@ dialog[open]::backdrop {
 .page-in[data-entering] :is([data-panel], [data-figure], tbody > tr:nth-child(-n + 8)) {
   animation: rise-in var(--motion-slow) var(--ease-enter) both;
   animation-delay: calc(var(--stagger, 0) * 40ms);
+}
+
+/* On the navy sidebar the keyboard ring is gold, since navy would vanish into it. */
+[data-rail] :focus-visible {
+  outline-color: var(--secondary);
 }
 
 /* Collapsing groups (the sidebar's): height eases open and shut. */

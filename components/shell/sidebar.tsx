@@ -16,8 +16,11 @@ import type { NavGroup } from '@/lib/nav';
 import { pageFor } from '@/lib/nav';
 import { cn } from '@/lib/utils';
 
-const row = 'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-ink hover:bg-surface-soft';
-const activeRow = 'bg-primary-soft font-medium text-primary hover:bg-primary-soft';
+// on the navy sidebar: soft white text, a lighter wash on hover, the current page brighter with a gold icon
+const row = 'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-rail-muted hover:bg-rail-hover hover:text-rail-ink';
+const activeRow = 'bg-rail-active font-medium text-rail-ink hover:bg-rail-active [&_svg]:text-secondary';
+// in a fly-out (a white panel)
+const flyActive = 'bg-primary-soft font-medium text-primary hover:bg-primary-soft';
 /** A count of things waiting, beside a page. */
 function Count({ n }: { n: number }) {
   if (!n) return null;
@@ -73,11 +76,14 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
   };
 
   return (
-    <aside aria-label="Sections" className="flex h-full w-full flex-col overflow-hidden border-r border-border bg-surface">
-      <div className="flex h-22 shrink-0 items-center gap-3 border-b border-border px-4.5">
+    <aside data-rail aria-label="Sections" className="flex h-full w-full flex-col overflow-hidden bg-rail bg-[url(/brand/rail-arcs.svg)] bg-[length:18.75rem_auto] bg-left-bottom bg-no-repeat text-rail-ink">
+      <div className="flex h-22 shrink-0 items-center gap-3 border-b border-rail-border px-4.5">
         <Link href="/" className="flex min-w-0 flex-1 items-center gap-3" aria-label="PIC Events dashboard">
-          <Image src="/pic-logo.png" alt="" width={36} height={36} className="logo-plate size-9 shrink-0 object-contain" priority />
-          <span className={cn(label(expanded), 'text-xl font-medium text-primary')}>PIC Events</span>
+          {/* the logo is drawn for a light ground, so it sits on a white tile */}
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white">
+            <Image src="/pic-logo.png" alt="" width={30} height={30} className="size-7.5 object-contain" priority />
+          </span>
+          <span className={cn(label(expanded), 'text-xl font-medium text-rail-ink')}>PIC Events</span>
           {DEMO_MODE && expanded && <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[0.625rem] font-medium uppercase text-ink">Demo</span>}
         </Link>
         {expanded && (
@@ -86,7 +92,7 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
             onClick={onTogglePin}
             aria-label="Collapse sidebar"
             title="Collapse sidebar"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-soft hover:text-ink"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-rail-muted hover:bg-rail-hover hover:text-rail-ink"
           >
             <ChevronDoubleLeftIcon className="size-5" />
           </button>
@@ -96,8 +102,8 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
       {expanded ? (
         <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
           {pinnedPages.length > 0 && (
-            <div className="mb-2 flex flex-col gap-0.5 border-b border-border pb-3">
-              <p className="px-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wider text-hint">Pinned</p>
+            <div className="mb-2 flex flex-col gap-0.5 border-b border-rail-border pb-3">
+              <p className="px-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wider text-rail-muted">Pinned</p>
               {pinnedPages.map((page) => {
                 const active = current?.page.href === page.href;
                 return (
@@ -129,10 +135,10 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
                 <button type="button" onClick={() => toggle(group.label)} aria-expanded={groupOpen} className={cn(row, holdsCurrent && !groupOpen && activeRow)}>
                   <span className="relative shrink-0">
                     <group.icon className="size-5" />
-                    {waiting > 0 && !groupOpen && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-surface bg-danger" aria-hidden />}
+                    {waiting > 0 && !groupOpen && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-rail bg-danger" aria-hidden />}
                   </span>
                   <span className="flex-1 truncate">{group.label}</span>
-                  <ChevronDownIcon className={cn('size-4 shrink-0 text-muted transition-transform', groupOpen && 'rotate-180')} />
+                  <ChevronDownIcon className={cn('size-4 shrink-0 text-rail-muted transition-transform', groupOpen && 'rotate-180')} />
                 </button>
                 {/* eases open and shut; a closed group's links are out of the Tab order */}
                 <div className="group-collapse" data-open={groupOpen}>
@@ -145,7 +151,7 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
                           <Link
                             href={page.href}
                             aria-current={active ? 'page' : undefined}
-                            className={cn('flex items-center gap-2.5 whitespace-nowrap rounded-lg py-2 pl-8 pr-3 text-sm text-muted hover:bg-surface-soft hover:text-ink', active && activeRow)}
+                            className={cn('flex items-center gap-2.5 whitespace-nowrap rounded-lg py-2 pl-8 pr-3 text-sm text-rail-muted hover:bg-rail-hover hover:text-rail-ink', active && activeRow)}
                           >
                             <page.icon className="size-4.5 shrink-0" />
                             <span className="truncate">{page.label}</span>
@@ -158,7 +164,7 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
                             aria-label={isPinned ? `Unpin ${page.label}` : `Pin ${page.label} to the top`}
                             aria-pressed={isPinned}
                             className={cn(
-                              'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-hint hover:text-ink',
+                              'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-rail-muted hover:text-rail-ink',
                               isPinned ? 'text-secondary' : 'opacity-0 focus-visible:opacity-100 group-hover/item:opacity-100',
                             )}
                           >
@@ -178,11 +184,11 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
       )}
 
       {/* Same height as the page footer, so their top borders line up across the window. */}
-      <div className="flex h-17 shrink-0 items-center gap-3 border-t border-border px-4.5">
+      <div className="flex h-17 shrink-0 items-center gap-3 border-t border-rail-border px-4.5">
         <Avatar name={user.name} src={user.avatarUrl} size={40} online />
         <div className={cn(label(expanded), 'min-w-0 leading-tight')}>
-          <p className="truncate text-sm font-medium text-ink">{user.name}</p>
-          <p className="truncate text-xs text-muted">{TIER_LABEL[user.tier]}</p>
+          <p className="truncate text-sm font-medium text-rail-ink">{user.name}</p>
+          <p className="truncate text-xs text-rail-muted">{TIER_LABEL[user.tier]}</p>
         </div>
       </div>
     </aside>
@@ -240,7 +246,7 @@ function Rail({
         <Link
           href={page.href}
           aria-current={active ? 'page' : undefined}
-          className={cn('mx-1.5 flex items-center gap-2.5 whitespace-nowrap rounded-md px-2.5 py-2 text-sm text-ink-soft hover:bg-surface-soft hover:text-ink', active && activeRow)}
+          className={cn('mx-1.5 flex items-center gap-2.5 whitespace-nowrap rounded-md px-2.5 py-2 text-sm text-ink-soft hover:bg-surface-soft hover:text-ink', active && flyActive)}
         >
           <page.icon className="size-4.5 shrink-0" aria-hidden />
           <span className="flex-1 truncate">{page.label}</span>
@@ -253,7 +259,7 @@ function Rail({
   return (
     <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
       {pinnedPages.length > 0 && (
-        <div className="mb-2 flex flex-col gap-1 border-b border-border pb-3">
+        <div className="mb-2 flex flex-col gap-1 border-b border-rail-border pb-3">
           {pinnedPages.map((page) => (
             <RailItem
               rail={rail}
@@ -315,18 +321,18 @@ function RailItem({
   const isOpen = fly?.key === id;
   const flyId = `rail-${id.replace(/\W+/g, '-')}`;
   const trigger = cn(
-    'relative flex h-11 w-full items-center justify-center rounded-lg text-ink hover:bg-surface-soft',
-    (active || (isOpen && children)) && 'bg-primary-soft text-primary hover:bg-primary-soft',
+    'relative flex h-11 w-full items-center justify-center rounded-lg text-rail-muted hover:bg-rail-hover hover:text-rail-ink',
+    active ? 'bg-rail-active text-secondary hover:bg-rail-active' : isOpen && children && 'bg-rail-hover text-rail-ink',
   );
   const mark = (
     <>
       <span className="relative">
         <IconOf className="size-5" aria-hidden />
-        {dot && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-surface bg-danger" aria-hidden />}
+        {dot && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-rail bg-danger" aria-hidden />}
       </span>
       {/* a group's chevron: there is more beside it */}
       {children && (
-        <ChevronRightIcon className={cn('absolute right-0.5 size-3 text-muted transition-opacity duration-100', isOpen ? 'opacity-100' : 'opacity-0 group-hover/rail:opacity-100')} aria-hidden />
+        <ChevronRightIcon className={cn('absolute right-0.5 size-3 text-rail-muted transition-opacity duration-100', isOpen ? 'opacity-100' : 'opacity-0 group-hover/rail:opacity-100')} aria-hidden />
       )}
     </>
   );

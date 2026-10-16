@@ -52,7 +52,7 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
 
   return (
     <BreadcrumbProvider>
-      <div data-console className="flex min-h-screen bg-background">
+      <div data-console className="flex min-h-screen bg-canvas">
         <a href="#content" className="skip-link">
           Skip to content
         </a>
@@ -63,7 +63,8 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar user={user} onMenu={() => setMenuOpen(true)} />
           <OpsAlerts />
-          <main id="content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none sm:px-7">
+          {/* the page: a cool grey ground with PIC's arcs faint in its top corner, white panels on it */}
+          <main id="content" tabIndex={-1} className="min-w-0 flex-1 bg-[url(/brand/canvas-arcs.svg)] bg-[length:36rem_auto] bg-[position:right_top] bg-no-repeat px-4 py-6 focus:outline-none sm:px-7">
             {/* where the page sits, above its content rather than in the navbar */}
             {/* one width for every page, the breadcrumb aligned with the content under it */}
             <div className="mx-auto w-full max-w-[90rem]">
@@ -75,7 +76,9 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
            * Pinned to the bottom of the window, within the content column so it never slides under
            * the sidebar; h-17 matches the sidebar's user row so the two top borders form one line.
            */}
-          <footer className="flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface px-4 text-xs text-muted sm:px-7">Designed and maintained by Flux Eco</footer>
+          <footer className="sticky bottom-0 z-20 flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface px-4 text-xs text-muted sm:px-7">
+            Designed and maintained by Flux Eco
+          </footer>
         </div>
         <NavMenu groups={groups} open={menuOpen} onClose={closeMenu} />
       </div>
