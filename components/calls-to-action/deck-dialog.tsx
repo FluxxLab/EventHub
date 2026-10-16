@@ -98,7 +98,12 @@ export function DeckDialog({
         const when = kind === 'session' ? `Day ${session!.day} · ${dayLabel(edition, session!.day)}` : `Day ${day} · ${dayLabel(edition, Number(day))}`;
         await downloadDeck(
           {
-            event: { name: edition.name, shortName: edition.shortName, when: kind === 'day' ? when : dateRange(edition.startsAt, edition.endsAt), where: edition.city ?? edition.venue },
+            event: {
+              name: edition.name,
+              shortName: edition.shortName,
+              when: kind === 'day' ? when : dateRange(edition.startsAt, edition.endsAt),
+              where: edition.city ?? edition.venue,
+            },
             design,
             calls,
             sessionTitle: titleOf,
@@ -136,7 +141,7 @@ export function DeckDialog({
         {
           sessions: chosen.map((s) => ({ title: s.title, when: lineOf(s), calls: approved.filter((c) => c.sessionId === s.id) })),
           layout: style as BuildLayout,
-          event: { name: edition.name, shortName: edition.shortName, brandColor: edition.brandColor ?? null, logoUrl: edition.logoUrl ?? null, build: buildLook },
+          event: { id: edition.id, name: edition.name, shortName: edition.shortName, brandColor: edition.brandColor ?? null, logoUrl: edition.logoUrl ?? null, build: buildLook },
           ...(kind === 'day' ? { day: { subtitle: [`Day ${day}`, dayLabel(edition, Number(day)), where].filter(Boolean).join(' · ') } } : {}),
         },
         kind === 'session' ? `${edition.shortName}-${slug(session!.title)}.pptx` : `${edition.shortName}-day-${day}-commitments.pptx`,

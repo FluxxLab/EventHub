@@ -1,7 +1,8 @@
 import type PptxGenJS from 'pptxgenjs';
 
+import { api } from '@/lib/api/client';
 import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
-import { byline, contrast, tint, toDeckImage, type DeckImage } from '@/lib/calls-to-action/deck';
+import { byline, contrast, tint, toDeckImage, type DeckImage, type DeckImageSource } from '@/lib/calls-to-action/deck';
 
 /**
  * The commitment template, from the Build conference's ("Commitment Tracking: Workflow &
@@ -162,8 +163,19 @@ function frame(s: PptxGenJS.Slide, look: Look, title: string, kind: Kind, when: 
     ],
     { x: 0.24, y: 0.57, w: 9.5, h: 0.22, fontFace: FONT, fontSize: 12, margin: 0, isTextBox: true },
   );
-  s.addText(page, { x: 9.94, y: 0.57, w: 2.64, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
-  s.addText(look.footer, { x: 10.5, y: 7.1, w: 2.6, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
+  if (look.art) {
+    // Build's slides, as its template: the page count top right, the site in the foot, no logo
+    s.addText(page, { x: 9.94, y: 0.57, w: 2.64, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
+    s.addText(look.footer, { x: 10.5, y: 7.1, w: 2.6, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
+    return;
+  }
+  // another event's: its logo top right, the page count beside its name in the foot
+  if (look.logo) {
+    const scale = Math.min(1.9 / look.logo.w, 0.8 / look.logo.h);
+    const w = look.logo.w * scale;
+    s.addImage({ data: look.logo.data, x: 13.05 - w, y: 0.12, w, h: look.logo.h * scale, altText: `${look.eventName} logo` });
+  }
+  s.addText(`${look.footer}  ·  ${page}`, { x: 9.5, y: 7.1, w: 3.6, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
 }
 
 /** Template #1: up to eight cards, two rows of four. */
@@ -176,13 +188,27 @@ function cardsSlide(pres: PptxGenJS, look: Look, session: BuildSession, kind: Ki
     const x = xs[i % 4]!;
     const y = ys[Math.floor(i / 4)]!;
     s.addShape(pres.ShapeType.roundRect, { x, y, w: 2.85, h: 2.44, rectRadius: 0.15, fill: { color: look.cardTints[i]! }, line: { type: 'none' } });
-    s.addText(commitmentOf(call), { x: x + 0.15, y: y + 0.12, w: 2.2, h: 0.5, fontFace: FONT, fontSize: 13, color: look.accent, valign: 'top', margin: 0, fit: 'shrink', isTextBox: true });
+    // a long headline steps down a size, so it stays within its two or three lines above the details
+    const head = commitmentOf(call);
+    s.addText(head, {
+      x: x + 0.15,
+      y: y + 0.12,
+      w: 2.2,
+      h: 0.62,
+      fontFace: FONT,
+      fontSize: head.length > 60 ? 10 : head.length > 30 ? 11.5 : 13,
+      color: look.accent,
+      valign: 'top',
+      margin: 0,
+      fit: 'shrink',
+      isTextBox: true,
+    });
     s.addText(two(first + i + 1), { x: x + 2.33, y: y + 0.1, w: 0.4, h: 0.26, fontFace: FONT, fontSize: 13, bold: true, color: NUMBER_GREY, align: 'right', margin: 0, isTextBox: true });
     s.addText(detailsOf(call), {
       x: x + 0.15,
-      y: y + 0.7,
+      y: y + 0.8,
       w: 2.56,
-      h: 1.3,
+      h: 1.2,
       fontFace: FONT,
       fontSize: 10,
       color: INK,
@@ -352,8 +378,17 @@ export async function loadBuildArt(): Promise<BuildArt> {
   return { rings: rings!, africa: africa!, buildLogo: buildLogo!, aiCollective: aiCollective! };
 }
 
-/** The event's logo as a slide image, or null when there is none or it cannot be fetched. */
-async function loadLogo(url: string | null): Promise<DeckImage | null> {
+/**
+ * The event's logo as a slide image, or null when it has none. The server sends it (storage does
+ * not serve the console's origin); straight from storage only if the server cannot.
+ */
+async function loadLogo(editionId: string, url: string | null): Promise<DeckImage | null> {
+  try {
+    const { logo } = await api.get<{ logo: DeckImageSource | null }>(`/editions/${editionId}/calls-to-action/deck-images`);
+    return await toDeckImage(logo);
+  } catch {
+    // an older server: try storage directly
+  }
   if (!url) return null;
   try {
     const blob = await (await fetch(url)).blob();
@@ -374,13 +409,18 @@ async function loadLogo(url: string | null): Promise<DeckImage | null> {
  * the Build template, else in the event's own colour and logo.
  */
 export async function downloadBuildDeck(
-  input: { sessions: BuildSession[]; layout: BuildLayout; day?: { subtitle: string }; event: { name: string; shortName: string; brandColor: string | null; logoUrl: string | null; build: boolean } },
+  input: {
+    sessions: BuildSession[];
+    layout: BuildLayout;
+    day?: { subtitle: string };
+    event: { id: string; name: string; shortName: string; brandColor: string | null; logoUrl: string | null; build: boolean };
+  },
   fileName: string,
 ): Promise<void> {
   const { default: Pptx } = await import('pptxgenjs');
   const pres = new Pptx();
   const { event, ...rest } = input;
-  const look = event.build ? buildLook(await loadBuildArt()) : eventLook({ ...event, logo: await loadLogo(event.logoUrl) });
+  const look = event.build ? buildLook(await loadBuildArt()) : eventLook({ ...event, logo: await loadLogo(event.id, event.logoUrl) });
   addBuildSlides(pres, { ...rest, look });
   await pres.writeFile({ fileName });
 }
