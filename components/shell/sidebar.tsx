@@ -3,12 +3,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, ChevronDownIcon, StarIcon } from '@heroicons/react/24/outline';
+import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, ChevronDownIcon, ChevronRightIcon, StarIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
-import { useEffect, useRef, useState, type FocusEvent, type MouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type FocusEvent, type KeyboardEvent, type ReactNode, type SVGProps } from 'react';
 
 import { Avatar } from '@/components/shell/avatar';
 import { useOpenGroups, usePinnedPages, useSidebarCounts } from '@/components/shell/use-sidebar';
+import { dropdownPanel } from '@/components/ui/use-anchored';
 import { type StaffUser, TIER_LABEL } from '@/lib/auth/session';
 import { DEMO_MODE } from '@/lib/demo';
 import type { NavGroup } from '@/lib/nav';
@@ -17,7 +18,6 @@ import { cn } from '@/lib/utils';
 
 const row = 'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-ink hover:bg-surface-soft';
 const activeRow = 'bg-primary-soft font-medium text-primary hover:bg-primary-soft';
-/** Labels stay in the DOM (screen readers read them) and fade as the rail narrows. */
 /** A count of things waiting, beside a page. */
 function Count({ n }: { n: number }) {
   if (!n) return null;
@@ -31,32 +31,22 @@ function Count({ n }: { n: number }) {
   );
 }
 
+/** Labels stay in the DOM (screen readers read them) and fade as the rail narrows. */
 const label = (shown: boolean) => cn('truncate whitespace-nowrap transition-opacity duration-150', shown ? 'opacity-100' : 'opacity-0');
-/** Grace period before a hover-opened sidebar closes, so a pointer grazing its edge does not flicker it. */
+/** Grace period before a fly-out closes, so the pointer can cross the gap to it without it vanishing. */
 const CLOSE_DELAY_MS = 150;
 
+type Icon = ComponentType<SVGProps<SVGSVGElement>>;
+type Page = NavGroup['pages'][number];
+
 /**
- * The left sidebar. Collapsed, it is a rail of group icons; pointing at it (or tabbing into it)
- * opens it, and the pin keeps it open. The shell owns both states so the navbar and page move
- * with it. A one-page group links straight to its page; a larger group opens in place, and the
- * group holding the current page starts open.
+ * The left sidebar. Collapsed, it is a rail of icons: pointing at one (or tabbing to it) shows its
+ * pages in a fly-out beside the rail, and a one-page item shows its name. Expanded (the arrows at
+ * the foot of the rail, remembered), groups open in place, the one holding the current page
+ * starting open, and pages can be pinned to the top. The shell owns the expanded state so the navbar
+ * and page move with it.
  */
-export function Sidebar({
-  user,
-  groups,
-  pinned,
-  peek,
-  onPeek,
-  onTogglePin,
-}: {
-  user: StaffUser;
-  groups: NavGroup[];
-  pinned: boolean;
-  /** Opened by hover or focus rather than the pin. */
-  peek: boolean;
-  onPeek: (open: boolean) => void;
-  onTogglePin: () => void;
-}) {
+export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser; groups: NavGroup[]; pinned: boolean; onTogglePin: () => void }) {
   const pathname = usePathname();
   const current = pageFor(pathname);
   // the groups left open are remembered; the one holding the current page is always open
@@ -68,41 +58,8 @@ export function Sidebar({
   const { pinned: pinnedHrefs, toggle: togglePinned } = usePinnedPages();
   const counts = useSidebarCounts(user.tier);
   const allPages = groups.flatMap((g) => g.pages);
-  const pinnedPages = pinnedHrefs.map((href) => allPages.find((p) => p.href === href)).filter((p): p is (typeof allPages)[number] => !!p);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const expanded = pinned || peek;
-
-  useEffect(
-    () => () => {
-      if (closeTimer.current) clearTimeout(closeTimer.current);
-    },
-    [],
-  );
-
-  const show = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    onPeek(true);
-  };
-  const hide = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => onPeek(false), CLOSE_DELAY_MS);
-  };
-  const closeNow = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    onPeek(false);
-  };
-  // Keyboard focus only: a clicked link keeps focus, and the browser focuses it again when the
-  // window comes back (after another app or DevTools), which opened the rail with no pointer near.
-  const onFocus = (event: FocusEvent<HTMLElement>) => {
-    if (event.target instanceof HTMLElement && event.target.matches(':focus-visible')) show();
-  };
-  const onBlur = (event: FocusEvent<HTMLElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) hide();
-  };
-  // A page picked from a hover-opened rail closes it; on a touch screen nothing else would.
-  const onPick = (event: MouseEvent<HTMLElement>) => {
-    if (event.target instanceof Element && event.target.closest('a')) closeNow();
-  };
+  const pinnedPages = pinnedHrefs.map((href) => allPages.find((p) => p.href === href)).filter((p): p is Page => !!p);
+  const expanded = pinned;
 
   const toggle = (group: string) => {
     const closing = open.has(group);
@@ -116,14 +73,7 @@ export function Sidebar({
   };
 
   return (
-    <aside
-      aria-label="Sections"
-      onPointerEnter={show}
-      onPointerLeave={hide}
-      onFocus={onFocus}
-      onBlur={onBlur}
-      className="flex h-full w-full flex-col overflow-hidden border-r border-border bg-surface"
-    >
+    <aside aria-label="Sections" className="flex h-full w-full flex-col overflow-hidden border-r border-border bg-surface">
       <div className="flex h-22 shrink-0 items-center gap-3 border-b border-border px-4.5">
         <Link href="/" className="flex min-w-0 flex-1 items-center gap-3" aria-label="PIC Events dashboard">
           <Image src="/pic-logo.png" alt="" width={36} height={36} className="logo-plate size-9 shrink-0 object-contain" priority />
@@ -134,58 +84,57 @@ export function Sidebar({
           <button
             type="button"
             onClick={onTogglePin}
-            aria-pressed={pinned}
-            aria-label={pinned ? 'Collapse sidebar' : 'Keep sidebar open'}
-            title={pinned ? 'Collapse sidebar' : 'Keep sidebar open'}
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-soft hover:text-ink"
           >
-            {pinned ? <ChevronDoubleLeftIcon className="size-5" /> : <ChevronDoubleRightIcon className="size-5" />}
+            <ChevronDoubleLeftIcon className="size-5" />
           </button>
         )}
       </div>
 
-      <nav onClick={onPick} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
-        {pinnedPages.length > 0 && (
-          <div className="mb-2 flex flex-col gap-0.5 border-b border-border pb-3">
-            <p className={cn(label(expanded), 'px-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wider text-hint')}>Pinned</p>
-            {pinnedPages.map((page) => {
-              const active = current?.page.href === page.href;
+      {expanded ? (
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
+          {pinnedPages.length > 0 && (
+            <div className="mb-2 flex flex-col gap-0.5 border-b border-border pb-3">
+              <p className="px-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wider text-hint">Pinned</p>
+              {pinnedPages.map((page) => {
+                const active = current?.page.href === page.href;
+                return (
+                  <Link key={page.href} href={page.href} aria-current={active ? 'page' : undefined} className={cn(row, active && activeRow)}>
+                    <page.icon className="size-5 shrink-0" />
+                    <span className="flex-1 truncate">{page.label}</span>
+                    <Count n={counts[page.href] ?? 0} />
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+          {groups.map((group) => {
+            const holdsCurrent = current?.group.label === group.label;
+            if (group.pages.length === 1) {
+              const page = group.pages[0]!;
               return (
-                <Link key={page.href} href={page.href} aria-current={active ? 'page' : undefined} className={cn(row, active && activeRow)}>
+                <Link key={group.label} href={page.href} aria-current={holdsCurrent ? 'page' : undefined} className={cn(row, holdsCurrent && activeRow)}>
                   <page.icon className="size-5 shrink-0" />
-                  <span className={cn(label(expanded), 'flex-1')}>{page.label}</span>
-                  {expanded && <Count n={counts[page.href] ?? 0} />}
+                  <span className="flex-1 truncate">{page.label}</span>
+                  <Count n={counts[page.href] ?? 0} />
                 </Link>
               );
-            })}
-          </div>
-        )}
-        {groups.map((group) => {
-          const waiting = group.pages.reduce((sum, p) => sum + (counts[p.href] ?? 0), 0);
-          const holdsCurrent = current?.group.label === group.label;
-          if (group.pages.length === 1) {
-            const page = group.pages[0]!;
+            }
+            const waiting = group.pages.reduce((sum, p) => sum + (counts[p.href] ?? 0), 0);
+            const groupOpen = open.has(group.label);
             return (
-              <Link key={group.label} href={page.href} aria-current={holdsCurrent ? 'page' : undefined} className={cn(row, holdsCurrent && activeRow)}>
-                <page.icon className="size-5 shrink-0" />
-                <span className={cn(label(expanded), 'flex-1')}>{page.label}</span>
-                {expanded && <Count n={counts[page.href] ?? 0} />}
-              </Link>
-            );
-          }
-          const groupOpen = open.has(group.label);
-          return (
-            <div key={group.label}>
-              <button type="button" onClick={() => toggle(group.label)} aria-expanded={expanded && groupOpen} className={cn(row, holdsCurrent && !(expanded && groupOpen) && activeRow)}>
-                <span className="relative shrink-0">
-                  <group.icon className="size-5" />
-                  {waiting > 0 && !(expanded && groupOpen) && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-surface bg-danger" aria-hidden />}
-                </span>
-                <span className={cn(label(expanded), 'flex-1')}>{group.label}</span>
-                <ChevronDownIcon className={cn('size-4 shrink-0 text-muted transition-transform', groupOpen && 'rotate-180', !expanded && 'opacity-0')} />
-              </button>
-              {expanded && (
-                // eases open and shut; a closed group's links are out of the Tab order
+              <div key={group.label}>
+                <button type="button" onClick={() => toggle(group.label)} aria-expanded={groupOpen} className={cn(row, holdsCurrent && !groupOpen && activeRow)}>
+                  <span className="relative shrink-0">
+                    <group.icon className="size-5" />
+                    {waiting > 0 && !groupOpen && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-surface bg-danger" aria-hidden />}
+                  </span>
+                  <span className="flex-1 truncate">{group.label}</span>
+                  <ChevronDownIcon className={cn('size-4 shrink-0 text-muted transition-transform', groupOpen && 'rotate-180')} />
+                </button>
+                {/* eases open and shut; a closed group's links are out of the Tab order */}
                 <div className="group-collapse" data-open={groupOpen}>
                   <ul className="flex flex-col gap-0.5 py-1" inert={!groupOpen}>
                     {group.pages.map((page) => {
@@ -220,11 +169,13 @@ export function Sidebar({
                     })}
                   </ul>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
+              </div>
+            );
+          })}
+        </nav>
+      ) : (
+        <Rail groups={groups} pinnedPages={pinnedPages} counts={counts} currentHref={current?.page.href} currentGroup={here} onExpand={onTogglePin} />
+      )}
 
       {/* Same height as the page footer, so their top borders line up across the window. */}
       <div className="flex h-17 shrink-0 items-center gap-3 border-t border-border px-4.5">
@@ -235,5 +186,223 @@ export function Sidebar({
         </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * The collapsed sidebar: one icon per page or group. Each shows a fly-out beside the rail while
+ * pointed at or focused (a group's pages, or a page's name), one at a time; a group's icon also
+ * opens it on a tap, for touch screens. Escape closes it and returns to the icon.
+ */
+function Rail({
+  groups,
+  pinnedPages,
+  counts,
+  currentHref,
+  currentGroup,
+  onExpand,
+}: {
+  groups: NavGroup[];
+  pinnedPages: Page[];
+  counts: Record<string, number>;
+  currentHref?: string;
+  currentGroup?: string;
+  onExpand: () => void;
+}) {
+  const [fly, setFly] = useState<{ key: string; top: number; left: number } | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
+  const show = (key: string, el: HTMLElement) => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    const r = el.getBoundingClientRect();
+    const rail = el.closest('aside')?.getBoundingClientRect();
+    setFly({ key, top: r.top, left: (rail?.right ?? r.right) + 8 });
+  };
+  const hideSoon = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setFly(null), CLOSE_DELAY_MS);
+  };
+  const hide = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setFly(null);
+  };
+
+  const rail = { fly, show, hideSoon, hide };
+  const pageLink = (page: Page) => {
+    const active = currentHref === page.href;
+    return (
+      <li key={page.href}>
+        <Link
+          href={page.href}
+          aria-current={active ? 'page' : undefined}
+          className={cn('mx-1.5 flex items-center gap-2.5 whitespace-nowrap rounded-md px-2.5 py-2 text-sm text-ink-soft hover:bg-surface-soft hover:text-ink', active && activeRow)}
+        >
+          <page.icon className="size-4.5 shrink-0" aria-hidden />
+          <span className="flex-1 truncate">{page.label}</span>
+          <Count n={counts[page.href] ?? 0} />
+        </Link>
+      </li>
+    );
+  };
+
+  return (
+    <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
+      {pinnedPages.length > 0 && (
+        <div className="mb-2 flex flex-col gap-1 border-b border-border pb-3">
+          {pinnedPages.map((page) => (
+            <RailItem
+              rail={rail}
+              key={`pin:${page.href}`}
+              id={`pin:${page.href}`}
+              icon={page.icon}
+              href={page.href}
+              active={currentHref === page.href}
+              dot={(counts[page.href] ?? 0) > 0}
+              title={page.label}
+            />
+          ))}
+        </div>
+      )}
+      {groups.map((group) => {
+        if (group.pages.length === 1) {
+          const page = group.pages[0]!;
+          return <RailItem rail={rail} key={group.label} id={group.label} icon={page.icon} href={page.href} active={currentHref === page.href} dot={(counts[page.href] ?? 0) > 0} title={page.label} />;
+        }
+        const waiting = group.pages.some((p) => (counts[p.href] ?? 0) > 0);
+        return (
+          <RailItem rail={rail} key={group.label} id={group.label} icon={group.icon} active={currentGroup === group.label} dot={waiting} title={group.label}>
+            <ul className="flex flex-col gap-0.5">{group.pages.map(pageLink)}</ul>
+          </RailItem>
+        );
+      })}
+      <div className="mt-auto pt-4">
+        <RailItem rail={rail} id="expand" icon={ChevronDoubleRightIcon} active={false} title="Expand sidebar" onClick={onExpand} />
+      </div>
+    </nav>
+  );
+}
+
+type RailState = { fly: { key: string; top: number; left: number } | null; show: (key: string, el: HTMLElement) => void; hideSoon: () => void; hide: () => void };
+
+/** One rail icon with its fly-out: a link (`href`), an action (`onClick`), or a group whose `children` are its pages. */
+function RailItem({
+  rail,
+  id,
+  icon: IconOf,
+  href,
+  onClick,
+  active,
+  dot,
+  title,
+  children,
+}: {
+  rail: RailState;
+  id: string;
+  icon: Icon;
+  href?: string;
+  onClick?: () => void;
+  active: boolean;
+  dot?: boolean;
+  title: string;
+  children?: ReactNode;
+}) {
+  const { fly, show, hideSoon, hide } = rail;
+  const isOpen = fly?.key === id;
+  const flyId = `rail-${id.replace(/\W+/g, '-')}`;
+  const trigger = cn(
+    'relative flex h-11 w-full items-center justify-center rounded-lg text-ink hover:bg-surface-soft',
+    (active || (isOpen && children)) && 'bg-primary-soft text-primary hover:bg-primary-soft',
+  );
+  const mark = (
+    <>
+      <span className="relative">
+        <IconOf className="size-5" aria-hidden />
+        {dot && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-surface bg-danger" aria-hidden />}
+      </span>
+      {/* a group's chevron: there is more beside it */}
+      {children && (
+        <ChevronRightIcon className={cn('absolute right-0.5 size-3 text-muted transition-opacity duration-100', isOpen ? 'opacity-100' : 'opacity-0 group-hover/rail:opacity-100')} aria-hidden />
+      )}
+    </>
+  );
+  const onFocus = (event: FocusEvent<HTMLElement>) => {
+    if (event.target instanceof HTMLElement && event.target.matches(':focus-visible') && !isOpen) show(id, event.currentTarget);
+  };
+  const onBlur = (event: FocusEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) hide();
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Escape' || !isOpen) return;
+    event.stopPropagation();
+    hide();
+    event.currentTarget.querySelector<HTMLElement>('[data-rail-trigger]')?.focus();
+  };
+  return (
+    <div className="group/rail" onPointerEnter={(e) => show(id, e.currentTarget)} onPointerLeave={hideSoon} onFocus={onFocus} onBlur={onBlur} onKeyDown={onKeyDown}>
+      {href ? (
+        <Link data-rail-trigger href={href} aria-current={active ? 'page' : undefined} aria-label={title} className={trigger} onClick={hide}>
+          {mark}
+        </Link>
+      ) : (
+        <button
+          data-rail-trigger
+          type="button"
+          aria-label={title}
+          aria-expanded={children ? isOpen : undefined}
+          aria-controls={children && isOpen ? flyId : undefined}
+          className={trigger}
+          onClick={(e) => {
+            if (!children) {
+              hide();
+              onClick?.();
+            } else if (isOpen) hide();
+            else show(id, e.currentTarget.parentElement!);
+          }}
+        >
+          {mark}
+        </button>
+      )}
+      {isOpen && fly && (
+        <FlyOut id={flyId} top={fly.top} left={fly.left} onPick={hide} label={children ? title : undefined}>
+          {children ?? <p className="whitespace-nowrap px-3 py-2 text-sm text-ink">{title}</p>}
+        </FlyOut>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The panel beside the rail: level with its icon, nudged up to stay in the window, and closed by
+ * choosing a page in it.
+ */
+function FlyOut({ id, top, left, label, onPick, children }: { id: string; top: number; left: number; label?: string; onPick: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [y, setY] = useState(top);
+  useLayoutEffect(() => {
+    const h = ref.current?.offsetHeight ?? 0;
+    // a group's list lines its title up with the icon; a name sits level with it
+    const start = label ? top - 6 : top + 2;
+    setY(Math.max(8, Math.min(start, window.innerHeight - h - 8)));
+  }, [top, label]);
+  return (
+    <div
+      ref={ref}
+      id={id}
+      role={label ? 'group' : 'tooltip'}
+      aria-label={label}
+      style={{ top: y, left }}
+      onClick={(e) => {
+        if (e.target instanceof Element && e.target.closest('a')) onPick();
+      }}
+      className={cn(dropdownPanel, 'fixed z-50', label ? 'w-60 py-2' : 'py-0')}
+    >
+      {label && <p className="px-4 pb-1.5 pt-1 text-[0.6875rem] font-medium uppercase tracking-wider text-hint">{label}</p>}
+      {children}
+    </div>
   );
 }

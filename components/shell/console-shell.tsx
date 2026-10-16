@@ -24,15 +24,14 @@ function readPinned(): boolean {
 }
 
 /**
- * Sidebar, navbar and the page. The sidebar is a narrow rail that opens to full width on hover
- * or when pinned, pushing the navbar and page along with it. Below `md` it gives way to the
+ * Sidebar, navbar and the page. The sidebar is a narrow rail of icons, each showing its pages
+ * beside it on hover; expanded (and remembered), it pushes the navbar and page along with it. Below `md` it gives way to the
  * navbar's menu button.
  */
 export function ConsoleShell({ user, children }: { user: StaffUser; children: ReactNode }) {
   const groups = navFor(user.tier);
   const pathname = usePathname();
   const [pinned, setPinned] = useState(readPinned);
-  const [peek, setPeek] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   // the browser tab names the page, so a row of console tabs can be told apart
@@ -58,8 +57,8 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
           Skip to content
         </a>
         {/* Opening (by hover or pin) widens this column, so the navbar and page move with the sidebar. */}
-        <div className={cn('sticky top-0 hidden h-dvh shrink-0 transition-[width] duration-200 ease-out md:block', pinned || peek ? 'w-75' : 'w-18')}>
-          <Sidebar user={user} groups={groups} pinned={pinned} peek={peek} onPeek={setPeek} onTogglePin={togglePin} />
+        <div className={cn('sticky top-0 hidden h-dvh shrink-0 transition-[width] duration-200 ease-out md:block', pinned ? 'w-75' : 'w-18')}>
+          <Sidebar user={user} groups={groups} pinned={pinned} onTogglePin={togglePin} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar user={user} onMenu={() => setMenuOpen(true)} />
