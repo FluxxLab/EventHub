@@ -57,7 +57,7 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
           Skip to content
         </a>
         {/* Expanding widens this column, so the navbar and page move with the sidebar; it sits above the page so its fly-outs open over the panels. */}
-        <div className={cn('sticky top-0 z-40 hidden h-dvh shrink-0 transition-[width] duration-200 ease-out md:block', pinned ? 'w-75' : 'w-18')}>
+        <div className={cn('sticky top-0 z-40 hidden h-dvh shrink-0 transition-[width] duration-200 ease-out md:block', pinned ? 'w-75' : 'w-27')}>
           <Sidebar user={user} groups={groups} pinned={pinned} onTogglePin={togglePin} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">

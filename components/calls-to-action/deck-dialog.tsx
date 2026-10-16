@@ -11,6 +11,9 @@ import { useToast } from '@/components/ui/toaster';
 import { api } from '@/lib/api/client';
 import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
 import type { BuildLayout } from '@/lib/calls-to-action/build-deck';
+
+/** How the deck is made: designed by the AI for the event, or the commitment template's cards or table. */
+export type DeckStyle = 'designed' | BuildLayout;
 import type { DeckDesignResponse } from '@/lib/calls-to-action/deck';
 import { dateRange, type Edition } from '@/lib/events/events';
 import { dayDate, timeRange, type Session } from '@/lib/programme/programme';
@@ -42,7 +45,7 @@ export function DeckDialog({
   items,
   sessions,
   initialSessionId,
-  initialLayout = 'cards',
+  initialStyle = 'designed',
   onClose,
 }: {
   open: boolean;
@@ -51,8 +54,8 @@ export function DeckDialog({
   sessions: Session[];
   /** The session to offer first: the one being filtered on, if any. */
   initialSessionId: string | null;
-  /** The Build template's layout picked from the Make a deck menu. */
-  initialLayout?: BuildLayout;
+  /** What was picked from the Make a deck menu. */
+  initialStyle?: DeckStyle;
   onClose: () => void;
 }) {
   const id = useId();
@@ -66,8 +69,10 @@ export function DeckDialog({
   const [day, setDay] = useState(String(days.at(-1) ?? ''));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const build = edition.deckTemplate === 'build';
-  const [layout, setLayout] = useState<BuildLayout>(initialLayout);
+  const [style, setStyle] = useState<DeckStyle>(initialStyle);
+  // cards or a table: the commitment template, in Build's look for a Build event, else the event's own
+  const build = style !== 'designed';
+  const buildLook = edition.deckTemplate === 'build';
 
   const count = (kind === 'session' ? approved.filter((c) => c.sessionId === sessionId) : approved.filter((c) => withCalls.some((s) => s.id === c.sessionId && String(s.day) === day))).length;
 
@@ -130,14 +135,15 @@ export function DeckDialog({
       await downloadBuildDeck(
         {
           sessions: chosen.map((s) => ({ title: s.title, when: lineOf(s), calls: approved.filter((c) => c.sessionId === s.id) })),
-          layout,
+          layout: style as BuildLayout,
+          event: { name: edition.name, shortName: edition.shortName, brandColor: edition.brandColor ?? null, logoUrl: edition.logoUrl ?? null, build: buildLook },
           ...(kind === 'day' ? { day: { subtitle: [`Day ${day}`, dayLabel(edition, Number(day)), where].filter(Boolean).join(' · ') } } : {}),
         },
         kind === 'session' ? `${edition.shortName}-${slug(session!.title)}.pptx` : `${edition.shortName}-day-${day}-commitments.pptx`,
       );
       toast.push({
         title: kind === 'session' ? 'Session slide downloaded' : 'End-of-day deck downloaded',
-        body: `Build commitment template, ${layout === 'cards' ? 'as cards' : 'as a table'}.`,
+        body: `${buildLook ? 'Build commitment template' : `In ${edition.shortName}'s colours`}, ${style === 'cards' ? 'as cards' : 'as a table'}.`,
         leading: { kind: 'icon', icon: PresentationChartBarIcon, tone: 'success' },
       });
       onClose();
@@ -167,7 +173,11 @@ export function DeckDialog({
       open={open}
       icon={PresentationChartBarIcon}
       title="Make a deck"
-      subtitle={build ? 'In the Build commitment template. Only approved calls go in.' : `Designed for ${edition.shortName} from its colours, logo and cover. Only approved calls go in.`}
+      subtitle={
+        build
+          ? `As ${style === 'cards' ? 'cards' : 'a table'}${buildLook ? ' in the Build commitment template' : ` in ${edition.shortName}'s colours`}. Only approved calls go in.`
+          : `Designed for ${edition.shortName} from its colours, logo and cover. Only approved calls go in.`
+      }
       pending={pending}
       pendingLabel={build ? 'Making the deck…' : 'Designing… about a minute'}
       submitLabel={`Download${count ? ` (${count} ${count === 1 ? 'call' : 'calls'})` : ''}`}
@@ -181,12 +191,12 @@ export function DeckDialog({
         <>
           <div role="radiogroup" aria-label="What the deck covers" className="flex flex-col gap-2 sm:flex-row">
             {choice(kind, setKind, 'session', 'One session', build ? "The session's commitments and recommendations" : 'A single slide: actor, commitment, timeline')}
-            {choice(kind, setKind, 'day', 'End of day', build ? 'Build cover, each session, closing' : "The full deck for the day's sessions")}
+            {choice(kind, setKind, 'day', 'End of day', build ? 'A cover, each session, a closing slide' : "The full deck for the day's sessions")}
           </div>
           {build && (
             <div role="radiogroup" aria-label="Layout" className="flex flex-col gap-2 sm:flex-row">
-              {choice(layout, setLayout, 'cards', 'Cards', 'Template #1: eight to a slide')}
-              {choice(layout, setLayout, 'table', 'Table', 'Template #2: up to twelve rows to a slide')}
+              {choice(style, setStyle, 'cards', 'Cards', 'Template #1: eight to a slide')}
+              {choice(style, setStyle, 'table', 'Table', 'Template #2: up to twelve rows to a slide')}
             </div>
           )}
           {kind === 'session' ? (

@@ -18,7 +18,7 @@ import { useMemo, useState } from 'react';
 
 import { CallDialog } from '@/components/calls-to-action/call-dialog';
 import { AnalyseManyDialog } from '@/components/calls-to-action/analyse-many-dialog';
-import { DeckDialog } from '@/components/calls-to-action/deck-dialog';
+import { DeckDialog, type DeckStyle } from '@/components/calls-to-action/deck-dialog';
 import { ReportDialog } from '@/components/calls-to-action/report-dialog';
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
@@ -32,7 +32,6 @@ import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { callsCsv, countByStatus, filterCalls, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
 import { useAnalyseQueue } from '@/lib/calls-to-action/analyse-queue';
-import type { BuildLayout } from '@/lib/calls-to-action/build-deck';
 import { useCallActions, useCallsToAction, useCallTargets } from '@/lib/calls-to-action/use-calls-to-action';
 import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
@@ -70,9 +69,9 @@ function Board({ edition }: { edition: Edition }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
-  const [deckLayout, setDeckLayout] = useState<BuildLayout>('cards');
-  const openDeck = (layout: BuildLayout) => {
-    setDeckLayout(layout);
+  const [deckStyle, setDeckStyle] = useState<DeckStyle>('designed');
+  const openDeck = (style: DeckStyle) => {
+    setDeckStyle(style);
     setDeckOpen(true);
   };
   const [reportOpen, setReportOpen] = useState(false);
@@ -201,23 +200,22 @@ function Board({ edition }: { edition: Edition }) {
               <ArrowDownTrayIcon className="size-4" />
               Export approved
             </button>
-            {edition.deckTemplate === 'build' ? (
-              // the Build template comes as cards or a table: choose before the dialog opens
-              <MenuButton
-                label="Make a deck"
-                icon={PresentationChartBarIcon}
-                disabled={counts.approved === 0}
-                choices={[
-                  { label: 'Cards', hint: 'Template #1: eight to a slide', icon: Squares2X2Icon, onSelect: () => openDeck('cards') },
-                  { label: 'Table', hint: 'Template #2: up to twelve rows to a slide', icon: TableCellsIcon, onSelect: () => openDeck('table') },
-                ]}
-              />
-            ) : (
-              <button type="button" onClick={() => openDeck('cards')} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
-                <PresentationChartBarIcon className="size-4" />
-                Make a deck
-              </button>
-            )}
+            {/* the AI's design for the event, or the commitment template as cards or a table */}
+            <MenuButton
+              label="Make a deck"
+              icon={PresentationChartBarIcon}
+              disabled={counts.approved === 0}
+              choices={[
+                { label: `Designed for ${edition.shortName}`, hint: 'The AI designs it from the event’s brand', icon: SparklesIcon, onSelect: () => openDeck('designed') },
+                { label: 'Cards', hint: `Template #1, eight to a slide${edition.deckTemplate === 'build' ? ', in Build’s look' : ''}`, icon: Squares2X2Icon, onSelect: () => openDeck('cards') },
+                {
+                  label: 'Table',
+                  hint: `Template #2, up to twelve rows to a slide${edition.deckTemplate === 'build' ? ', in Build’s look' : ''}`,
+                  icon: TableCellsIcon,
+                  onSelect: () => openDeck('table'),
+                },
+              ]}
+            />
             <button type="button" onClick={() => setReportOpen(true)} disabled={sessionList.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
               <DocumentTextIcon className="size-4" />
               Rapporteur report
@@ -387,7 +385,7 @@ function Board({ edition }: { edition: Edition }) {
           items={items}
           sessions={sessionList}
           initialSessionId={sessionFilter === 'all' ? null : sessionFilter}
-          initialLayout={deckLayout}
+          initialStyle={deckStyle}
           onClose={() => setDeckOpen(false)}
         />
       )}

@@ -77,7 +77,7 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
 
   return (
     <aside aria-label="Sections" className="flex h-full w-full flex-col overflow-hidden border-r border-border bg-surface">
-      <div className="flex h-22 shrink-0 items-center gap-3 border-b border-border px-4.5">
+      <div className={cn('flex h-22 shrink-0 items-center gap-3 border-b border-border', expanded ? 'px-4.5' : 'px-9')}>
         <Link href="/" className="flex min-w-0 flex-1 items-center gap-3" aria-label="PIC Events dashboard">
           <Image src="/pic-logo.png" alt="" width={36} height={36} className="logo-plate size-9 shrink-0 object-contain" priority />
           <span className={cn(label(expanded), 'text-xl font-medium text-primary')}>PIC Events</span>
@@ -187,7 +187,7 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
       </div>
 
       {/* Same height as the page footer, so their top borders line up across the window. */}
-      <div className="flex h-17 shrink-0 items-center gap-3 border-t border-border px-4.5">
+      <div className={cn('flex h-17 shrink-0 items-center gap-3 border-t border-border', expanded ? 'px-4.5' : 'px-[34px]')}>
         <Avatar name={user.name} src={user.avatarUrl} size={40} online />
         <div className={cn(label(expanded), 'min-w-0 leading-tight')}>
           <p className="truncate text-sm font-medium text-ink">{user.name}</p>
@@ -260,9 +260,9 @@ function Rail({
   };
 
   return (
-    <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
+    <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden px-4 py-6 scrollbar-none">
       {pinnedPages.length > 0 && (
-        <div className="mb-2 flex flex-col gap-1 border-b border-rail-border pb-3">
+        <div className="mb-2 flex flex-col gap-1.5 border-b border-rail-border pb-3">
           {pinnedPages.map((page) => (
             <RailItem
               rail={rail}
@@ -324,18 +324,21 @@ function RailItem({
   const isOpen = fly?.key === id;
   const flyId = `rail-${id.replace(/\W+/g, '-')}`;
   const trigger = cn(
-    'relative flex h-11 w-full items-center justify-center rounded-lg text-rail-muted hover:bg-rail-hover hover:text-rail-ink',
+    'relative flex h-13 w-full items-center justify-center rounded-xl text-rail-muted hover:bg-rail-hover hover:text-rail-ink',
     active ? 'bg-rail-active text-primary hover:bg-rail-active' : isOpen && children && 'bg-rail-hover text-rail-ink',
   );
   const mark = (
     <>
       <span className="relative">
-        <IconOf className="size-5" aria-hidden />
+        <IconOf className="size-6" aria-hidden />
         {dot && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-rail bg-danger" aria-hidden />}
       </span>
       {/* a group's chevron: there is more beside it */}
       {children && (
-        <ChevronRightIcon className={cn('absolute right-0.5 size-3 text-rail-muted transition-opacity duration-100', isOpen ? 'opacity-100' : 'opacity-0 group-hover/rail:opacity-100')} aria-hidden />
+        <ChevronRightIcon
+          className={cn('absolute right-1.5 size-3.5 text-rail-muted transition-opacity duration-100', isOpen ? 'opacity-100' : 'opacity-0 group-hover/rail:opacity-100')}
+          aria-hidden
+        />
       )}
     </>
   );

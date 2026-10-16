@@ -1,14 +1,18 @@
 import type PptxGenJS from 'pptxgenjs';
 
 import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
-import { byline } from '@/lib/calls-to-action/deck';
+import { byline, contrast, tint, toDeckImage, type DeckImage } from '@/lib/calls-to-action/deck';
 
 /**
- * The Build conference's commitment template ("Commitment Tracking: Workflow & Templates", by Fluxx
- * Eco), drawn natively so the deck stays editable: its 13.33 × 7.5 in canvas, Build blue, the four
- * pastel cards, Montserrat, and its own artwork (public/deck/build). A session's commitments, then
- * its recommendations, each on slides of their own, go on cards (Template #1, eight to a slide) or
- * in a table (Template #2); the end-of-day deck opens on the blue cover and closes on the blue rings.
+ * The commitment template, from the Build conference's ("Commitment Tracking: Workflow &
+ * Templates", by Fluxx Eco), drawn natively so the deck stays editable: its 13.33 × 7.5 in canvas,
+ * the cards (Template #1, eight to a slide) or the table (Template #2), Montserrat. A session's
+ * commitments, then its recommendations, each go on slides of their own; the end-of-day deck opens
+ * on a cover and closes on a closing slide.
+ *
+ * It comes in two looks: Build's own (its blue, pastel cards and artwork from public/deck/build),
+ * for an event set to the Build template, and any other event's (its brand colour, tints of it,
+ * and its logo), so every event can have cards or a table.
  */
 
 export type BuildLayout = 'cards' | 'table';
@@ -18,6 +22,20 @@ export type BuildSession = { title: string; when: string; calls: CallToAction[] 
 
 /** The template's artwork, loaded once: base64 PNG data (`image/png;base64,…`). */
 export type BuildArt = { rings: string; africa: string; buildLogo: string; aiCollective: string };
+
+/** How the slides look: Build's artwork and colours, or an event's own colour and logo. */
+export type Look = {
+  /** Titles, headers and numbers (six-digit hex, no #). */
+  accent: string;
+  cardTints: string[];
+  rowTints: string[];
+  /** Under each slide and on the cover, bottom right. */
+  footer: string;
+  eventName: string;
+  /** Build's artwork, for the Build look; null draws the cover and closing in the accent. */
+  art: BuildArt | null;
+  logo: DeckImage | null;
+};
 
 export const BUILD_BLUE = '1533DF';
 const GOLD = 'FDC110';
@@ -33,6 +51,39 @@ export const CARD_TINTS = [LAVENDER, PINK, CREAM, MINT, MINT, CREAM, PINK, LAVEN
 /** Template #2 colours its rows in this repeating order. */
 export const ROW_TINTS = [LAVENDER, PINK, MINT, CREAM];
 const SITE = 'www.buildconference.ai';
+
+/** Build's look, from its template. */
+export const buildLook = (art: BuildArt): Look => ({ accent: BUILD_BLUE, cardTints: CARD_TINTS, rowTints: ROW_TINTS, footer: SITE, eventName: 'Build', art, logo: null });
+
+/** A colour mixed towards black (`amount` 0–1). */
+const shade = (hex: string, amount: number) =>
+  [0, 2, 4]
+    .map((i) =>
+      Math.round(parseInt(hex.replace('#', '').slice(i, i + 2), 16) * (1 - amount))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')
+    .toUpperCase();
+
+/**
+ * An event's look: its brand colour (darkened until white reads on it, as the cover's ground and
+ * the table's header), four tints of it for the cards and rows, and its logo.
+ */
+export function eventLook(event: { name: string; shortName: string; brandColor: string | null; logo: DeckImage | null }): Look {
+  let accent = (event.brandColor ?? '#002D74').replace('#', '').toUpperCase();
+  for (let step = 0; step < 10 && contrast('#FFFFFF', `#${accent}`) < 4.5; step++) accent = shade(accent, 0.15);
+  const t = [0.82, 0.9, 0.86, 0.94].map((a) => tint(`#${accent}`, a).replace('#', '').toUpperCase());
+  return {
+    accent,
+    cardTints: [t[0]!, t[1]!, t[2]!, t[3]!, t[3]!, t[2]!, t[1]!, t[0]!],
+    rowTints: [t[0]!, t[1]!, t[3]!, t[2]!],
+    footer: event.shortName,
+    eventName: event.name,
+    art: null,
+    logo: event.logo,
+  };
+}
 const FONT = 'Montserrat';
 
 export const CARDS_PER_SLIDE = 8;
@@ -101,31 +152,31 @@ function pagesOf(calls: CallToAction[], layout: BuildLayout): number[][] {
 }
 
 /** A slide's top and foot: the title, the kind and its date | time | venue line, the page count and the site. */
-function frame(s: PptxGenJS.Slide, title: string, kind: Kind, when: string, page: string) {
+function frame(s: PptxGenJS.Slide, look: Look, title: string, kind: Kind, when: string, page: string) {
   s.background = { color: 'FFFFFF' };
-  s.addText(title.toUpperCase(), { x: 0.22, y: 0.03, w: 10.34, h: 0.53, fontFace: FONT, fontSize: 24, bold: true, color: BUILD_BLUE, margin: 0, valign: 'middle', fit: 'shrink', isTextBox: true });
+  s.addText(title.toUpperCase(), { x: 0.22, y: 0.03, w: 10.34, h: 0.53, fontFace: FONT, fontSize: 24, bold: true, color: look.accent, margin: 0, valign: 'middle', fit: 'shrink', isTextBox: true });
   s.addText(
     [
-      { text: kind.plural.toUpperCase(), options: { bold: true, color: BUILD_BLUE } },
+      { text: kind.plural.toUpperCase(), options: { bold: true, color: look.accent } },
       { text: `  ·  ${when}`, options: { color: INK } },
     ],
     { x: 0.24, y: 0.57, w: 9.5, h: 0.22, fontFace: FONT, fontSize: 12, margin: 0, isTextBox: true },
   );
-  s.addText(page, { x: 9.94, y: 0.57, w: 2.64, h: 0.22, fontFace: FONT, fontSize: 13, color: BUILD_BLUE, align: 'right', margin: 0, isTextBox: true });
-  s.addText(SITE, { x: 10.5, y: 7.1, w: 2.6, h: 0.22, fontFace: FONT, fontSize: 13, color: BUILD_BLUE, align: 'right', margin: 0, isTextBox: true });
+  s.addText(page, { x: 9.94, y: 0.57, w: 2.64, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
+  s.addText(look.footer, { x: 10.5, y: 7.1, w: 2.6, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
 }
 
 /** Template #1: up to eight cards, two rows of four. */
-function cardsSlide(pres: PptxGenJS, session: BuildSession, kind: Kind, calls: CallToAction[], first: number, page: string) {
+function cardsSlide(pres: PptxGenJS, look: Look, session: BuildSession, kind: Kind, calls: CallToAction[], first: number, page: string) {
   const s = pres.addSlide();
-  frame(s, session.title, kind, session.when, page);
+  frame(s, look, session.title, kind, session.when, page);
   const xs = [0.61, 3.67, 6.69, 9.75];
   const ys = [1.4, 4.03];
   calls.forEach((call, i) => {
     const x = xs[i % 4]!;
     const y = ys[Math.floor(i / 4)]!;
-    s.addShape(pres.ShapeType.roundRect, { x, y, w: 2.85, h: 2.44, rectRadius: 0.15, fill: { color: CARD_TINTS[i]! }, line: { type: 'none' } });
-    s.addText(commitmentOf(call), { x: x + 0.15, y: y + 0.12, w: 2.2, h: 0.5, fontFace: FONT, fontSize: 13, color: BUILD_BLUE, valign: 'top', margin: 0, fit: 'shrink', isTextBox: true });
+    s.addShape(pres.ShapeType.roundRect, { x, y, w: 2.85, h: 2.44, rectRadius: 0.15, fill: { color: look.cardTints[i]! }, line: { type: 'none' } });
+    s.addText(commitmentOf(call), { x: x + 0.15, y: y + 0.12, w: 2.2, h: 0.5, fontFace: FONT, fontSize: 13, color: look.accent, valign: 'top', margin: 0, fit: 'shrink', isTextBox: true });
     s.addText(two(first + i + 1), { x: x + 2.33, y: y + 0.1, w: 0.4, h: 0.26, fontFace: FONT, fontSize: 13, bold: true, color: NUMBER_GREY, align: 'right', margin: 0, isTextBox: true });
     s.addText(detailsOf(call), {
       x: x + 0.15,
@@ -141,14 +192,14 @@ function cardsSlide(pres: PptxGenJS, session: BuildSession, kind: Kind, calls: C
       fit: 'shrink',
       isTextBox: true,
     });
-    s.addText(whoOf(call), { x: x + 0.15, y: y + 2.04, w: 2.56, h: 0.26, fontFace: FONT, fontSize: 10, italic: true, color: BUILD_BLUE, margin: 0, fit: 'shrink', isTextBox: true });
+    s.addText(whoOf(call), { x: x + 0.15, y: y + 2.04, w: 2.56, h: 0.26, fontFace: FONT, fontSize: 10, italic: true, color: look.accent, margin: 0, fit: 'shrink', isTextBox: true });
   });
 }
 
 /** Template #2: a native table of number, commitment (or recommendation), details and who said it. */
-function tableSlide(pres: PptxGenJS, session: BuildSession, kind: Kind, calls: CallToAction[], first: number, page: string) {
+function tableSlide(pres: PptxGenJS, look: Look, session: BuildSession, kind: Kind, calls: CallToAction[], first: number, page: string) {
   const s = pres.addSlide();
-  frame(s, session.title, kind, session.when, page);
+  frame(s, look, session.title, kind, session.when, page);
   const border = { type: 'solid' as const, color: 'FFFFFF', pt: 1 };
   const cell = {
     fontFace: FONT,
@@ -158,12 +209,12 @@ function tableSlide(pres: PptxGenJS, session: BuildSession, kind: Kind, calls: C
     margin: [0.04, 0.08, 0.04, 0.08] as [number, number, number, number],
     border: [border, border, border, border] as [typeof border, typeof border, typeof border, typeof border],
   };
-  const head = (text: string, align: 'left' | 'center' = 'left') => ({ text, options: { ...cell, bold: true, color: 'FFFFFF', fill: { color: BUILD_BLUE }, align } });
+  const head = (text: string, align: 'left' | 'center' = 'left') => ({ text, options: { ...cell, bold: true, color: 'FFFFFF', fill: { color: look.accent }, align } });
   const rows: PptxGenJS.TableRow[] = [[head('No.', 'center'), head(kind.one), head('Details'), head('Who said it?')]];
   calls.forEach((call, i) => {
-    const fill = { color: ROW_TINTS[(first + i) % ROW_TINTS.length]! };
+    const fill = { color: look.rowTints[(first + i) % look.rowTints.length]! };
     rows.push([
-      { text: two(first + i + 1), options: { ...cell, fill, bold: true, color: BUILD_BLUE, align: 'center' } },
+      { text: two(first + i + 1), options: { ...cell, fill, bold: true, color: look.accent, align: 'center' } },
       { text: commitmentOf(call), options: { ...cell, fill } },
       { text: detailsOf(call), options: { ...cell, fill } },
       { text: whoOf(call), options: { ...cell, fill } },
@@ -173,14 +224,14 @@ function tableSlide(pres: PptxGenJS, session: BuildSession, kind: Kind, calls: C
 }
 
 /** A session's slides in the chosen layout, its commitments and then its recommendations; returns how many it added. */
-function sessionSlides(pres: PptxGenJS, session: BuildSession, layout: BuildLayout, number: (n: number) => string): number {
+function sessionSlides(pres: PptxGenJS, look: Look, session: BuildSession, layout: BuildLayout, number: (n: number) => string): number {
   let added = 0;
   for (const { kind, calls } of sessionGroups(session)) {
     pagesOf(calls, layout).forEach((indexes, p) => {
       const title = p === 0 ? session.title : `${session.title} (continued)`;
       const slice = indexes.map((i) => calls[i]!);
-      if (layout === 'cards') cardsSlide(pres, { ...session, title }, kind, slice, indexes[0]!, number(added));
-      else tableSlide(pres, { ...session, title }, kind, slice, indexes[0]!, number(added));
+      if (layout === 'cards') cardsSlide(pres, look, { ...session, title }, kind, slice, indexes[0]!, number(added));
+      else tableSlide(pres, look, { ...session, title }, kind, slice, indexes[0]!, number(added));
       added++;
     });
   }
@@ -216,11 +267,55 @@ function closingSlide(pres: PptxGenJS, art: BuildArt) {
   s.addImage({ data: art.rings, x: 1.8, y: -0.75, w: 9.73, h: 9.73, altText: '' });
 }
 
+/** Rings in white over the accent, standing in for Build's artwork on another event's cover and closing. */
+function rings(pres: PptxGenJS, s: PptxGenJS.Slide, cx: number, cy: number) {
+  [1.2, 2.1, 3, 3.9, 4.8].forEach((r, i) =>
+    s.addShape(pres.ShapeType.ellipse, {
+      x: cx - r,
+      y: cy - r,
+      w: r * 2,
+      h: r * 2,
+      fill: { type: 'none' },
+      line: { color: 'FFFFFF', width: 1, transparency: 70 + i * 5, dashType: i % 2 ? 'dash' : 'solid' },
+    }),
+  );
+}
+
+/** The logo on a white tile (logos are drawn for light grounds), fitted into a box. */
+function logoTile(s: PptxGenJS.Slide, logo: DeckImage, x: number, y: number, maxW: number, maxH: number) {
+  const scale = Math.min(maxW / logo.w, maxH / logo.h);
+  const w = logo.w * scale;
+  const h = logo.h * scale;
+  s.addShape('roundRect', { x: x - 0.15, y: y - 0.12, w: w + 0.3, h: h + 0.24, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { type: 'none' } });
+  s.addImage({ data: logo.data, x, y, w, h, altText: 'Event logo' });
+}
+
+/** Another event's cover: its colour, white rings, its logo and name, and the day. */
+function eventCoverSlide(pres: PptxGenJS, look: Look, subtitle: string) {
+  const s = pres.addSlide();
+  s.background = { color: look.accent };
+  rings(pres, s, 10.6, 3.75);
+  if (look.logo) logoTile(s, look.logo, 0.9, 0.7, 2.4, 0.9);
+  s.addText(look.eventName, { x: 0.75, y: 2.2, w: 8.2, h: 1.3, fontFace: FONT, fontSize: 44, bold: true, color: 'FFFFFF', margin: 0, valign: 'bottom', fit: 'shrink', isTextBox: true });
+  s.addText('Commitments and Recommendations', { x: 0.75, y: 3.55, w: 8.2, h: 0.6, fontFace: FONT, fontSize: 28, bold: true, color: 'FFFFFF', margin: 0, fit: 'shrink', isTextBox: true });
+  s.addShape(pres.ShapeType.line, { x: 0.75, y: 4.35, w: 4.73, h: 0, line: { color: 'FFFFFF', width: 1, transparency: 30 } });
+  s.addText(subtitle, { x: 0.95, y: 4.57, w: 7.4, h: 0.34, fontFace: FONT, fontSize: 16, color: 'FFFFFF', margin: 0, fit: 'shrink', isTextBox: true });
+  s.addText(look.footer, { x: 9.6, y: 6.76, w: 3, h: 0.22, fontFace: FONT, fontSize: 12, color: 'FFFFFF', align: 'right', margin: 0, isTextBox: true });
+}
+
+/** Another event's closing: its colour and the rings, with its logo. */
+function eventClosingSlide(pres: PptxGenJS, look: Look) {
+  const s = pres.addSlide();
+  s.background = { color: look.accent };
+  rings(pres, s, 6.67, 3.75);
+  if (look.logo) logoTile(s, look.logo, 5.67, 3.3, 2, 0.9);
+}
+
 /**
  * Fills `pres` with the Build template: one session's slides, or the end-of-day deck (cover, each
  * session in turn, closing). Pages are numbered "n/total" across the deck, as the template does.
  */
-export function addBuildSlides(pres: PptxGenJS, input: { sessions: BuildSession[]; layout: BuildLayout; art: BuildArt; day?: { subtitle: string } }): void {
+export function addBuildSlides(pres: PptxGenJS, input: { sessions: BuildSession[]; layout: BuildLayout; look: Look; day?: { subtitle: string } }): void {
   pres.defineLayout({ name: 'BUILD', width: 13.333, height: 7.5 });
   pres.layout = 'BUILD';
   pres.theme = { headFontFace: FONT, bodyFontFace: FONT };
@@ -228,12 +323,17 @@ export function addBuildSlides(pres: PptxGenJS, input: { sessions: BuildSession[
   const body = sessions.reduce((n, s) => n + slideCount(s, input.layout), 0);
   const total = body + (input.day ? 2 : 0);
   let at = input.day ? 1 : 0;
+  const { look } = input;
   if (input.day) {
-    pres.title = 'Build Session: Commitment Tracking';
-    coverSlide(pres, input.art, input.day.subtitle);
+    pres.title = look.art ? 'Build Session: Commitment Tracking' : `${look.eventName}: commitments and recommendations`;
+    if (look.art) coverSlide(pres, look.art, input.day.subtitle);
+    else eventCoverSlide(pres, look, input.day.subtitle);
   } else pres.title = `${sessions[0]?.title ?? 'Session'}: commitments`;
-  for (const session of sessions) at += sessionSlides(pres, session, input.layout, (p) => `${at + p + 1}/${total}`);
-  if (input.day) closingSlide(pres, input.art);
+  for (const session of sessions) at += sessionSlides(pres, look, session, input.layout, (p) => `${at + p + 1}/${total}`);
+  if (input.day) {
+    if (look.art) closingSlide(pres, look.art);
+    else eventClosingSlide(pres, look);
+  }
 }
 
 /** The template's artwork from public/deck/build, as base64 PNG for the slides. */
@@ -252,10 +352,35 @@ export async function loadBuildArt(): Promise<BuildArt> {
   return { rings: rings!, africa: africa!, buildLogo: buildLogo!, aiCollective: aiCollective! };
 }
 
-/** Builds a Build-template deck and hands it to the browser to save. */
-export async function downloadBuildDeck(input: { sessions: BuildSession[]; layout: BuildLayout; day?: { subtitle: string } }, fileName: string): Promise<void> {
+/** The event's logo as a slide image, or null when there is none or it cannot be fetched. */
+async function loadLogo(url: string | null): Promise<DeckImage | null> {
+  if (!url) return null;
+  try {
+    const blob = await (await fetch(url)).blob();
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).replace(/^data:[^;]+;base64,/, ''));
+      reader.onerror = () => reject(new Error('logo'));
+      reader.readAsDataURL(blob);
+    });
+    return await toDeckImage({ label: 'logo', mediaType: blob.type || 'image/png', data });
+  } catch {
+    return null; // the deck is drawn without it
+  }
+}
+
+/**
+ * Builds a template deck and hands it to the browser to save: in Build's look for an event set to
+ * the Build template, else in the event's own colour and logo.
+ */
+export async function downloadBuildDeck(
+  input: { sessions: BuildSession[]; layout: BuildLayout; day?: { subtitle: string }; event: { name: string; shortName: string; brandColor: string | null; logoUrl: string | null; build: boolean } },
+  fileName: string,
+): Promise<void> {
   const { default: Pptx } = await import('pptxgenjs');
   const pres = new Pptx();
-  addBuildSlides(pres, { ...input, art: await loadBuildArt() });
+  const { event, ...rest } = input;
+  const look = event.build ? buildLook(await loadBuildArt()) : eventLook({ ...event, logo: await loadLogo(event.logoUrl) });
+  addBuildSlides(pres, { ...rest, look });
   await pres.writeFile({ fileName });
 }
