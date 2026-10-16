@@ -3,7 +3,7 @@
 import { ArrowDownTrayIcon, PresentationChartLineIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
-import { LineChart, shortDay } from '@/components/dashboard/line-chart';
+import { DayBars, LineChart, shortDay } from '@/components/dashboard/line-chart';
 import { buttonClass } from '@/components/ui/button';
 import { chartColour, DonutChart, Stat } from '@/components/ui/chart-card';
 import { ChartTooltip, TipRow } from '@/components/ui/chart-tooltip';
@@ -16,7 +16,7 @@ import { averageActive, defaultPeriod, featureLabel, groupScreens, peakDay, peri
 import { useAnalyticsSummary } from '@/lib/analytics/use-analytics';
 import { useSession } from '@/lib/auth/session';
 import { dateRange, type Edition } from '@/lib/events/events';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { compact, count } from '@/lib/format';
 import { useNow } from '@/lib/use-now';
 import { useUrlParam } from '@/lib/use-url-state';
@@ -25,6 +25,9 @@ import { cn } from '@/lib/utils';
 const LIST_LIMIT = 8;
 /** A chart panel: the console's Panel, its body a padded column the chart can fill. */
 const chartPanel = { className: 'flex min-w-0 flex-col', bodyClassName: 'flex flex-1 flex-col gap-3 px-6 py-5' };
+
+/** Under a week of days reads better as columns than as a line over a few points. */
+const BARS_BELOW = 7;
 
 const weekday = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -106,6 +109,8 @@ function Usage({ data }: { data: AnalyticsSummary }) {
       <div className="pt-2">
         {data.totalEvents === 0 ? (
           <p className="flex h-56 items-center justify-center text-center text-sm text-hint">No app activity in this period; it shows here within a minute.</p>
+        ) : data.activeDelegates.length < BARS_BELOW ? (
+          <DayBars days={data.activeDelegates.map((d) => ({ day: d.day, value: d.count }))} format={count} label="Delegates using the app per day" />
         ) : (
           <LineChart days={data.activeDelegates.map((d) => ({ day: d.day, value: d.count }))} format={count} label="Delegates using the app per day" />
         )}
@@ -129,14 +134,16 @@ function Platforms({ data }: { data: AnalyticsSummary }) {
 export default function AnalyticsPage() {
   const auth = useSession();
   const isAdmin = auth.status === 'signed-in' && auth.user.tier === 'admin';
-  const editions = useEditions();
+  const working = useWorkingEdition();
+  const editions = working.editions;
   const now = useNow(60_000).getTime();
   const [periodParam, setPeriodParam] = useUrlParam<string>('period', '');
   const [custom, setCustom] = useState({ start: '', end: '' });
 
   const list: Edition[] = editions.data ?? [];
   const picked = periodOf(periodParam, list, custom);
-  const period = picked ?? (editions.data ? defaultPeriod(list, now) : null);
+  // with nothing picked, the period is the event chosen in the top bar
+  const period = picked ?? (working.edition ? { kind: 'event' as const, editionId: working.edition.id } : editions.data ? defaultPeriod(list, now) : null);
   // "last N days" is pinned to the minute, so the query key does not change on every render
   const range = period ? periodRange(period, list, Math.floor(now / 60_000) * 60_000) : null;
   const summary = useAnalyticsSummary(range);
@@ -145,7 +152,7 @@ export default function AnalyticsPage() {
   const title = edition ? `${edition.shortName}, app usage` : period?.kind === 'last' ? `App usage, last ${period.days} days` : 'App usage';
 
   const options = [
-    ...list.map((e) => ({ value: `event:${e.id}`, label: `${e.shortName} · ${dateRange(e.startsAt, e.endsAt)}` })),
+    ...list.map((e) => ({ value: `event:${e.id}`, label: `${e.shortName} event · ${dateRange(e.startsAt, e.endsAt)}` })),
     { value: 'last:7', label: 'Last 7 days' },
     { value: 'last:30', label: 'Last 30 days' },
     { value: 'custom', label: 'Custom dates…' },
@@ -164,13 +171,13 @@ export default function AnalyticsPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!isAdmin) return <EmptyState framed icon={PresentationChartLineIcon} title="Analytics are for organisers" className="mx-auto w-full max-w-lg" />;
+  if (!isAdmin) return <EmptyState framed icon={PresentationChartLineIcon} title="Analytics are for organisers" className="w-full max-w-lg" />;
 
   const screens = data ? groupScreens(data.screens).map((s) => ({ key: s.key, label: s.label, value: s.views })) : [];
   const features = data ? data.features.map((f) => ({ key: f.feature, label: featureLabel(f.feature), value: f.uses })) : [];
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <h1 className="sr-only">Analytics</h1>
 
       <Panel
@@ -179,7 +186,15 @@ export default function AnalyticsPage() {
         className="[&>header]:border-b-0"
         actions={
           <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-            <div className="w-full sm:w-72">{period ? <Select label="Period" value={periodValue(period)} options={options} onChange={choose} /> : <Skeleton className="h-10" />}</div>
+            {/* the period may be an event, but it is not the working event: it only scopes these figures */}
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <label htmlFor="analytics-period" className="shrink-0 text-sm text-hint">
+                Period
+              </label>
+              <div className="min-w-0 flex-1 sm:w-72 sm:flex-none">
+                {period ? <Select id="analytics-period" value={periodValue(period)} options={options} onChange={choose} /> : <Skeleton className="h-10" />}
+              </div>
+            </div>
             {period?.kind === 'custom' && (
               <div className="w-full sm:w-72">
                 <DateRangePicker value={custom} onChange={setCustom} />

@@ -41,6 +41,14 @@ const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const people = (n: number) => `${count(n)} ${n === 1 ? 'person' : 'people'}`;
 
+/** A subject as the list shows it: the event's name filled in, each person's own details named (they differ per email). */
+const listSubject = (subject: string, event: string) =>
+  subject.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (whole, f: string) => {
+    const key = f.toLowerCase() as MergeField;
+    if (key === 'event') return event;
+    return key in MERGE_LABEL ? `[${MERGE_LABEL[key].toLowerCase()}]` : whole;
+  });
+
 /** Email campaigns: write to an event's ticket holders, preview each email, test it, send it. */
 export default function CampaignsPage() {
   const page = usePageEdition();
@@ -55,7 +63,7 @@ function CampaignsBoard({ edition }: { edition: Edition }) {
   const list = useCampaigns(edition.id);
   const [open, setOpen] = useState<{ id: string | null; key: string } | null>(null);
   const openCampaign = open?.id ? list.data?.find((c) => c.id === open.id) : null;
-  useSubPage(open ? openCampaign?.subject.trim() || 'New campaign' : null, () => setOpen(null));
+  useSubPage(open ? listSubject(openCampaign?.subject ?? '', edition.name).trim() || 'New campaign' : null, () => setOpen(null));
   const tiers = useTicketTypes(edition.id);
   const tierNames = useMemo(() => new Map((tiers.data?.tiers ?? []).map((t) => [t.id, t.name])), [tiers.data]);
 
@@ -102,7 +110,7 @@ function CampaignsBoard({ edition }: { edition: Edition }) {
                   className="flex w-full flex-wrap items-center gap-x-6 gap-y-2 px-6 py-4 text-left transition-colors hover:bg-surface-soft"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-ink">{c.subject}</p>
+                    <p className="truncate text-ink">{listSubject(c.subject, edition.name)}</p>
                     <p className="truncate text-xs text-hint">{audienceText(c)}</p>
                   </div>
                   <div className="w-56">

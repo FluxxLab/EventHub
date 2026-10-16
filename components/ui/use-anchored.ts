@@ -8,12 +8,7 @@ import { useEffect, useLayoutEffect, type RefObject } from 'react';
  * by writing its style directly, and follows the trigger on scroll and resize. Clicking outside
  * both calls `onDismiss`.
  */
-export function useAnchored(
-  open: boolean,
-  anchor: RefObject<HTMLElement | null>,
-  panel: RefObject<HTMLElement | null>,
-  onDismiss: () => void,
-) {
+export function useAnchored(open: boolean, anchor: RefObject<HTMLElement | null>, panel: RefObject<HTMLElement | null>, onDismiss: () => void) {
   useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
@@ -51,8 +46,7 @@ export function useAnchored(
 export const anchoredPanel = 'invisible fixed z-50';
 
 /** The dropdown panel from the design system: #DCDCDC border, 8px corners, the "lg" shadow. */
-export const dropdownPanel =
-  'rounded-lg border border-border bg-surface shadow-lg';
+export const dropdownPanel = 'menu-in rounded-lg border border-border bg-surface shadow-lg';
 
 /** One 36px row in a dropdown: 8px 10px padding, 8px corners, 14px #525252 text. */
 export const dropdownItem = 'flex h-9 w-full items-center gap-1.5 rounded-lg px-2.5 text-left text-sm text-ink-soft';

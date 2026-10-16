@@ -5,6 +5,7 @@ import { PlayIcon } from '@heroicons/react/24/solid';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -15,6 +16,9 @@ import { cn } from '@/lib/utils';
 
 type Errors = { question?: string; options?: Record<number, string>; list?: string };
 const NO_SESSION = '__none__';
+
+/** The poll as it would be saved (blank answers left out), to tell whether anything changed since the form opened. */
+const snapshot = (form: PollForm) => JSON.stringify([form.question.trim(), form.options.map((o) => o.trim()).filter(Boolean), form.showResults, form.sessionId]);
 
 /**
  * Drafts a poll, or edits a draft. "Save and start" runs it straight away; when another poll is
@@ -67,6 +71,8 @@ export function PollDialog({
     setOpenedFor(undefined);
     onClose();
   };
+  const dirty = open && snapshot(form) !== snapshot(poll ? pollFormOf(poll) : emptyPoll());
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending, onClose: close });
 
   const setOption = (i: number, value: string) => {
     setForm((f) => ({ ...f, options: f.options.map((o, j) => (j === i ? value : o)) }));
@@ -109,7 +115,7 @@ export function PollDialog({
       aria-labelledby={id('title')}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('md')}
     >
@@ -252,8 +258,9 @@ export function PollDialog({
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
-          <button type="button" onClick={close} disabled={pending} className={cancelClass}>
+          <button type="button" onClick={requestClose} disabled={pending} className={cancelClass}>
             Cancel
           </button>
           <button type="submit" disabled={pending} className={buttonClass({ style: 'outline', color: 'gray' })}>

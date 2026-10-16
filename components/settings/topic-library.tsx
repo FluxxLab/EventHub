@@ -227,7 +227,7 @@ export function TopicLibrary({ kind }: { kind: Kind }) {
                     onClick={() => move(o, -1)}
                     disabled={index === 0 || update.isPending}
                     aria-label={`Move ${o.label} up`}
-                    className="rounded p-0.5 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                    className="rounded p-0.5 text-ink-soft hover:bg-surface-soft hover:text-ink disabled:opacity-30"
                   >
                     <ChevronUpIcon className="size-4" />
                   </button>
@@ -236,7 +236,7 @@ export function TopicLibrary({ kind }: { kind: Kind }) {
                     onClick={() => move(o, 1)}
                     disabled={index === all.length - 1 || update.isPending}
                     aria-label={`Move ${o.label} down`}
-                    className="rounded p-0.5 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                    className="rounded p-0.5 text-ink-soft hover:bg-surface-soft hover:text-ink disabled:opacity-30"
                   >
                     <ChevronDownIcon className="size-4" />
                   </button>

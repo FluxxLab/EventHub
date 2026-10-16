@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { ArrowDownTrayIcon, ArrowUpTrayIcon, CheckBadgeIcon, CheckCircleIcon, MagnifyingGlassIcon, UsersIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArrowUpTrayIcon, ArrowUturnLeftIcon, CheckBadgeIcon, CheckCircleIcon, MagnifyingGlassIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { Suspense, useDeferredValue, useMemo, useState } from 'react';
 
 import { Avatar } from '@/components/shell/avatar';
@@ -32,7 +32,7 @@ import {
 } from '@/lib/delegates/delegates';
 import { useSession } from '@/lib/auth/session';
 import { useDelegateActions, useDelegates } from '@/lib/delegates/use-delegates';
-import { useEditions } from '@/lib/events/use-editions';
+import { useWorkingEdition } from '@/lib/events/working-edition';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,9 @@ const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 
 const STATUS_TONE: Record<DelegateStatus, TagTone> = { pending: 'gold', approved: 'green', unclaimed: 'gray' };
 const STATUS_VALUES: readonly StatusFilter[] = ['all', 'pending', 'approved', 'unclaimed'];
+/** Every event's delegates, or only the working event's (picked in the top bar). */
+type Scope = 'all' | 'working';
+const SCOPES: readonly Scope[] = ['all', 'working'];
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending review' },
@@ -69,14 +72,19 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
   const [page, setPage] = useState(1);
   // Typing does not fire a request per keystroke: the search follows the text once React is idle.
   const search = useDeferredValue(query.trim());
-  // Event organisers see their events' ticket holders only, and pick which event; organisers can see everyone.
+  // Event organisers see the working event's ticket holders only (the event is picked in the top
+  // bar); organisers can see everyone, or narrow to the working event.
   const auth = useSession();
   const scoped = auth.status === 'signed-in' && auth.user.tier === 'event_admin';
-  const editions = useEditions();
-  const [eventId, setEventId] = useUrlParam<string>('event', 'all');
-  const firstEvent = editions.data?.[0]?.id;
-  const editionId = eventId !== 'all' ? eventId : scoped ? firstEvent : undefined;
-  const eventOptions = [...(scoped ? [] : [{ value: 'all', label: 'All events' }]), ...(editions.data ?? []).map((e) => ({ value: e.id, label: e.shortName }))];
+  const working = useWorkingEdition();
+  const editions = working.editions;
+  const [scope, setScope] = useUrlParam<Scope>('events', 'all', SCOPES);
+  const oneEvent = (editions.data?.length ?? 0) === 1;
+  const editionId = scoped || scope === 'working' || oneEvent ? working.edition?.id : undefined;
+  const scopeOptions = [
+    { value: 'all' as const, label: 'All events' },
+    { value: 'working' as const, label: working.edition?.shortName ?? 'This event' },
+  ];
   const delegates = useDelegates({ search, ticketTypeId: tier, editionId }, !scoped || Boolean(editionId));
   const ticketTypes = useTicketTypes(editionId);
   const eventTiers = useMemo(() => (editionId ? (ticketTypes.data?.tiers ?? []) : []), [editionId, ticketTypes.data]);
@@ -95,6 +103,8 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
   // Attendees only: organisers and session operators have their own table on the Team page.
   const all = useMemo(() => (delegates.data ?? []).filter((d) => !isStaff(d)), [delegates.data]);
   const counts = useMemo(() => countByStatus(all), [all]);
+  // a tier is named with its event only while the list holds more than one event's tickets
+  const manyEvents = useMemo(() => !editionId && new Set(all.flatMap((d) => (d.tickets ?? []).map((t) => t.editionId))).size > 1, [all, editionId]);
   const filtered = useMemo(() => filterByStatus(all, status), [all, status]);
   const view = paginate(filtered, page);
   const capped = all.length >= 500;
@@ -158,7 +168,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
     <div className="flex flex-col gap-4">
       <h1 className="sr-only">Delegates</h1>
       {editions.data && canImport && (
-        <ImportDialog key={importing ? 'open' : 'closed'} open={importing} editions={editions.data} initialEditionId={eventId !== 'all' ? eventId : undefined} onClose={() => setImporting(false)} />
+        <ImportDialog key={importing ? 'open' : 'closed'} open={importing} editions={editions.data} initialEditionId={editionId ?? working.edition?.id} onClose={() => setImporting(false)} />
       )}
 
       <Panel
@@ -173,7 +183,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
         actions={
           <>
             {!scoped && counts.pending > 0 && (
-              <button type="button" onClick={() => setApprovingAll(true)} className={buttonClass({ style: 'soft', color: 'green' })}>
+              <button type="button" onClick={() => setApprovingAll(true)} className={buttonClass({ style: 'soft', color: 'gray' })}>
                 <CheckBadgeIcon className="size-4" />
                 Approve all pending ({counts.pending})
               </button>
@@ -201,7 +211,8 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                 setPage(1);
               }}
             />
-            <div className="flex flex-wrap items-center gap-3">
+            {/* full width on a phone, so the status tabs keep a row of their own */}
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
               <TextInput
                 icon={MagnifyingGlassIcon}
                 value={query}
@@ -211,16 +222,16 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                 }}
                 placeholder="Name, email or organisation"
                 aria-label="Search delegates"
-                className="w-72"
+                className="w-full sm:w-72"
               />
-              {eventOptions.length > 1 && (
-                <div className="w-40">
+              {!scoped && !oneEvent && working.edition && (
+                <div className="w-full sm:w-40">
                   <Select
-                    label="Event"
-                    value={editionId ?? 'all'}
-                    options={eventOptions}
+                    label="Events shown"
+                    value={scope}
+                    options={scopeOptions}
                     onChange={(v) => {
-                      setEventId(v);
+                      setScope(v);
                       // tiers are the event's own
                       setTier('all');
                       setPage(1);
@@ -229,7 +240,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                 </div>
               )}
               {editionId && eventTiers.length > 0 && (
-                <div className="w-44">
+                <div className="w-full sm:w-44">
                   <Select
                     label="Tier"
                     value={tier}
@@ -343,7 +354,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                             {d.tickets.map((t) => (
                               <Tag key={t.ticketId} tone="primary">
                                 {t.tierName}
-                                {editionId ? '' : ` · ${shortNames.get(t.editionId) ?? 'event'}`}
+                                {manyEvents ? ` · ${shortNames.get(t.editionId) ?? 'event'}` : ''}
                               </Tag>
                             ))}
                           </div>
@@ -360,13 +371,14 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
                       <td className={cn(td, 'text-right')}>
                         <div className={cn('flex justify-end gap-1', scoped && 'hidden')}>
                           {s === 'pending' && (
-                            <button type="button" onClick={() => approve(d, true)} disabled={actions.setApproval.isPending} className={buttonClass({ style: 'soft', color: 'green' })}>
+                            <button type="button" onClick={() => approve(d, true)} disabled={actions.setApproval.isPending} className={buttonClass({ style: 'outline', color: 'gray' })}>
                               <CheckCircleIcon className="size-4" />
                               Approve
                             </button>
                           )}
                           {s === 'approved' && (
-                            <button type="button" onClick={() => approve(d, false)} disabled={actions.setApproval.isPending} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                            <button type="button" onClick={() => approve(d, false)} disabled={actions.setApproval.isPending} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                              <ArrowUturnLeftIcon className="size-4" />
                               Send back
                             </button>
                           )}

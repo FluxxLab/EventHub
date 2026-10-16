@@ -18,7 +18,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-5">
+    <div className="flex max-w-2xl flex-col gap-5">
       <h1 className="sr-only">Profile</h1>
       <Panel title="Your account" description="Your details as the console knows them." bodyClassName="p-6">
         <div className="flex items-center gap-4">

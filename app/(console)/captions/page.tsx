@@ -11,7 +11,9 @@ import {
   ExclamationTriangleIcon,
   MicrophoneIcon,
   NoSymbolIcon,
+  PauseIcon,
   PlayCircleIcon,
+  PlayIcon,
   SignalIcon,
   SignalSlashIcon,
   StopCircleIcon,
@@ -19,12 +21,13 @@ import {
   TvIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { RowActions } from '@/components/ui/row-actions';
 import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
@@ -33,14 +36,15 @@ import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
+import { runsEvents, useSession } from '@/lib/auth/session';
 import { deskRooms, FLOOR_DB, meterFraction, meterZone, paragraphs, parseSourceKey, readPatch, sameRoom, sourceKey, sourceOptions, uncaptioned, type DeskPatch } from '@/lib/captions/captions';
 import type { RoomState } from '@/lib/captions/room-capture';
-import type { CaptureSource } from '@/lib/ingest/ingest';
+import { SOURCE_LABEL, type CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
 import { useCaptionActions, useCaptionFeed, useLiveSessions, useSoundDesk, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { currentDay } from '@/lib/live/live';
-import { useBoard } from '@/lib/live/use-live';
+import { useBoard, useLiveOverview } from '@/lib/live/use-live';
 import type { Session } from '@/lib/programme/programme';
 import { useRooms } from '@/lib/venue/use-venue';
 import { useUrlParam } from '@/lib/use-url-state';
@@ -76,6 +80,43 @@ function ConnectionDot() {
 
 /* ----------------------------------------------------------------- monitor */
 
+/** Caption text sizes for the monitor, remembered on this computer: it is watched for hours. */
+const SIZE_KEY = 'pic.admin.caption-size';
+const SIZES = [
+  { value: 'normal', label: 'Normal text', className: 'text-lg leading-8' },
+  { value: 'large', label: 'Large text', className: 'text-[1.3125rem] leading-9' },
+  { value: 'xl', label: 'Extra large text', className: 'text-2xl leading-10' },
+] as const;
+type Size = (typeof SIZES)[number]['value'];
+const isSize = (v: string | null): v is Size => SIZES.some((s) => s.value === v);
+const sizeListeners = new Set<() => void>();
+// used when storage is blocked: the size still changes for this visit
+let sizeInMemory: Size = 'normal';
+
+function readSize(): Size {
+  try {
+    const saved = localStorage.getItem(SIZE_KEY);
+    return isSize(saved) ? saved : sizeInMemory;
+  } catch {
+    return sizeInMemory;
+  }
+}
+
+function setCaptionSize(size: Size) {
+  sizeInMemory = size;
+  try {
+    localStorage.setItem(SIZE_KEY, size);
+  } catch {
+    // not remembered, but used for this visit
+  }
+  sizeListeners.forEach((l) => l());
+}
+
+function subscribeSize(listener: () => void) {
+  sizeListeners.add(listener);
+  return () => void sizeListeners.delete(listener);
+}
+
 /** The running caption stream for one session, as paragraphs, following the newest line. */
 function CaptionStream({ session }: { session: Session }) {
   const feed = useCaptionFeed(session.id);
@@ -84,13 +125,17 @@ function CaptionStream({ session }: { session: Session }) {
   const [confirmClear, setConfirmClear] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const [following, setFollowing] = useState(true);
+  // the operator can stop the stream moving while they read (WCAG 2.2.2), then go back to live
+  const [paused, setPaused] = useState(false);
+  const size = useSyncExternalStore(subscribeSize, readSize, () => 'normal' as Size);
+  const sizeClass = SIZES.find((s) => s.value === size)!.className;
   const blocks = useMemo(() => paragraphs(feed.finals), [feed.finals]);
 
   // Stay pinned to the newest line unless the operator has scrolled up to read.
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (el && following) el.scrollTop = el.scrollHeight;
-  }, [feed, following]);
+    if (el && following && !paused) el.scrollTop = el.scrollHeight;
+  }, [feed, following, paused]);
   const onScroll = () => {
     const el = scroller.current;
     if (el) setFollowing(el.scrollHeight - el.scrollTop - el.clientHeight < 40);
@@ -117,38 +162,60 @@ function CaptionStream({ session }: { session: Session }) {
             <ArrowDownTrayIcon className="size-4" />
             TXT
           </button>
-          <button type="button" onClick={() => setConfirmClear(true)} className={buttonClass({ style: 'soft', color: 'danger' })}>
-            <TrashIcon className="size-4" />
-            Clear
-          </button>
+          {/* Clearing empties every delegate's screen: kept apart from the downloads, in the menu. */}
+          <RowActions name={session.title} actions={[{ label: 'Clear captions…', icon: TrashIcon, onSelect: () => setConfirmClear(true) }]} />
         </>
       }
       footer={
-        !following && (
-          <button type="button" onClick={() => setFollowing(true)} className={buttonClass({ style: 'borderless', className: 'ml-auto h-8' })}>
-            Jump to latest
-          </button>
-        )
+        <>
+          <Select label="Caption text size" value={size} options={SIZES.map((s) => ({ value: s.value, label: s.label }))} onChange={setCaptionSize} className="w-44" />
+          {following && !paused ? (
+            <button type="button" onClick={() => setPaused(true)} className={buttonClass({ style: 'borderless', color: 'gray', className: 'ml-auto h-8' })}>
+              <PauseIcon className="size-4" />
+              Pause scrolling
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setPaused(false);
+                setFollowing(true);
+              }}
+              className={buttonClass({ style: 'borderless', className: 'ml-auto h-8' })}
+            >
+              <PlayIcon className="size-4" />
+              Back to live
+            </button>
+          )}
+        </>
       }
     >
-      <div ref={scroller} onScroll={onScroll} aria-live="off" className="relative h-[28rem] overflow-y-auto px-5 py-4">
+      {/* Sized to the window, so the footer controls stay in view and a big screen shows more. */}
+      <div
+        ref={scroller}
+        onScroll={onScroll}
+        role="log"
+        aria-label={`Live captions: ${session.title}`}
+        aria-live="off"
+        className="relative h-[calc(100dvh-28rem)] min-h-[18rem] overflow-y-auto px-5 py-4"
+      >
         {blocks.length === 0 && !feed.interim ? (
           <EmptyState className="h-full justify-center" icon={MicrophoneIcon} title="Waiting for the first words" body="Captions appear here as soon as the capture desk sends audio." />
         ) : (
           <div className="flex flex-col gap-4">
             {blocks.map((p) => (
               <div key={p.lines[0]!.seq} className="flex gap-4">
-                <p className="w-16 shrink-0 pt-0.5 text-xs tabular-nums text-hint">{hms(p.at)}</p>
+                <p className="w-16 shrink-0 pt-1.5 text-xs tabular-nums text-hint">{hms(p.at)}</p>
                 <div className="min-w-0">
                   {p.who && <p className="mb-0.5 text-xs font-medium text-primary">{p.who}</p>}
-                  <p className="text-[0.9375rem] leading-7 text-ink">{p.lines.map((l) => l.text).join(' ')}</p>
+                  <p className={cn('max-w-[70ch] text-ink', sizeClass)}>{p.lines.map((l) => l.text).join(' ')}</p>
                 </div>
               </div>
             ))}
             {feed.interim && (
               <div className="flex gap-4">
-                <p className="w-16 shrink-0 pt-0.5 text-xs text-hint">now</p>
-                <p className="text-[0.9375rem] leading-7 text-hint italic">{feed.interim.text}</p>
+                <p className="w-16 shrink-0 pt-1.5 text-xs text-hint">now</p>
+                <p className={cn('max-w-[70ch] text-ink-soft', sizeClass)}>{feed.interim.text}</p>
               </div>
             )}
           </div>
@@ -179,6 +246,40 @@ function CaptionStream({ session }: { session: Session }) {
   );
 }
 
+/**
+ * The room's state in one calm line: room, live or on break, and whether audio is reaching
+ * captions, from the same figures Live ops shows (the live overview and the venue streams).
+ */
+function RoomContext({ session }: { session: Session }) {
+  const auth = useSession();
+  const overview = useLiveOverview(auth.status === 'signed-in' && runsEvents(auth.user.tier));
+  const streams = useIngestRooms();
+  // the live session by id, or by room when the two lists name it differently
+  const metrics = overview.data?.find((m) => m.id === session.id) ?? overview.data?.find((m) => sameRoom(m.room, session.room));
+  const room = streams.disabled ? undefined : streams.data?.find((r) => sameRoom(r.room, session.room));
+  const source = room?.captioning ?? null;
+  // as Live ops: no audio captured, or a venue stream that is not sending with nothing else captioning
+  const streamDown = !!room?.stream && room.stream.state !== 'publishing' && !source;
+  const noFeed = (!!metrics && !metrics.capturing) || streamDown;
+  const audio = noFeed ? 'No audio feed' : source ? `Audio from the ${SOURCE_LABEL[source].toLowerCase()}` : metrics ? 'Receiving audio' : null;
+  return (
+    <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-soft">
+      <span className="font-medium text-ink">{session.room}</span>
+      <span aria-hidden>·</span>
+      <span>{metrics?.flags.cutToBreak ? 'On break' : 'Live'}</span>
+      {audio && (
+        <>
+          <span aria-hidden>·</span>
+          <span className={cn('inline-flex items-center gap-1.5', noFeed && 'text-danger')}>
+            {noFeed ? <SignalSlashIcon className="size-4" aria-hidden /> : <SignalIcon className="size-4 text-hint" aria-hidden />}
+            {audio}
+          </span>
+        </>
+      )}
+    </p>
+  );
+}
+
 function Monitor({ sessions }: { sessions: Session[] }) {
   const [picked, setPicked] = useState<string | null>(null);
   const session = sessions.find((s) => s.id === picked) ?? sessions[0];
@@ -200,9 +301,18 @@ function Monitor({ sessions }: { sessions: Session[] }) {
   }
   return (
     <div className="flex flex-col gap-4">
-      {sessions.length > 1 && (
-        <Select label="Live session" value={session.id} options={sessions.map((s) => ({ value: s.id, label: `${s.room} · ${s.title}` }))} onChange={setPicked} className="max-w-md" />
-      )}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <RoomContext session={session} />
+        {sessions.length > 1 && (
+          <Select
+            label="Live session"
+            value={session.id}
+            options={sessions.map((s) => ({ value: s.id, label: `${s.room} · ${s.title}` }))}
+            onChange={setPicked}
+            className="w-full sm:w-auto sm:max-w-md"
+          />
+        )}
+      </div>
       {/* Keyed so switching sessions starts a fresh feed. */}
       <CaptionStream key={session.id} session={session} />
       <p className="text-xs text-hint">Watching here counts as one caption listener on Live ops.</p>
@@ -290,8 +400,8 @@ function DeskSetup({
   return (
     <section aria-labelledby="desk-setup" className="rounded-xl border border-border bg-surface p-6 md:p-8">
       {streamed.length > 0 && (
-        <p className="mb-6 flex items-start gap-2 rounded-lg bg-success-soft px-4 py-3 text-sm text-success">
-          <SignalIcon className="mt-0.5 size-4 shrink-0" />
+        <p className="mb-6 flex items-start gap-2 rounded-lg bg-surface-soft px-4 py-3 text-sm text-ink">
+          <SignalIcon className="mt-0.5 size-4 shrink-0 text-hint" />
           {streamed.length === 1 ? `${streamed[0]} is` : `${streamed.length} rooms are`} captioned from the venue stream. Set this desk up as a backup: a room on stand-by takes over if its stream
           stops.
         </p>
@@ -721,7 +831,7 @@ export default function CaptionsPage() {
   const sessions = useMemo(() => [...(live.data ?? [])].sort((a, b) => a.room.localeCompare(b.room)), [live.data]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <h1 className="sr-only">Captions</h1>
       <UnderlineTabs label="Captions sections" idBase="captions" options={TABS.map((t) => ({ value: t.key, label: t.label, icon: t.icon }))} value={tab} onChange={setTab} />
 

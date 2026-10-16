@@ -66,7 +66,7 @@ function MaterialRow({
 }) {
   const Icon = KIND_ICON[material.kind];
   return (
-    <li className="group flex items-center gap-4 px-6 py-3.5">
+    <li className="flex items-center gap-4 px-6 py-3.5">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft/60 text-primary">
         <Icon className="size-5" />
       </span>
@@ -81,7 +81,7 @@ function MaterialRow({
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
-        <div className="mr-1 flex flex-col opacity-40 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <div className="mr-1 flex flex-col">
           <button type="button" onClick={() => onMove(-1)} disabled={first} aria-label={`Move “${material.title}” up`} className="rounded p-0.5 text-ink-soft hover:text-ink disabled:opacity-30">
             <ChevronUpIcon className="size-4" />
           </button>
@@ -134,7 +134,8 @@ function SessionMaterials({ session, canUpload }: { session: Session; canUpload:
           Day {session.day} · {hm(session.startsAt)}–{hm(session.endsAt)} · {session.room}
         </>
       }
-      actions={add}
+      // with nothing attached, the empty state below offers it instead
+      actions={materials.data && list.length === 0 ? undefined : add}
       className="flex flex-col"
     >
       {materials.isPending ? (
@@ -217,7 +218,7 @@ export default function MaterialsPage() {
   const shown = all.filter((s) => (day === 'all' || s.day === day) && (!q || s.title.toLowerCase().includes(q) || s.room.toLowerCase().includes(q)));
   const selected = all.find((s) => s.id === picked) ?? shown[0] ?? all[0] ?? null;
 
-  if (editions.isPending || sessions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (editions.isPending || sessions.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (!selected) {
     return (
       <EmptyState
@@ -230,13 +231,12 @@ export default function MaterialsPage() {
             Go to Programme
           </Link>
         }
-        className="mx-auto w-full max-w-lg"
       />
     );
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
+    <div className="grid items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
       <Panel
         title="Sessions"
         count={all.length}
@@ -256,7 +256,7 @@ export default function MaterialsPage() {
                 type="button"
                 aria-pressed={s.id === selected.id}
                 onClick={() => setPicked(s.id)}
-                className={cn('block w-full border-l-2 px-4 py-3 text-left transition-colors', s.id === selected.id ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
+                className={cn('block w-full px-4 py-3 text-left transition-colors', s.id === selected.id ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
               >
                 <span className="block truncate text-sm text-ink">{s.title}</span>
                 <span className="block text-xs text-hint">

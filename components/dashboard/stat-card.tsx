@@ -105,7 +105,7 @@ export function FigureCard({
 }) {
   const colour = tone === 'danger' ? 'text-danger' : tone === 'success' ? 'text-success' : 'text-ink';
   return (
-    <section aria-label={label} className={`flex min-h-37.5 min-w-0 flex-col gap-1 rounded-xl border bg-surface px-5 pb-4 pt-3 ${tone === 'danger' ? 'border-danger' : 'border-border'}`}>
+    <section data-figure aria-label={label} className={`flex min-h-37.5 min-w-0 flex-col gap-1 rounded-xl border bg-surface px-5 pb-4 pt-3 ${tone === 'danger' ? 'border-danger' : 'border-border'}`}>
       <span className={`flex h-10 w-10 items-center justify-center ${tone === 'danger' ? 'text-danger' : 'text-ink'}`}>
         <Icon className="size-8" />
       </span>

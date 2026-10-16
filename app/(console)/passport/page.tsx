@@ -9,11 +9,9 @@ import {
   DevicePhoneMobileIcon,
   FireIcon,
   GiftIcon,
-  PencilSquareIcon,
   PlusIcon,
   PrinterIcon,
   QrCodeIcon,
-  TrashIcon,
 } from '@heroicons/react/24/outline';
 import QRCode from 'qrcode';
 import { useId, useMemo, useState } from 'react';
@@ -26,6 +24,7 @@ import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/field';
 import { Panel } from '@/components/ui/panel';
+import { RowActions } from '@/components/ui/row-actions';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toaster';
@@ -185,19 +184,33 @@ export default function PassportPage() {
   );
 
   if (!isAdmin) {
-    return <EmptyState framed icon={QrCodeIcon} title="The passport is managed by organisers" className="mx-auto w-full max-w-lg" />;
+    return <EmptyState framed icon={QrCodeIcon} title="The passport is managed by organisers" />;
   }
-  if (editions.isPending || booths.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (editions.isPending || booths.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (booths.isError && !booths.data) {
-    return <ErrorState framed title="Stands could not load" error={booths.error} onRetry={() => void booths.refetch()} className="mx-auto w-full max-w-6xl" />;
+    return <ErrorState framed title="Stands could not load" error={booths.error} onRetry={() => void booths.refetch()} />;
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
         <FigureCard label="Active stands" icon={BuildingStorefrontIcon} value={`${totals.active} of ${totals.total}`} note="A full passport means every active stand" />
         <FigureCard label="Stamps collected" icon={CheckBadgeIcon} value={count(totals.stamps)} />
-        <FigureCard label="Busiest stand" icon={FireIcon} value={totals.busiest?.name ?? '–'} note={totals.busiest ? `${count(totals.busiest.stamps)} stamps` : undefined} />
+        {/* a name, not a figure: set smaller so it fits, on the number's line so the cards stay level */}
+        <FigureCard
+          label="Busiest stand"
+          icon={FireIcon}
+          value={
+            totals.busiest ? (
+              <span className="text-lg" title={totals.busiest.name}>
+                {totals.busiest.name}
+              </span>
+            ) : (
+              '–'
+            )
+          }
+          note={totals.busiest ? `${count(totals.busiest.stamps)} stamps` : undefined}
+        />
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -245,7 +258,7 @@ export default function PassportPage() {
                     <th scope="col" className={th}>
                       Counts
                     </th>
-                    <th scope="col" className={cn(th, 'w-32')}>
+                    <th scope="col" className={cn(th, 'w-40')}>
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
@@ -274,43 +287,23 @@ export default function PassportPage() {
                         />
                       </td>
                       <td className={cn(td, 'text-right')}>
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setScanner(b)}
-                            aria-label={`Lead scanner for ${b.name}`}
-                            title="Lead scanner"
-                            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}
-                          >
-                            <DevicePhoneMobileIcon className="size-4" />
-                          </button>
+                        {/* printing the sign is the job here; the rest wait in the menu */}
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => void print([b])}
                             aria-label={`Print the sign for ${b.name}`}
-                            title="Print sign"
-                            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}
+                            className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8' })}
                           >
                             <PrinterIcon className="size-4" />
+                            Print sign
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditing({ booth: b })}
-                            aria-label={`Edit ${b.name}`}
-                            title="Edit"
-                            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8' })}
-                          >
-                            <PencilSquareIcon className="size-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleting(b)}
-                            aria-label={`Delete ${b.name}`}
-                            title="Delete"
-                            className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true, className: 'size-8 hover:text-danger' })}
-                          >
-                            <TrashIcon className="size-4" />
-                          </button>
+                          <RowActions
+                            name={b.name}
+                            actions={[{ label: 'Lead scanner', icon: DevicePhoneMobileIcon, onSelect: () => setScanner(b) }]}
+                            onEdit={() => setEditing({ booth: b })}
+                            onDelete={() => setDeleting(b)}
+                          />
                         </div>
                       </td>
                     </tr>

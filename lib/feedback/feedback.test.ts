@@ -10,17 +10,12 @@ describe('rankSessions', () => {
   it('orders by average, breaking ties on how many rated it, and sets unrated aside', () => {
     const { rated, unrated } = rankSessions(rows, 'best');
     expect(rated.map((r) => r.sessionId)).toEqual(['b', 'a', 'e', 'c']);
+    // the order follows the average shown, so 4.7 from three people still sits above 4.4 from many
+    expect(rankSessions([row('few', 3, 4.7), row('many', 142, 4.4), row('mid', 40, 3.9)], 'best').rated.map((r) => r.sessionId)).toEqual(['few', 'many', 'mid']);
     expect(unrated.map((r) => r.sessionId)).toEqual(['d']);
-    // equal averages: the one fewer people rated sits nearer the event average, so lower here
-    expect(rankSessions(rows, 'worst').rated.map((r) => r.sessionId)).toEqual(['c', 'e', 'a', 'b']);
+    // equal averages: the one more people rated comes first either way
+    expect(rankSessions(rows, 'worst').rated.map((r) => r.sessionId)).toEqual(['c', 'a', 'e', 'b']);
     expect(rankSessions(rows, 'most').rated.map((r) => r.sessionId)).toEqual(['a', 'e', 'c', 'b']);
-  });
-});
-
-describe('rankScore', () => {
-  it('keeps a handful of glowing ratings from outranking a well-rated crowd', () => {
-    const rows = [row('few', 3, 4.7), row('many', 142, 4.4), row('mid', 40, 3.9)];
-    expect(rankSessions(rows, 'best').rated.map((r) => r.sessionId)).toEqual(['many', 'few', 'mid']);
   });
 });
 

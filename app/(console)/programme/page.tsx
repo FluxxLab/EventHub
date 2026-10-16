@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { CalendarDaysIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { CreateSessionDialog } from '@/components/programme/create-session-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
@@ -34,7 +34,8 @@ const td = 'border-b border-border px-4 py-3 text-sm text-ink align-middle';
 const DAYS = Array.from({ length: MAX_DAY }, (_, i) => String(i + 1));
 
 /**
- * Reads `?edition=&q=` (global search lands here); a new link remounts the view with them. The day
+ * Reads `?edition=&q=` (global search lands here); a new link remounts the view with them, and its
+ * event becomes the working event (the top bar's). The day
  * and track stay in the address too, read where they are used, so changing them keeps the view.
  */
 function ProgrammeFromUrl() {
@@ -55,9 +56,12 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   useSessionsRealtime();
   const working = useWorkingEdition();
   const editions = working.editions;
-  const [pickedEdition, setPickedEdition] = useState<string | null>(initial.edition);
-  // The edition the app shows is the natural default; otherwise the newest.
-  const edition = editions.data?.find((e) => e.id === pickedEdition) ?? working.edition;
+  const { setEditionId } = working;
+  // the event is the top bar's; a search result for another event switches it there
+  useEffect(() => {
+    if (initial.edition) setEditionId(initial.edition);
+  }, [initial.edition, setEditionId]);
+  const edition = working.edition;
   const callActions = useCallActions(edition?.id ?? '');
   const toast = useToast();
   const sessions = useSessions(edition?.id);
@@ -89,7 +93,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   if (editions.isPending) return <Skeleton className="h-96 rounded-xl" />;
   if (!edition) {
     return (
-      <div className="mx-auto mt-10 w-full max-w-lg">
+      <div className="mt-10 w-full max-w-lg">
         <h1 className="sr-only">Programme</h1>
         <EmptyState
           framed
@@ -112,25 +116,12 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
 
       <Panel
         title="Programme"
+        description={edition.name}
         actions={
-          <>
-            <div className="w-72 max-w-full">
-              <Select
-                label="Event"
-                value={edition.id}
-                options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))}
-                onChange={(v) => {
-                  setPickedEdition(v);
-                  working.setEditionId(v);
-                  setDayParam('1');
-                }}
-              />
-            </div>
-            <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
-              <PlusIcon className="size-4" />
-              Add session
-            </button>
-          </>
+          <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
+            <PlusIcon className="size-4" />
+            Add session
+          </button>
         }
         toolbar={
           <>
@@ -143,17 +134,18 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                 return { value: d, label: `Day ${d} · ${date}`, count: countByDay(Number(d)) };
               })}
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="w-64">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+              <div className="w-full sm:w-64">
                 <Select label="Track" value={track} options={trackFilter} onChange={setTrack} />
               </div>
               <TextInput
                 icon={MagnifyingGlassIcon}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search sessions, rooms, speakers"
-                aria-label="Search sessions"
-                className="w-64"
+                placeholder="Search sessions"
+                aria-label="Search sessions, rooms and speakers"
+                title="Search by title, room or speaker"
+                className="w-full sm:w-64"
               />
             </div>
           </>
@@ -253,7 +245,8 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                           aria-label={`Change speakers for ${s.title}`}
                           className="-m-1 flex items-center gap-2 rounded-lg p-1 text-left hover:bg-primary-soft/50"
                         >
-                          <div className="flex -space-x-2">
+                          {/* a slight overlap, so each avatar's initials stay readable */}
+                          <div className="flex -space-x-1">
                             {s.speakers.slice(0, 3).map((sp) => (
                               <Avatar key={sp.id} name={sp.name} src={sp.avatarUrl} size={28} className="rounded-full ring-2 ring-surface" />
                             ))}
@@ -266,7 +259,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                       )}
                     </td>
                     <td className={td}>
-                      <SessionStatusPicker session={s} editionId={edition.id} className="w-36" />
+                      <SessionStatusPicker session={s} editionId={edition.id} className="h-8 w-32 px-2.5 shadow-none" />
                     </td>
                     <td className={cn(td, 'text-right')}>
                       <RowActions

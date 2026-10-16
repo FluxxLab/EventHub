@@ -25,7 +25,6 @@ import { trackLabel } from '@/lib/catalog/topics';
 import { useTrackLibrary } from '@/lib/catalog/use-topics';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
 const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 const votes = (n: number) => `${count(n)} ${n === 1 ? 'vote' : 'votes'}`;
 
@@ -70,17 +69,14 @@ function TopicItem({
         ? `${votes(topic.voters)} so far`
         : `${topic.entries.length} ${topic.entries.length === 1 ? 'pitch' : 'pitches'}`;
   return (
-    <li className="group relative">
+    <li className="relative">
       <div
         role="button"
         tabIndex={0}
         aria-pressed={selected}
         onClick={onSelect}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect())}
-        className={cn(
-          'flex cursor-pointer items-center gap-3 border-l-2 py-3 pr-12 pl-4 transition-colors',
-          selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft',
-        )}
+        className={cn('flex cursor-pointer items-center gap-3 py-3 pr-12 pl-4 transition-colors', selected ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
       >
         <span
           className={cn(
@@ -97,8 +93,8 @@ function TopicItem({
         </div>
       </div>
       {canEdit && (
-        <div className="absolute top-1/2 right-2 flex -translate-y-1/2 flex-col opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-          <button type="button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Move “${topic.name}” up`} className="rounded p-0.5 text-hint hover:text-ink disabled:opacity-30">
+        <div className="absolute top-1/2 right-2 flex -translate-y-1/2 flex-col">
+          <button type="button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Move “${topic.name}” up`} className="rounded p-0.5 text-ink-soft hover:text-ink disabled:opacity-30">
             <ChevronUpIcon className="size-4" />
           </button>
           <button
@@ -106,7 +102,7 @@ function TopicItem({
             onClick={() => onMove(1)}
             disabled={index === total - 1}
             aria-label={`Move “${topic.name}” down`}
-            className="rounded p-0.5 text-hint hover:text-ink disabled:opacity-30"
+            className="rounded p-0.5 text-ink-soft hover:text-ink disabled:opacity-30"
           >
             <ChevronDownIcon className="size-4" />
           </button>
@@ -259,9 +255,9 @@ function PitchBoard({ editionId }: { editionId: string }) {
     else removePitch.mutate({ id: pending.pitch.id }, { onSuccess: done, onError: fail('Pitch not removed') });
   };
 
-  if (topics.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (topics.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (topics.isError && !topics.data) {
-    return <ErrorState framed className="mx-auto w-full max-w-6xl" title="The Pitchathon could not load" error={topics.error} onRetry={() => void topics.refetch()} />;
+    return <ErrorState framed title="The Pitchathon could not load" error={topics.error} onRetry={() => void topics.refetch()} />;
   }
 
   const dialogs = (
@@ -344,7 +340,6 @@ function PitchBoard({ editionId }: { editionId: string }) {
       <>
         <EmptyState
           framed
-          className="mx-auto w-full max-w-6xl"
           icon={HandRaisedIcon}
           title="No topics yet"
           body="One topic per category: add its pitches, then open voting once they have presented."
@@ -367,9 +362,10 @@ function PitchBoard({ editionId }: { editionId: string }) {
   const won = new Set(selected ? winners(selected) : []);
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
+    <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <Panel
-        title="Running order"
+        title="Topics"
+        description="In running order."
         count={all.length}
         actions={
           canEdit && (
@@ -397,28 +393,65 @@ function PitchBoard({ editionId }: { editionId: string }) {
       </Panel>
 
       {selected && (
-        <section aria-labelledby="topic-name" className={cn(cardClass, 'flex flex-col')}>
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3">
-            <StatusPill topic={selected} />
-            {selected.voting !== 'pending' && (
-              <p className="text-sm tabular-nums text-ink" aria-live="polite">
-                <span className="text-2xl font-medium">{count(selected.voters)}</span> <span className="text-hint">{selected.voters === 1 ? 'vote' : 'votes'}</span>
-              </p>
-            )}
-          </header>
-
-          <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-2">
-            <h2 id="topic-name" className="text-xl text-ink">
-              {selected.name}
-            </h2>
-            {canEdit && (
-              <button type="button" onClick={() => setTopicDialog({ name: selected.name, id: selected.id })} className={buttonClass({ style: 'borderless', color: 'gray' })}>
-                <PencilSquareIcon className="size-4" />
-                Rename
-              </button>
-            )}
-          </div>
-
+        <Panel
+          title={selected.name}
+          badge={<StatusPill topic={selected} />}
+          actions={
+            (selected.voting !== 'pending' || canEdit) && (
+              <>
+                {selected.voting !== 'pending' && (
+                  <p className="text-sm tabular-nums text-ink" aria-live="polite">
+                    <span className="text-2xl font-medium">{count(selected.voters)}</span> <span className="text-hint">{selected.voters === 1 ? 'vote' : 'votes'}</span>
+                  </p>
+                )}
+                {canEdit && (
+                  <button type="button" onClick={() => setTopicDialog({ name: selected.name, id: selected.id })} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                    <PencilSquareIcon className="size-4" />
+                    Rename
+                  </button>
+                )}
+              </>
+            )
+          }
+          footer={
+            <>
+              <ConnectionDot />
+              {canEdit ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPending({ kind: 'delete-topic', topic: selected })}
+                    className={buttonClass({ style: 'borderless', color: 'gray', className: 'hover:text-danger' })}
+                  >
+                    <TrashIcon className="size-4" />
+                    Delete topic
+                  </button>
+                  {selected.voting === 'pending' && (
+                    <button
+                      type="button"
+                      disabled={selected.entries.length < 2}
+                      title={selected.entries.length < 2 ? 'Add at least two pitches first' : undefined}
+                      onClick={() => setPending({ kind: 'open', topic: selected })}
+                      className={buttonClass({ className: 'ml-2' })}
+                    >
+                      <PlayIcon className="size-4" />
+                      Open voting
+                    </button>
+                  )}
+                  {selected.voting === 'open' && (
+                    <button type="button" onClick={() => setPending({ kind: 'close', topic: selected })} className={buttonClass({ color: 'danger', className: 'ml-2' })}>
+                      <StopIcon className="size-4" />
+                      Close and announce
+                    </button>
+                  )}
+                  {selected.voting === 'closed' && <span className="ml-2 text-xs text-hint">Result frozen{selected.closedAt ? ` at ${hm(selected.closedAt)}` : ''}</span>}
+                </div>
+              ) : (
+                <span className="text-xs text-hint">Organisers run the Pitchathon; you can follow it here.</span>
+              )}
+            </>
+          }
+        >
           {ranked.length === 0 ? (
             <EmptyState
               icon={LightBulbIcon}
@@ -452,51 +485,14 @@ function PitchBoard({ editionId }: { editionId: string }) {
           )}
 
           {canEdit && selected.voting === 'pending' && ranked.length > 0 && (
-            <div className="px-6 pb-4">
+            <div className="px-6 py-2">
               <button type="button" onClick={() => setPitchDialog({ pitch: null })} className={buttonClass({ style: 'borderless', color: 'gray', className: '-ml-3' })}>
                 <PlusIcon className="size-4" />
                 Add pitch
               </button>
             </div>
           )}
-
-          <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-soft px-6 py-3">
-            <ConnectionDot />
-            {canEdit ? (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setPending({ kind: 'delete-topic', topic: selected })}
-                  className={buttonClass({ style: 'borderless', color: 'gray', className: 'hover:text-danger' })}
-                >
-                  <TrashIcon className="size-4" />
-                  Delete topic
-                </button>
-                {selected.voting === 'pending' && (
-                  <button
-                    type="button"
-                    disabled={selected.entries.length < 2}
-                    title={selected.entries.length < 2 ? 'Add at least two pitches first' : undefined}
-                    onClick={() => setPending({ kind: 'open', topic: selected })}
-                    className={buttonClass({ className: 'ml-2' })}
-                  >
-                    <PlayIcon className="size-4" />
-                    Open voting
-                  </button>
-                )}
-                {selected.voting === 'open' && (
-                  <button type="button" onClick={() => setPending({ kind: 'close', topic: selected })} className={buttonClass({ color: 'danger', className: 'ml-2' })}>
-                    <StopIcon className="size-4" />
-                    Close and announce
-                  </button>
-                )}
-                {selected.voting === 'closed' && <span className="ml-2 text-xs text-hint">Result frozen{selected.closedAt ? ` at ${hm(selected.closedAt)}` : ''}</span>}
-              </div>
-            ) : (
-              <span className="text-xs text-hint">Organisers run the Pitchathon; you can follow it here.</span>
-            )}
-          </footer>
-        </section>
+        </Panel>
       )}
       {dialogs}
     </div>

@@ -81,20 +81,21 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
         title="Speakers"
         count={speakers.data?.length}
         actions={
-          <>
-            <TextInput
-              icon={MagnifyingGlassIcon}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, role, organisation"
-              aria-label="Search speakers"
-              className="w-72"
-            />
-            <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
-              <PlusIcon className="size-4" />
-              Add speaker
-            </button>
-          </>
+          <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
+            <PlusIcon className="size-4" />
+            Add speaker
+          </button>
+        }
+        toolbar={
+          <TextInput
+            icon={MagnifyingGlassIcon}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search speakers"
+            aria-label="Search speakers by name, role or organisation"
+            title="Search by name, role or organisation"
+            className="w-full sm:w-72"
+          />
         }
       >
         {/* The line-up switch: who can see these speakers in the app. */}

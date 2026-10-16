@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDownTrayIcon, CalendarDaysIcon, ChatBubbleBottomCenterTextIcon, DocumentArrowDownIcon, ExclamationTriangleIcon, StarIcon as StarOutline } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, CalendarDaysIcon, ChatBubbleBottomCenterTextIcon, ExclamationTriangleIcon, StarIcon as StarOutline } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -44,7 +44,7 @@ function SessionItem({ row, selected, onSelect }: { row: FeedbackRow; selected: 
         type="button"
         aria-pressed={selected}
         onClick={onSelect}
-        className={cn('flex w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
+        className={cn('flex w-full items-center gap-3 px-4 py-3 text-left transition-colors', selected ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm text-ink">{row.title}</span>
@@ -178,15 +178,15 @@ export default function FeedbackPage() {
   };
 
   if (!isAdmin) {
-    return <EmptyState framed icon={StarOutline} title="Session feedback is for organisers" className="mx-auto w-full max-w-lg" />;
+    return <EmptyState framed icon={StarOutline} title="Session feedback is for organisers" />;
   }
-  if (editions.isPending || summary.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (editions.isPending || summary.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (summary.isError && !summary.data) {
-    return <ErrorState framed title="Feedback could not load" error={summary.error} onRetry={() => void summary.refetch()} className="mx-auto w-full max-w-6xl" />;
+    return <ErrorState framed title="Feedback could not load" error={summary.error} onRetry={() => void summary.refetch()} />;
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {promptOff && (
         <p role="alert" className="flex flex-wrap items-center gap-2 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning">
           <ExclamationTriangleIcon className="size-4 shrink-0" />
@@ -197,16 +197,10 @@ export default function FeedbackPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-3">
         <FigureCard label="Average rating" icon={StarOutline} value={formatAverage(totals.average)} note="Across every rating" />
         <FigureCard label="Ratings" icon={ChatBubbleBottomCenterTextIcon} value={count(totals.ratings)} />
         <FigureCard label="Sessions rated" icon={CalendarDaysIcon} value={`${totals.rated} of ${totals.sessions}`} />
-        <FigureCard label="All sessions" icon={DocumentArrowDownIcon} hint="Every session's average, ratings and comments as a spreadsheet">
-          <button type="button" onClick={exportCsv} disabled={!rows.length} className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9' })}>
-            <ArrowDownTrayIcon className="size-4" />
-            Download CSV
-          </button>
-        </FigureCard>
       </div>
 
       {rows.length === 0 ? (
@@ -226,6 +220,12 @@ export default function FeedbackPage() {
           <Panel
             title="Sessions"
             count={rows.length}
+            actions={
+              <button type="button" onClick={exportCsv} title="Every session's average and number of ratings as a spreadsheet" className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <ArrowDownTrayIcon className="size-4" />
+                Download CSV
+              </button>
+            }
             toolbar={<Select label="Order" value={mode} options={(Object.keys(SORT_LABEL) as SortMode[]).map((m) => ({ value: m, label: SORT_LABEL[m] }))} onChange={setMode} />}
             footer={
               unrated.length > 0 && (

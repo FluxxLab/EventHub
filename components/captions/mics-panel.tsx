@@ -35,8 +35,9 @@ const toMics = (rows: Row[]): SessionMic[] =>
   );
 
 /**
- * Mics: for each session, who is on which of the room's microphones, picked from the speakers the
- * session has in Programme (or the audience, or a name typed in).
+ * Mics: for each session of the working event (picked in the top bar), who is on which of the
+ * room's microphones, picked from the speakers the session has in Programme (or the audience, or a
+ * name typed in).
  */
 export function MicsPanel() {
   const working = useWorkingEdition();
@@ -52,26 +53,7 @@ export function MicsPanel() {
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-      <Panel
-        title="Sessions"
-        count={list.length}
-        description="Pick one to name its mics."
-        toolbar={
-          (editions.data?.length ?? 0) > 1 && (
-            <div className="w-full">
-              <Select
-                label="Event"
-                value={editionId ?? ''}
-                options={(editions.data ?? []).map((e) => ({ value: e.id, label: e.shortName }))}
-                onChange={(v) => {
-                  working.setEditionId(v);
-                  setOpenId(null);
-                }}
-              />
-            </div>
-          )
-        }
-      >
+      <Panel title="Sessions" count={list.length} description="Pick one to name its mics.">
         {list.length === 0 ? (
           <EmptyState
             icon={MicrophoneIcon}
@@ -92,9 +74,9 @@ export function MicsPanel() {
                     type="button"
                     aria-current={open?.id === s.id ? 'true' : undefined}
                     onClick={() => setOpenId(s.id)}
-                    className={cn('flex w-full flex-col gap-0.5 px-5 py-3 text-left hover:bg-surface-soft', open?.id === s.id && 'bg-primary-soft/40')}
+                    className={cn('flex w-full flex-col gap-0.5 px-5 py-3 text-left', open?.id === s.id ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
                   >
-                    <span className="truncate text-sm text-ink">{s.title}</span>
+                    <span className="w-full truncate text-sm text-ink">{s.title}</span>
                     <span className="flex flex-wrap items-center gap-x-2 text-xs text-hint">
                       Day {s.day} · {timeRange(s.startsAt, s.endsAt)} · {s.room}
                       {s.status === 'live' && <span className="font-medium text-danger">Live</span>}

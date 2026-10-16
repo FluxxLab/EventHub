@@ -1,9 +1,10 @@
 'use client';
 
-import { CheckCircleIcon, ClockIcon, DocumentTextIcon, MapPinIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ClockIcon, DocumentTextIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
@@ -12,17 +13,7 @@ import { sessionTrackOptions } from '@/lib/catalog/topics';
 import { useTrackLibrary } from '@/lib/catalog/use-topics';
 import { QUARTER_HOURS } from '@/lib/calendar';
 import type { Edition } from '@/lib/events/events';
-import {
-  createSessionSchema,
-  dayDate,
-  MAX_DAY,
-  SESSION_TYPES,
-  sessionToForm,
-  toSessionBody,
-  TYPE_LABEL,
-  type CreateSessionForm,
-  type Session,
-} from '@/lib/programme/programme';
+import { createSessionSchema, dayDate, MAX_DAY, SESSION_TYPES, sessionToForm, toSessionBody, TYPE_LABEL, type CreateSessionForm, type Session } from '@/lib/programme/programme';
 import { STATUS_OPTIONS, statusEffect } from '@/components/programme/session-status';
 import type { SessionStatus } from '@/lib/programme/programme';
 import { useCreateSession, useSetSessionStatus, useUpdateSession } from '@/lib/programme/use-sessions';
@@ -44,6 +35,10 @@ const blank = (day: number): Omit<CreateSessionForm, 'date'> => ({
   room: '',
 });
 
+/** The values that would be saved, as one string, to tell whether anything changed since the form opened. */
+const snapshot = (form: Omit<CreateSessionForm, 'date'>) =>
+  JSON.stringify([form.title.trim(), form.description.trim(), form.type, form.track, form.day, form.startTime, form.endTime, form.room.trim()]);
+
 /** Same section layout as "Add event": the group's name on the left, its fields on the right. */
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
@@ -62,7 +57,19 @@ function Section({ title, description, children }: { title: string; description:
  * edition's own dates (the API takes day 1 or 2), times in 15-minute steps. Speakers are added
  * from the session once it exists.
  */
-export function CreateSessionDialog({ open, onClose, edition, day, session = null }: { open: boolean; onClose: () => void; edition: Edition; day: number; /** Set to edit this session instead of adding one. */ session?: Session | null }) {
+export function CreateSessionDialog({
+  open,
+  onClose,
+  edition,
+  day,
+  session = null,
+}: {
+  open: boolean;
+  onClose: () => void;
+  edition: Edition;
+  day: number;
+  /** Set to edit this session instead of adding one. */ session?: Session | null;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   const baseId = useId();
   const [form, setForm] = useState(() => blank(day));
@@ -111,6 +118,8 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
   const close = () => {
     if (!pending) finish();
   };
+  const dirty = open && (snapshot(form) !== snapshot(session ? sessionToForm(session) : blank(day)) || (!!session && status !== session.status));
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending, onClose: close });
   const set = <K extends keyof CreateSessionForm>(key: K, value: CreateSessionForm[K]) => {
     setForm((was) => ({ ...was, [key]: value }));
     if (errors[key]) setErrors((was) => ({ ...was, [key]: undefined }));
@@ -135,10 +144,7 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
           onSuccess: (saved) => {
             // the status after the details, so going live uses the room just saved
             if (status !== session.status)
-              setStatus.mutate(
-                { session: { ...session, ...saved }, status },
-                { onError: (e) => toast.push({ title: 'Saved, but the status did not change', body: e.message }) },
-              );
+              setStatus.mutate({ session: { ...session, ...saved }, status }, { onError: (e) => toast.push({ title: 'Saved, but the status did not change', body: e.message }) });
             finish();
             toast.push({ title: 'Session saved', leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' }, body: `${saved.title ?? body.title} is up to date in the programme and the app.` });
           },
@@ -172,7 +178,7 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
       aria-describedby={id('subtitle')}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('lg')}
     >
@@ -182,7 +188,9 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
             icon={ClockIcon}
             title={session ? 'Edit session' : 'Add session'}
             titleId={id('heading')}
-            subtitle={session ? `In the ${edition.shortName} programme. Delegates are told if the time or room changes.` : `A slot in the ${edition.shortName} programme. Add speakers once it is saved.`}
+            subtitle={
+              session ? `In the ${edition.shortName} programme. Delegates are told if the time or room changes.` : `A slot in the ${edition.shortName} programme. Add speakers once it is saved.`
+            }
             subtitleId={id('subtitle')}
           />
         </div>
@@ -192,7 +200,6 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
             <Field id={id('title')} label="Title" error={errors.title} className="sm:col-span-2">
               <TextInput
                 id={id('title')}
-                icon={MicrophoneIcon}
                 value={form.title}
                 onChange={(e) => set('title', e.target.value)}
                 placeholder="Opening plenary: inclusion that scales"
@@ -275,8 +282,9 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
-          <button type="button" onClick={close} disabled={pending} className={cancelClass}>
+          <button type="button" onClick={requestClose} disabled={pending} className={cancelClass}>
             Cancel
           </button>
           <button type="submit" disabled={pending} className={buttonClass()}>

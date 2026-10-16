@@ -51,6 +51,7 @@ export function Panel({
   const pad = size === 'compact' ? 'px-4' : 'px-6';
   return (
     <section
+      data-panel
       aria-labelledby={title !== undefined ? `${id}-title` : undefined}
       aria-label={title === undefined ? label : undefined}
       className={cn('overflow-hidden rounded-xl border border-border bg-surface', className)}

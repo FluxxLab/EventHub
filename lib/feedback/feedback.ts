@@ -16,27 +16,17 @@ export type SortMode = 'best' | 'worst' | 'most';
 export const SORT_LABEL: Record<SortMode, string> = { best: 'Highest rated', worst: 'Lowest rated', most: 'Most ratings' };
 
 /**
- * The score sessions are ranked by: the average pulled towards the event-wide average by
- * PRIOR_WEIGHT imaginary votes (a Bayesian average). Three 5-star votes then no longer outrank a
- * session 140 people rated 4.4; the number shown is still the real average.
- */
-export function rankScore(row: FeedbackRow, eventAverage: number): number {
-  if (!row.count || row.average === null) return eventAverage;
-  return (row.average * row.count + eventAverage * PRIOR_WEIGHT) / (row.count + PRIOR_WEIGHT);
-}
-
-/**
- * Rated sessions in the chosen order (by rank score for best and worst); ties break on how many
- * rated it, then title. Unrated sessions are returned separately.
+ * Rated sessions in the chosen order: best and worst by the real average (the number the list
+ * shows, so the order reads true; thin samples are flagged "few" beside it instead), most by how
+ * many rated it. Ties break on how many rated it, then title. Unrated sessions are returned separately.
  */
 export function rankSessions(rows: FeedbackRow[], mode: SortMode): { rated: FeedbackRow[]; unrated: FeedbackRow[] } {
-  const mean = overall(rows).average ?? 0;
   const rated = rows.filter((r) => r.count > 0 && r.average !== null);
   const unrated = rows.filter((r) => !(r.count > 0 && r.average !== null)).sort((a, b) => a.title.localeCompare(b.title));
   const byTitle = (a: FeedbackRow, b: FeedbackRow) => a.title.localeCompare(b.title);
   rated.sort((a, b) => {
     if (mode === 'most') return b.count - a.count || b.average! - a.average! || byTitle(a, b);
-    const diff = mode === 'best' ? rankScore(b, mean) - rankScore(a, mean) : rankScore(a, mean) - rankScore(b, mean);
+    const diff = mode === 'best' ? b.average! - a.average! : a.average! - b.average!;
     return diff || b.count - a.count || byTitle(a, b);
   });
   return { rated, unrated };
@@ -59,9 +49,6 @@ export function overall(rows: FeedbackRow[]): { average: number | null; ratings:
 
 /** "4.3" for display; one decimal is as precise as a star rating deserves. */
 export const formatAverage = (average: number | null) => (average === null ? '–' : average.toFixed(1));
-
-/** How many imaginary event-average votes each session starts with when ranking. */
-export const PRIOR_WEIGHT = 10;
 
 /** A few ratings say little; flag averages resting on fewer than this. */
 export const FEW_RATINGS = 5;

@@ -172,7 +172,8 @@ function RoomCard({
       title={<span className="truncate">{state.room}</span>}
       badge={status}
       actions={actions || undefined}
-      className={cn(live && (onBreak ? 'border-gold/60' : 'border-success/60'))}
+      // neutral while all is well: red is kept for the room's problems, gold for a break
+      className={cn(live && onBreak && 'border-gold/60')}
       bodyClassName="flex flex-col gap-4 px-6 py-5"
     >
       {(state.conflict || late > 0 || overrun > 0 || streamProblem) && (
@@ -217,7 +218,8 @@ function RoomCard({
                 </RoomFigure>
                 <RoomFigure icon={feedDown ? SignalSlashIcon : SignalIcon} label="Audio">
                   Audio
-                  <Tag tone={feedDown ? 'danger' : 'green'} dot>
+                  {/* the stream warning above already says it in red: the figure stays neutral then */}
+                  <Tag tone={feedDown ? (streamProblem ? 'gray' : 'danger') : 'green'} dot>
                     {feedDown ? 'No feed' : source ? SOURCE_LABEL[source] : 'Receiving'}
                   </Tag>
                 </RoomFigure>
@@ -288,13 +290,17 @@ function ConnectionIndicator({ refreshing }: { refreshing: boolean }) {
     demo: 'Demo data',
   }[connection];
   return (
-    <p className="flex items-center gap-2 text-xs text-hint" aria-live="polite">
+    <p className="ml-auto flex h-9 items-center gap-2 text-xs text-hint" aria-live="polite">
+      {/* the spinner leads, so the label sits flush with the page's right edge */}
+      <ArrowPathIcon className={cn('size-3.5', refreshing ? 'animate-spin' : 'opacity-0')} aria-hidden />
       <span
-        className={cn('size-2 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
+        className={cn(
+          'size-2 shrink-0 rounded-full',
+          connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder',
+        )}
         aria-hidden
       />
       {label}
-      <ArrowPathIcon className={cn('size-3.5', refreshing ? 'animate-spin' : 'opacity-0')} aria-hidden />
     </p>
   );
 }
@@ -366,18 +372,16 @@ export default function LiveOpsPage() {
     <div className="flex flex-col gap-5">
       <h1 className="sr-only">Live operations</h1>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          {days.length > 1 && (
-            <SegmentedTabs
-              label="Day"
-              options={days.map((d) => ({ value: String(d), label: auto.isToday && d === auto.day ? `Day ${d} · today` : `Day ${d}` }))}
-              value={String(day)}
-              onChange={setPickedDay}
-            />
-          )}
-          {!auto.isToday && <p className="text-xs text-hint">No sessions are scheduled for today; showing Day {day} to rehearse.</p>}
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        {days.length > 1 && (
+          <SegmentedTabs
+            label="Day"
+            options={days.map((d) => ({ value: String(d), label: auto.isToday && d === auto.day ? `Day ${d} · today` : `Day ${d}` }))}
+            value={String(day)}
+            onChange={setPickedDay}
+          />
+        )}
+        {!auto.isToday && <p className="min-w-0 text-xs text-hint">No sessions are scheduled for today; showing Day {day} to rehearse.</p>}
         <ConnectionIndicator refreshing={overview.isFetching || board.isFetching} />
       </div>
 
@@ -387,13 +391,14 @@ export default function LiveOpsPage() {
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
           <FigureCard label="Live rooms" icon={BuildingOffice2Icon} value={`${sum.liveRooms} of ${sum.rooms}`} note={sum.onBreak ? `${sum.onBreak} on break` : undefined} />
           <FigureCard label="Watching now" icon={EyeIcon} value={count(sum.viewers)} hint="Delegates with a live session open in the app, across all rooms" />
-          <FigureCard label="Caption listeners" icon={LanguageIcon} value={count(sum.listeners)} hint="Delegates following live captions in the app" />
+          {/* short labels and notes: two cards to a row on a phone, and the card cuts long ones */}
+          <FigureCard label="Listeners" icon={LanguageIcon} value={count(sum.listeners)} hint="Delegates following live captions in the app" />
           <FigureCard
             label="Audio feeds"
             icon={SignalIcon}
             value={`${sum.capturing} of ${sum.liveRooms}`}
             hint="Live rooms whose sound is reaching captions"
-            note={sum.liveRooms === 0 ? 'No room is live' : sum.capturing < sum.liveRooms ? 'A live room has no audio' : 'All live rooms receiving'}
+            note={sum.liveRooms === 0 ? 'No room is live' : sum.capturing < sum.liveRooms ? `${sum.liveRooms - sum.capturing} without audio` : 'All receiving'}
             tone={sum.capturing < sum.liveRooms ? 'danger' : undefined}
           />
         </div>

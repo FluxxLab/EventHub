@@ -7,6 +7,7 @@ import { Avatar } from '@/components/shell/avatar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
@@ -23,6 +24,9 @@ import { cn } from '@/lib/utils';
 
 const th = 'h-15 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
+
+/** The account as it would be created, to tell whether anything changed since the form opened. */
+const snapshot = (form: StaffForm) => JSON.stringify([form.name.trim(), form.email.trim(), form.password, form.role, form.editionIds ?? []]);
 
 /** Role as choice cards, each saying what the role can do. */
 function RolePicker({ value, onChange }: { value: StaffRole; onChange: (role: StaffRole) => void }) {
@@ -94,6 +98,8 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
   const baseId = useId();
   const blank = (): StaffForm => ({ name: '', email: '', password: temporaryPassword(), role: 'session_admin', editionIds: [] });
   const [form, setForm] = useState<StaffForm>(blank);
+  // what the form opened with, generated password included
+  const [start, setStart] = useState(form);
   const [errors, setErrors] = useState<Partial<Record<keyof StaffForm, string>>>({});
   const [copied, setCopied] = useState(false);
   const { add } = useStaffActions();
@@ -107,7 +113,9 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
   }, [open]);
 
   const finish = () => {
-    setForm(blank());
+    const next = blank();
+    setForm(next);
+    setStart(next);
     setErrors({});
     setCopied(false);
     add.reset();
@@ -116,6 +124,8 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
   const close = () => {
     if (!add.isPending) finish();
   };
+  const dirty = open && snapshot(form) !== snapshot(start);
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending: add.isPending, onClose: close });
   const set = <K extends keyof StaffForm>(key: K, value: StaffForm[K]) => {
     setForm((was) => ({ ...was, [key]: value }));
     if (errors[key]) setErrors((was) => ({ ...was, [key]: undefined }));
@@ -159,7 +169,7 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
       aria-labelledby={id('title')}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('md')}
     >
@@ -226,8 +236,9 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <ModalActions className="shrink-0 px-6 pb-6 pt-4">
-          <button type="button" onClick={close} disabled={add.isPending} className={cancelClass}>
+          <button type="button" onClick={requestClose} disabled={add.isPending} className={cancelClass}>
             Cancel
           </button>
           <button type="submit" disabled={add.isPending} className={buttonClass()}>
@@ -293,7 +304,7 @@ export default function TeamPage() {
     });
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <h1 className="sr-only">Team</h1>
       <Panel title="Staff" count={staff.data ? members.length : undefined} description="People who can open this console. Delegates are listed separately." actions={addButton}>
         {staff.isError && !staff.data ? (
@@ -364,9 +375,12 @@ export default function TeamPage() {
                           >
                             {m.accessTier === 'event_admin' ? 'Role & events' : 'Change role'}
                           </button>
-                          <button type="button" onClick={() => setRemoving(m)} disabled={!!blocker} title={blocker ?? undefined} className={buttonClass({ style: 'borderless', color: 'danger' })}>
-                            Remove access
-                          </button>
+                          {/* nobody removes their own access: the row says "(you)" and offers nothing */}
+                          {m.id !== selfId && (
+                            <button type="button" onClick={() => setRemoving(m)} disabled={!!blocker} title={blocker ?? undefined} className={buttonClass({ style: 'borderless', color: 'danger' })}>
+                              Remove access
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

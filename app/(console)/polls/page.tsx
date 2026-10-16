@@ -91,7 +91,7 @@ function ListItem({ poll, selected, busy, onSelect, onStart, onStop }: { poll: P
         aria-pressed={selected}
         onClick={onSelect}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect())}
-        className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
+        className={cn('flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors', selected ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
       >
         <RunButton poll={poll} busy={busy} onStart={onStart} onStop={onStop} />
         <div className="min-w-0 flex-1">
@@ -261,8 +261,8 @@ export default function PollsPage() {
       },
     );
 
-  if (editions.isPending || polls.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
-  if (polls.isError && !polls.data) return <ErrorState framed className="mx-auto w-full max-w-6xl" title="Polls could not load" error={polls.error} onRetry={() => void polls.refetch()} />;
+  if (editions.isPending || polls.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
+  if (polls.isError && !polls.data) return <ErrorState framed title="Polls could not load" error={polls.error} onRetry={() => void polls.refetch()} />;
 
   const dialogs = (
     <>
@@ -317,7 +317,6 @@ export default function PollsPage() {
       <>
         <EmptyState
           framed
-          className="mx-auto w-full max-w-6xl"
           icon={ChartBarIcon}
           title="No polls yet"
           body="Write them before the session, then start each one from here."
@@ -328,14 +327,13 @@ export default function PollsPage() {
             </button>
           }
         />
-        {/* Outside the centred card, so the dialog does not inherit its centring. */}
         {dialogs}
       </>
     );
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
+    <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <Panel
         title="Polls"
         count={all.length}

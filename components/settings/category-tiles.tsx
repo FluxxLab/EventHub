@@ -163,7 +163,7 @@ export function CategoryTiles() {
                   onClick={() => move(c, -1)}
                   disabled={i === 0 || reorder.isPending}
                   aria-label={`Move ${c.label} earlier`}
-                  className="rounded p-1 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                  className="rounded p-1 text-ink-soft hover:bg-surface-soft hover:text-ink disabled:opacity-30"
                 >
                   <ChevronLeftIcon className="size-4" />
                 </button>
@@ -172,7 +172,7 @@ export function CategoryTiles() {
                   onClick={() => move(c, 1)}
                   disabled={i === list.length - 1 || reorder.isPending}
                   aria-label={`Move ${c.label} later`}
-                  className="rounded p-1 text-hint hover:bg-surface-soft hover:text-ink disabled:opacity-30"
+                  className="rounded p-1 text-ink-soft hover:bg-surface-soft hover:text-ink disabled:opacity-30"
                 >
                   <ChevronRightIcon className="size-4" />
                 </button>

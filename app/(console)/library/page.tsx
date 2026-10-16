@@ -82,7 +82,7 @@ function Board({ edition }: { edition: Edition }) {
   );
 
   return (
-    <Panel title="Learning library" count={items.length} description="Shown in the app beside session materials and the Purple Book." actions={add}>
+    <Panel title="Learning library" count={items.length} description="Shown in the app beside session materials and the Purple Book." actions={items.length > 0 ? add : undefined}>
       {items.length === 0 ? (
         <EmptyState icon={AcademicCapIcon} title="Nothing in the library yet" body="Add reports, toolkits, videos and courses for delegates to learn from." action={add} />
       ) : (

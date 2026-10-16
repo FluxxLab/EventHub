@@ -7,13 +7,26 @@ import { brandingUnchanged, EventBrandingFields } from '@/components/events/even
 import { defaultTopics, EventTopicsFields } from '@/components/events/event-topics';
 import { buttonClass } from '@/components/ui/button';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { useDiscardGuard } from '@/components/ui/discard-guard';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toaster';
 import { HALF_HOURS, type DayRange } from '@/lib/calendar';
-import { categoryLabel, createEditionSchema, EDITION_CATEGORIES, EDITION_STATUSES, editionToForm, STATUS_HINT, STATUS_LABEL, toCreateBody, toUpdateBody, type CreateEditionForm, type Edition } from '@/lib/events/events';
+import {
+  categoryLabel,
+  createEditionSchema,
+  EDITION_CATEGORIES,
+  EDITION_STATUSES,
+  editionToForm,
+  STATUS_HINT,
+  STATUS_LABEL,
+  toCreateBody,
+  toUpdateBody,
+  type CreateEditionForm,
+  type Edition,
+} from '@/lib/events/events';
 import { useInterestLibrary, useTrackLibrary, type EditionTopics } from '@/lib/catalog/use-topics';
 import { useCreateEdition, useSaveBranding, useUpdateEdition, type BrandingChange } from '@/lib/events/use-editions';
 
@@ -27,6 +40,22 @@ const STATUS_OPTIONS = EDITION_STATUSES.map((s) => ({ value: s, label: `${STATUS
 const TIME_OPTIONS = HALF_HOURS.map((t) => ({ value: t, label: t }));
 
 type Errors = Partial<Record<keyof CreateEditionForm, string>>;
+
+/** The values that would be saved, as one string, to tell whether anything changed since the form opened. */
+const snapshot = ({ form, range, times }: { form: CreateEditionForm; range: DayRange; times: typeof DEFAULT_TIMES }) =>
+  JSON.stringify([
+    form.name.trim(),
+    form.shortName.trim(),
+    form.venue.trim(),
+    form.city.trim(),
+    form.category,
+    form.status ?? 'draft',
+    form.registrationOpen ?? false,
+    range.start,
+    range.end,
+    times.start,
+    times.end,
+  ]);
 
 /** One group of the form: its name and a line of context on the left, its fields on the right. */
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -104,6 +133,10 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
   const close = () => {
     if (!busy) finish();
   };
+  const dirty =
+    open &&
+    (snapshot({ form, range, times }) !== snapshot(edition ? editionToForm(edition) : { form: EMPTY, range: NO_RANGE, times: DEFAULT_TIMES }) || !brandingUnchanged(branding) || topics !== null);
+  const { requestClose, prompt } = useDiscardGuard({ open, dirty, pending: busy, onClose: close });
 
   const clear = (...keys: (keyof CreateEditionForm)[]) => {
     if (keys.some((k) => errors[k])) setErrors((was) => ({ ...was, ...Object.fromEntries(keys.map((k) => [k, undefined])) }));
@@ -142,40 +175,43 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
     // sent only once the lists have loaded; otherwise the API gives it every active one anyway
     const picks = topics ?? (trackLibrary.data && interestLibrary.data ? defaultTopics(trackLibrary.data, interestLibrary.data) : null);
     const { registrationOpen } = parsed.data;
-    create.mutate({ ...toCreateBody(parsed.data), ...(picks ?? {}) }, {
-      onSuccess: (created) => {
-        // the create endpoint does not take registration; it is opened with a second call
-        if (registrationOpen) update.mutate({ id: created.id, body: { registrationOpen } });
-        const seen = created.status === 'draft' ? 'is saved as a draft. Delegates will not see it until you announce it.' : `is saved and ${STATUS_HINT[created.status].toLowerCase()}.`;
-        const added = () =>
-          toast.push({
-            title: 'Event added',
-            leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' },
-            body: `${created.name} ${seen}`,
-          });
-        if (brandingUnchanged(branding)) {
-          finish();
-          return added();
-        }
-        saveBranding.mutate(
-          { editionId: created.id, change: branding, onProgress: setStep },
-          {
-            onSuccess: () => {
-              finish();
-              added();
+    create.mutate(
+      { ...toCreateBody(parsed.data), ...(picks ?? {}) },
+      {
+        onSuccess: (created) => {
+          // the create endpoint does not take registration; it is opened with a second call
+          if (registrationOpen) update.mutate({ id: created.id, body: { registrationOpen } });
+          const seen = created.status === 'draft' ? 'is saved as a draft. Delegates will not see it until you announce it.' : `is saved and ${STATUS_HINT[created.status].toLowerCase()}.`;
+          const added = () =>
+            toast.push({
+              title: 'Event added',
+              leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' },
+              body: `${created.name} ${seen}`,
+            });
+          if (brandingUnchanged(branding)) {
+            finish();
+            return added();
+          }
+          saveBranding.mutate(
+            { editionId: created.id, change: branding, onProgress: setStep },
+            {
+              onSuccess: () => {
+                finish();
+                added();
+              },
+              onError: (error) => {
+                finish();
+                toast.push({
+                  title: 'Event added, branding not saved',
+                  leading: { kind: 'icon', icon: ExclamationTriangleIcon, tone: 'danger' },
+                  body: `${created.name} is saved, but ${error.message.replace(/\.$/, '').toLowerCase()}. Add the picture, logo and colour from Branding in the Events table.`,
+                });
+              },
             },
-            onError: (error) => {
-              finish();
-              toast.push({
-                title: 'Event added, branding not saved',
-                leading: { kind: 'icon', icon: ExclamationTriangleIcon, tone: 'danger' },
-                body: `${created.name} is saved, but ${error.message.replace(/\.$/, '').toLowerCase()}. Add the picture, logo and colour from Branding in the Events table.`,
-              });
-            },
-          },
-        );
+          );
+        },
       },
-    });
+    );
   };
 
   const id = (name: string) => `${baseId}-${name}`;
@@ -191,7 +227,7 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
       aria-describedby={id('subtitle')}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        requestClose();
       }}
       className={modalClass('lg')}
     >
@@ -202,7 +238,11 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
             icon={CalendarDaysIcon}
             title={edition ? 'Edit event' : 'Add event'}
             titleId={id('title')}
-            subtitle={edition ? `${edition.name}: its name, dates and place. Branding and tracks have their own buttons in the Events table.` : 'The essentials to create it, and how it looks in the app. Tickets and sessions come after.'}
+            subtitle={
+              edition
+                ? `${edition.name}: its name, dates and place. Branding and tracks have their own buttons in the Events table.`
+                : 'The essentials to create it, and how it looks in the app. Tickets and sessions come after.'
+            }
             subtitleId={id('subtitle')}
           />
         </div>
@@ -317,13 +357,13 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
 
           {!edition && (
             <>
-          <Section title="Branding" description="How the event looks in the app. All optional; change them any time from the Events table.">
-            <EventBrandingFields id={id('branding')} current={{ name: form.name, shortName: form.shortName }} value={branding} onChange={setBranding} />
-          </Section>
+              <Section title="Branding" description="How the event looks in the app. All optional; change them any time from the Events table.">
+                <EventBrandingFields id={id('branding')} current={{ name: form.name, shortName: form.shortName }} value={branding} onChange={setBranding} />
+              </Section>
 
-          <Section title="Tracks and interests" description="Picked from the shared lists. Change them any time from the Events table.">
-            <EventTopicsFields id={id('topics')} value={topics} onChange={setTopics} />
-          </Section>
+              <Section title="Tracks and interests" description="Picked from the shared lists. Change them any time from the Events table.">
+                <EventTopicsFields id={id('topics')} value={topics} onChange={setTopics} />
+              </Section>
             </>
           )}
 
@@ -334,6 +374,7 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
           )}
         </div>
 
+        {prompt && <div className="mx-6">{prompt}</div>}
         <div className="shrink-0 px-6 pb-6 pt-4">
           {!edition && (
             <p className="mb-3 flex items-center gap-2 text-xs text-hint">
@@ -342,7 +383,7 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
             </p>
           )}
           <ModalActions className="pt-0">
-            <button type="button" onClick={close} disabled={busy} className={cancelClass}>
+            <button type="button" onClick={requestClose} disabled={busy} className={cancelClass}>
               Cancel
             </button>
             <button type="submit" disabled={busy} className={buttonClass()}>

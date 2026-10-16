@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowTopRightOnSquareIcon, BellAlertIcon, CalendarDaysIcon, PaperAirplaneIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useId, useMemo, useState, type FormEvent } from 'react';
+import { useId, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
@@ -40,22 +40,29 @@ import { cn } from '@/lib/utils';
 
 type Errors = Partial<Record<keyof AnnouncementForm, string>>;
 
-/** A row of options that reads as one choice (radio semantics). */
-function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+/** The look every choice on the form shares: a sunken track with the chosen options raised, as in the console's segmented tabs. */
+const track = 'flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-surface-soft p-1';
+const pill = (on: boolean) =>
+  cn(
+    'rounded-md px-3 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+    on ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-ink-soft hover:text-ink',
+  );
+
+/** A row of options that reads as one choice (WAI-ARIA radio group: one stop in the Tab order, arrow keys move and choose). */
+function Choice<T extends string>({ labelledBy, value, options, onChange }: { labelledBy: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const at = options.findIndex((o) => o.value === value);
+    const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
+    if (!step) return;
+    event.preventDefault();
+    const to = (at + step + options.length) % options.length;
+    onChange(options[to]!.value);
+    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[to]?.focus();
+  };
   return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
+    <div role="radiogroup" aria-labelledby={labelledBy} onKeyDown={onKeyDown} className={track}>
       {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            'h-9 rounded-lg border px-3 text-sm transition-colors',
-            value === o.value ? 'border-primary bg-primary-soft/50 font-medium text-primary' : 'border-border text-ink-soft hover:border-border-strong',
-          )}
-        >
+        <button key={o.value} type="button" role="radio" aria-checked={value === o.value} tabIndex={value === o.value ? 0 : -1} onClick={() => onChange(o.value)} className={pill(value === o.value)}>
           {o.label}
         </button>
       ))}
@@ -122,7 +129,7 @@ function Composer({
         footer={
           <>
             <p className="text-xs">A push cannot be recalled once it reaches phones.</p>
-            <button type="submit" disabled={pending} className={buttonClass()}>
+            <button type="submit" disabled={pending} className={buttonClass({ className: 'h-auto min-h-9 py-1.5 whitespace-normal' })}>
               <PaperAirplaneIcon className="size-4" />
               Send to {reach === 'event' ? `${audienceLabel({ segment: 'all', ticketTypeIds: form.ticketTypeIds }, new Map(tiers.map((t) => [t.id, t.name])))} at ${eventName}` : 'everyone on the app'}
             </button>
@@ -131,10 +138,12 @@ function Composer({
         bodyClassName="flex flex-col gap-5 px-6 py-5"
       >
         <div>
-          <p className="mb-1.5 text-sm text-ink">Reaches</p>
+          <p id={`${id}-reach`} className="mb-1.5 text-sm text-ink">
+            Reaches
+          </p>
           {canReachEveryone ? (
             <Choice
-              label="Reaches"
+              labelledBy={`${id}-reach`}
               value={reach}
               options={[
                 { value: 'event', label: `${eventName} delegates` },
@@ -148,17 +157,12 @@ function Composer({
         </div>
         {reach === 'event' && (
           <div>
-            <p className="mb-1.5 text-sm text-ink">To</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Ticket tiers">
-              <button
-                type="button"
-                aria-pressed={form.ticketTypeIds.length === 0}
-                onClick={() => onChange('ticketTypeIds', [])}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-sm',
-                  form.ticketTypeIds.length === 0 ? 'border-primary bg-primary text-on-primary' : 'border-border text-ink-soft hover:border-border-strong',
-                )}
-              >
+            <p id={`${id}-to`} className="mb-1.5 text-sm text-ink">
+              To
+            </p>
+            {/* several tiers can be picked together, so these toggle (aria-pressed) rather than act as radios */}
+            <div className={track} role="group" aria-labelledby={`${id}-to`}>
+              <button type="button" aria-pressed={form.ticketTypeIds.length === 0} onClick={() => onChange('ticketTypeIds', [])} className={pill(form.ticketTypeIds.length === 0)}>
                 Everyone
               </button>
               {tiers.map((t) => {
@@ -169,7 +173,7 @@ function Composer({
                     type="button"
                     aria-pressed={on}
                     onClick={() => onChange('ticketTypeIds', on ? form.ticketTypeIds.filter((id) => id !== t.id) : [...form.ticketTypeIds, t.id])}
-                    className={cn('rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary text-on-primary' : 'border-border text-ink-soft hover:border-border-strong')}
+                    className={pill(on)}
                   >
                     {t.name}
                   </button>
@@ -227,9 +231,11 @@ function Composer({
         </div>
 
         <div>
-          <p className="mb-1.5 text-sm text-ink">When tapped, open</p>
+          <p id={`${id}-tap`} className="mb-1.5 text-sm text-ink">
+            When tapped, open
+          </p>
           <Choice<Target>
-            label="When tapped, open"
+            labelledBy={`${id}-tap`}
             value={form.target}
             options={[
               { value: 'none', label: 'The inbox' },
@@ -310,7 +316,7 @@ export default function NotificationsPage() {
   const session = useSession();
   const page = usePageEdition();
   if (session.status !== 'signed-in' || !runsEvents(session.user.tier)) {
-    return <EmptyState framed icon={BellAlertIcon} title="Announcements are sent by organisers" className="mx-auto w-full max-w-lg" />;
+    return <EmptyState framed icon={BellAlertIcon} title="Announcements are sent by organisers" />;
   }
   const organiser = session.user.tier === 'admin';
   return <EventBar page={page}>{(editionId) => <NotificationsBoard edition={page.list.find((e) => e.id === editionId)!} organiser={organiser} />}</EventBar>;
@@ -362,7 +368,7 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
   };
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
       {/* Composer, then its preview, then history: on a phone the preview sits right under what it previews. */}
       <div className="min-w-0 lg:col-start-1">
         <Composer

@@ -19,5 +19,6 @@ export function Card({ title, action, className, children }: { title?: string; a
 
 /** A grey block standing in for content while it loads. */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-lg bg-surface-soft', className)} aria-hidden />;
+  // shows only when the wait is noticeable, then pulses slowly (see .skeleton-delay)
+  return <div className={cn('skeleton-delay rounded-lg bg-surface-soft', className)} aria-hidden />;
 }

@@ -9,6 +9,21 @@ import type { DayValue } from '@/lib/dashboard/types';
 export const shortDay = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 /**
+ * Which day labels an x-axis shows: up to 7 from `sm` up, up to 4 on a phone, where 7 would run
+ * into each other. Counted back from the newest day, so the last label never crowds its
+ * neighbour. Returns the label's visibility classes, or null for a day without a label.
+ */
+export function dayLabelClass(i: number, total: number): string | null {
+  const from = total - 1 - i;
+  const wide = from % Math.max(1, Math.ceil(total / 7)) === 0;
+  const narrow = from % Math.max(1, Math.ceil(total / 4)) === 0;
+  if (wide && narrow) return '';
+  if (wide) return 'hidden sm:inline';
+  if (narrow) return 'sm:hidden';
+  return null;
+}
+
+/**
  * One daily series as a line over a soft fill. The crosshair snaps to the nearest day under the
  * pointer (or the arrow keys, once focused) and reads that day's value out.
  */
@@ -19,7 +34,6 @@ export function LineChart({ days, format, label }: { days: DayValue[]; format: (
   const x = (i: number) => (days.length < 2 ? 50 : (i / (days.length - 1)) * 100);
   const y = (value: number) => 100 - (value / top) * 100;
   const line = days.map((d, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(2)},${y(d.value).toFixed(2)}`).join(' ');
-  const labelEvery = Math.max(1, Math.ceil(days.length / 7));
   const point = hover === null ? null : days[hover];
 
   const onPointer = (event: PointerEvent<HTMLDivElement>) => {
@@ -81,14 +95,82 @@ export function LineChart({ days, format, label }: { days: DayValue[]; format: (
       </div>
       <div />
       <div className="relative mt-2 h-4 text-xs text-hint" aria-hidden>
-        {days.map((d, i) =>
-          // Counted back from the newest day, so the last label never crowds its neighbour.
-          (days.length - 1 - i) % labelEvery === 0 ? (
-            <span key={d.day} className="absolute whitespace-nowrap" style={{ left: `${x(i)}%`, transform: i === 0 ? 'none' : i === days.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}>
+        {days.map((d, i) => {
+          const shown = dayLabelClass(i, days.length);
+          return shown === null ? null : (
+            <span
+              key={d.day}
+              className={`absolute whitespace-nowrap ${shown}`}
+              style={{ left: `${x(i)}%`, transform: i === 0 ? 'none' : i === days.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}
+            >
               {shortDay(d.day)}
             </span>
-          ) : null,
-        )}
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The same daily series as columns, for a short run of days (under a week), where a line over
+ * three points reads as a trend that is not there. Each day's column is its own hover and focus
+ * target.
+ */
+export function DayBars({ days, format, label }: { days: DayValue[]; format: (value: number) => string; label: string }) {
+  const [active, setActive] = useState<number | null>(null);
+  const ticks = niceTicks(Math.max(0, ...days.map((d) => d.value)));
+  const top = ticks[ticks.length - 1]!;
+  const at = (value: number) => `${100 - (value / top) * 100}%`;
+
+  if (days.length === 0) return <p className="flex h-56 items-center justify-center text-sm text-muted">Nothing recorded yet.</p>;
+
+  return (
+    <div className="grid grid-cols-[auto_1fr] gap-x-3">
+      <div className="relative h-56 w-12 text-right text-xs tabular-nums text-hint" aria-hidden>
+        {ticks.map((tick) => (
+          <span key={tick} className="absolute right-0 -translate-y-1/2" style={{ top: at(tick) }}>
+            {format(tick)}
+          </span>
+        ))}
+      </div>
+      <div className="relative h-56">
+        {ticks.map((tick) => (
+          <span key={tick} className="absolute inset-x-0 h-px bg-ink/5" style={{ top: at(tick) }} aria-hidden />
+        ))}
+        <ol className="absolute inset-0 flex items-end justify-around gap-[6%] px-[4%]" aria-label={label}>
+          {days.map((d, i) => (
+            <li
+              key={d.day}
+              tabIndex={0}
+              aria-label={`${shortDay(d.day)}: ${format(d.value)}`}
+              className={`relative flex h-full max-w-16 min-w-0 flex-1 cursor-default flex-col justify-end outline-none transition-opacity ${active !== null && active !== i ? 'opacity-50' : ''}`}
+              onPointerEnter={() => setActive(i)}
+              onPointerLeave={() => setActive(null)}
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive(null)}
+            >
+              <span className="rounded-t-sm bg-chart-1" style={{ height: `${(d.value / top) * 100}%` }} />
+              {active === i && (
+                <ChartTooltip x="50%" y={at(d.value)}>
+                  <span className="block text-on-primary/70">{shortDay(d.day)}</span>
+                  <TipRow colour="var(--chart-1)" value={format(d.value)} />
+                </ChartTooltip>
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div />
+      <div className="mt-2 flex justify-around gap-[6%] px-[4%] text-xs text-hint" aria-hidden>
+        {days.map((d, i) => {
+          const shown = dayLabelClass(i, days.length);
+          return (
+            <span key={d.day} className="max-w-16 min-w-0 flex-1 whitespace-nowrap text-center">
+              {shown !== null && <span className={shown}>{shortDay(d.day)}</span>}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
