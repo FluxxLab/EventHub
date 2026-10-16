@@ -321,15 +321,10 @@ export default function SignInPage() {
         <p className="shrink-0 text-xs text-hint">Organiser and staff accounts only. Delegates use the PIC Events app.</p>
       </section>
 
-      {/* The picture half: PIC navy with the gold accent until a photo from the summit replaces it. */}
+      {/* The picture half: a PIC event photo, washed navy from the foot so the line over it reads. */}
       <aside aria-hidden className="relative hidden h-dvh overflow-hidden bg-primary lg:block">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,0.14),transparent_45%),radial-gradient(circle_at_15%_85%,rgba(201,162,39,0.35),transparent_40%)]" />
-        <svg viewBox="0 0 400 400" className="absolute -right-24 top-1/2 w-[130%] -translate-y-1/2 text-on-primary/10" fill="none" stroke="currentColor">
-          {[60, 100, 140, 180, 220].map((r) => (
-            <circle key={r} cx={260} cy={200} r={r} strokeWidth={1} />
-          ))}
-        </svg>
-        <div className="absolute inset-0 bg-[#1b212d]/10" />
+        <div className="absolute inset-0 bg-[url(/BackGround.png)] bg-cover bg-center" />
+        <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/55 to-primary/15" />
         <div className="absolute inset-x-10 bottom-10 text-on-primary xl:inset-x-14">
           <p className="max-w-md text-2xl font-medium leading-tight xl:text-3xl">Programme, tickets, delegates and the live room, in one place.</p>
           <span className="mt-5 block h-1 w-16 rounded-full bg-secondary" />
