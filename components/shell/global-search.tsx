@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  CalendarDaysIcon,
-  ClipboardDocumentListIcon,
-  MagnifyingGlassIcon,
-  MicrophoneIcon,
-  Squares2X2Icon,
-  UserIcon,
-} from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, ClipboardDocumentListIcon, MagnifyingGlassIcon, MicrophoneIcon, Squares2X2Icon, UserIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 
@@ -43,7 +36,11 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
-  const shortcut = useSyncExternalStore(noSubscribe, () => shortcutLabel(navigator.platform), () => 'Ctrl K');
+  const shortcut = useSyncExternalStore(
+    noSubscribe,
+    () => shortcutLabel(navigator.platform),
+    () => 'Ctrl K',
+  );
 
   const events = runsEvents(user.tier);
   const editions = useEditions();
@@ -134,7 +131,7 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
           close();
         }}
         onClick={(event) => event.target === event.currentTarget && close()}
-        className="mx-auto mt-[12vh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-border bg-surface p-0 text-ink shadow-xxl backdrop:bg-ink/40"
+        className="card-art mx-auto mt-[12vh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-border bg-surface p-0 text-ink shadow-xxl backdrop:bg-ink/40"
       >
         <div className="flex items-center gap-3 border-b border-border px-4">
           <MagnifyingGlassIcon className="size-5 shrink-0 text-muted" />
@@ -160,9 +157,7 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
 
         <div id={`${id}-list`} role="listbox" aria-label="Results" className="max-h-[min(60vh,28rem)] overflow-y-auto p-2 scrollbar-thin">
           {groups.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-hint">
-              {q.length < MIN_QUERY ? 'Type at least two letters.' : api.isFetching ? 'Searching…' : `Nothing matches “${q}”.`}
-            </p>
+            <p className="px-3 py-8 text-center text-sm text-hint">{q.length < MIN_QUERY ? 'Type at least two letters.' : api.isFetching ? 'Searching…' : `Nothing matches “${q}”.`}</p>
           ) : (
             groups.map((group) => (
               <div key={group.kind} role="group" aria-label={group.label} className="pb-1">
@@ -199,9 +194,7 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
         <p className="flex items-center gap-4 border-t border-border bg-surface-soft/60 px-4 py-2 text-xs text-hint">
           <span>↑ ↓ to move</span>
           <span>↵ to open</span>
-          <span className="ml-auto">
-            {shortcut} or / to search from anywhere
-          </span>
+          <span className="ml-auto">{shortcut} or / to search from anywhere</span>
         </p>
       </dialog>
     </>

@@ -35,12 +35,7 @@ export function Notification({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        'relative flex gap-3 rounded-lg border border-border bg-surface-soft p-5 shadow-lg',
-        className,
-      )}
-    >
+    <div className={cn('card-art card-art-sm relative flex gap-3 rounded-lg border border-border bg-surface-soft p-5 shadow-lg', className)}>
       {leading?.kind === 'avatar' && (
         <span className="shrink-0 rounded-full border-[3px] border-surface">
           <Avatar name={leading.name} src={leading.src} size={40} />
@@ -61,12 +56,7 @@ export function Notification({
         {actions.length > 0 && (
           <div className="flex gap-4">
             {actions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                onClick={action.onClick}
-                className={cn('rounded text-sm text-ink hover:underline', action.primary && 'font-medium')}
-              >
+              <button key={action.label} type="button" onClick={action.onClick} className={cn('rounded text-sm text-ink hover:underline', action.primary && 'font-medium')}>
                 {action.label}
               </button>
             ))}
@@ -75,12 +65,7 @@ export function Notification({
       </div>
 
       {onClose && (
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Dismiss"
-          className="absolute right-5 top-5 flex size-5 items-center justify-center rounded text-ink-soft hover:text-ink"
-        >
+        <button type="button" onClick={onClose} aria-label="Dismiss" className="absolute right-5 top-5 flex size-5 items-center justify-center rounded text-ink-soft hover:text-ink">
           <XMarkIcon className="size-5" />
         </button>
       )}
