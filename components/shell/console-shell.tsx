@@ -63,8 +63,8 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar user={user} onMenu={() => setMenuOpen(true)} />
           <OpsAlerts />
-          {/* the page: a cool grey ground with PIC's arcs faint in its top corner, white panels on it */}
-          <main id="content" tabIndex={-1} className="min-w-0 flex-1 bg-[url(/brand/canvas-arcs.svg)] bg-[length:36rem_auto] bg-[position:right_top] bg-no-repeat px-4 py-6 focus:outline-none sm:px-7">
+          {/* the page: a PIC event photo held still behind it, washed pale so the white panels and text read */}
+          <main id="content" tabIndex={-1} className="min-w-0 flex-1 page-photo px-4 py-6 focus:outline-none sm:px-7">
             {/* where the page sits, above its content rather than in the navbar */}
             {/* one width for every page, the breadcrumb aligned with the content under it */}
             <div className="mx-auto w-full max-w-[90rem]">
