@@ -4,10 +4,11 @@ import { CheckCircleIcon, CheckIcon, DocumentTextIcon, PaintBrushIcon, PhotoIcon
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { Field } from '@/components/ui/field';
+import { Select } from '@/components/ui/select';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { useToast } from '@/components/ui/toaster';
 import { BRAND_PRESETS, IMAGE_TYPES, imageProblem, normaliseColor, paleWarning, PIC_NAVY, textOn } from '@/lib/events/branding';
-import type { Edition } from '@/lib/events/events';
+import { DECK_TEMPLATE_LABEL, type DeckTemplate, type Edition } from '@/lib/events/events';
 import { useSaveBranding, type BrandingChange } from '@/lib/events/use-editions';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +20,7 @@ type Current = Pick<Edition, 'name' | 'shortName'> & {
   logoDarkUrl?: string | null;
   brandGuideUrl?: string | null;
   brandGuideName?: string | null;
+  deckTemplate?: DeckTemplate;
 };
 
 /** The largest brand guide accepted: the decks' designer reads guides up to about this size. */
@@ -297,6 +299,19 @@ export function EventBrandingFields({ id, current, value, onChange }: { id: stri
       <Field id={`${id}-guide`} label="Brand guide" optional className="sm:col-span-2" hint={`A PDF up to ${MAX_GUIDE_MB} MB; call-to-action decks follow its colours, fonts and logo rules.`}>
         <GuidePick id={`${id}-guide`} file={value.guide} current={{ url: current.brandGuideUrl, name: current.brandGuideName }} onChange={(guide) => onChange({ ...value, guide })} />
       </Field>
+      <Field
+        id={`${id}-deck`}
+        label="Call-to-action decks"
+        className="sm:col-span-2"
+        hint="Designed for the event follows its logo, colours and brand guide each time; the Build template uses Build's commitment slides, with cards or a table."
+      >
+        <Select
+          id={`${id}-deck`}
+          value={value.deckTemplate ?? current.deckTemplate ?? 'designed'}
+          options={(Object.keys(DECK_TEMPLATE_LABEL) as DeckTemplate[]).map((t) => ({ value: t, label: DECK_TEMPLATE_LABEL[t] }))}
+          onChange={(deckTemplate) => onChange({ ...value, deckTemplate: deckTemplate === (current.deckTemplate ?? 'designed') ? undefined : deckTemplate })}
+        />
+      </Field>
       <Field id={`${id}-colour`} label="Button colour" hint="Buttons and highlights in the app; the text on it turns white or black to stay readable.">
         <ColourPick id={`${id}-colour`} value={colour} onChange={(hex) => onChange({ ...value, brandColor: hex === PIC_NAVY && !current.brandColor ? undefined : hex })} />
       </Field>
@@ -310,7 +325,7 @@ export function EventBrandingFields({ id, current, value, onChange }: { id: stri
 
 /** Nothing to save: every field left as it was. */
 export const brandingUnchanged = (change: BrandingChange) =>
-  change.cover === undefined && change.logo === undefined && change.brandColor === undefined && change.logoDark === undefined && change.guide === undefined;
+  change.cover === undefined && change.logo === undefined && change.brandColor === undefined && change.logoDark === undefined && change.guide === undefined && change.deckTemplate === undefined;
 
 /** The Events table's Branding dialog: the same fields, saved on their own. */
 export function EventBrandingDialog({ edition, onClose }: { edition: Edition | null; onClose: () => void }) {

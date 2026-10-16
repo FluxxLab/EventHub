@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api/client';
 import { DEMO_MODE } from '@/lib/demo';
-import type { Edition, toCreateBody } from '@/lib/events/events';
+import type { DeckTemplate, Edition, toCreateBody } from '@/lib/events/events';
 import { uploadFile } from '@/lib/uploads';
 
 const KEY = ['admin', 'editions'] as const;
@@ -99,7 +99,7 @@ export function useCreateEdition() {
 }
 
 /** Branding changes for one event: a new file uploads and replaces, null removes, undefined leaves it. */
-export type BrandingChange = { cover?: File | null; logo?: File | null; brandColor?: string | null; logoDark?: File | null; guide?: File | null };
+export type BrandingChange = { cover?: File | null; logo?: File | null; brandColor?: string | null; logoDark?: File | null; guide?: File | null; deckTemplate?: DeckTemplate };
 
 /**
  * Saves an event's cover, logo and button colour. Files upload straight to storage on a signed URL
@@ -115,6 +115,7 @@ export function useSaveBranding() {
         if (change.cover !== undefined) patch.coverUrl = change.cover ? URL.createObjectURL(change.cover) : null;
         if (change.logo !== undefined) patch.logoUrl = change.logo ? URL.createObjectURL(change.logo) : null;
         if (change.brandColor !== undefined) patch.brandColor = change.brandColor;
+        if (change.deckTemplate !== undefined) patch.deckTemplate = change.deckTemplate;
         return patch;
       }
       for (const kind of ['cover', 'logo'] as const) {
@@ -149,9 +150,11 @@ export function useSaveBranding() {
         if (field === 'guide') Object.assign(patch, { brandGuideUrl: saved.url, brandGuideName: saved.name });
         else patch.logoDarkUrl = saved.url;
       }
-      if (change.brandColor !== undefined) {
-        await api.patch(`/editions/${editionId}`, { brandColor: change.brandColor });
-        patch.brandColor = change.brandColor;
+      // the colour and the deck template are plain fields on the event: one save for both
+      const fields = { ...(change.brandColor !== undefined ? { brandColor: change.brandColor } : {}), ...(change.deckTemplate !== undefined ? { deckTemplate: change.deckTemplate } : {}) };
+      if (Object.keys(fields).length) {
+        await api.patch(`/editions/${editionId}`, fields);
+        Object.assign(patch, fields);
       }
       return patch;
     },
@@ -166,8 +169,7 @@ export function useSaveBranding() {
 export function useUpdateEdition() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<Edition> }) =>
-      DEMO_MODE ? Promise.resolve({ id, ...body } as Edition) : api.patch<Edition>(`/editions/${id}`, body),
+    mutationFn: ({ id, body }: { id: string; body: Partial<Edition> }) => (DEMO_MODE ? Promise.resolve({ id, ...body } as Edition) : api.patch<Edition>(`/editions/${id}`, body)),
     onSuccess: (saved, { id, body }) => {
       client.setQueryData<Edition[]>(KEY, (was) => was?.map((e) => (e.id === id ? { ...e, ...body, ...saved } : e)));
       if (!DEMO_MODE) void client.invalidateQueries({ queryKey: KEY });

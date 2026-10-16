@@ -10,9 +10,10 @@ import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
 import { api } from '@/lib/api/client';
 import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
+import type { BuildLayout } from '@/lib/calls-to-action/build-deck';
 import type { DeckDesignResponse } from '@/lib/calls-to-action/deck';
 import { dateRange, type Edition } from '@/lib/events/events';
-import { dayDate, type Session } from '@/lib/programme/programme';
+import { dayDate, timeRange, type Session } from '@/lib/programme/programme';
 import { cn } from '@/lib/utils';
 
 type Kind = 'session' | 'day';
@@ -21,10 +22,19 @@ type Kind = 'session' | 'day';
 const dayLabel = (edition: Edition, day: number) =>
   new Date(`${dayDate(edition.startsAt, day)}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace('Sep ', 'Sept ');
 
+/** File names from titles: letters, digits and dashes. */
+const slug = (t: string) =>
+  t
+    .replace(/[^\w-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+
 /**
- * Makes a calls-to-action deck, designed for the event (by Claude, on the server): one session's slide (actor,
- * commitment, timeline) when the session ends, or the end-of-day deck for a whole day. Only
- * approved calls go in.
+ * Makes a calls-to-action deck: one session's slide (actor, commitment, timeline) when the session
+ * ends, or the end-of-day deck for a whole day. Only approved calls go in. An event set to the Build
+ * template (Branding) gets Build's commitment slides, as cards or a table, drawn straight away;
+ * any other is designed for the event by Claude, on the server.
  */
 export function DeckDialog({
   open,
@@ -53,6 +63,8 @@ export function DeckDialog({
   const [day, setDay] = useState(String(days.at(-1) ?? ''));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const build = edition.deckTemplate === 'build';
+  const [layout, setLayout] = useState<BuildLayout>('cards');
 
   const count = (kind === 'session' ? approved.filter((c) => c.sessionId === sessionId) : approved.filter((c) => withCalls.some((s) => s.id === c.sessionId && String(s.day) === day))).length;
 
@@ -62,6 +74,7 @@ export function DeckDialog({
     if (kind === 'session' ? !session : !day) return setError(kind === 'session' ? 'Choose a session with approved calls.' : 'Choose a day with approved calls.');
     setError(null);
     setPending(true);
+    if (build) return void makeBuildDeck(session);
     void (async () => {
       try {
         const { downloadDeck, fallbackDesign, toDeckImage } = await import('@/lib/calls-to-action/deck');
@@ -75,12 +88,6 @@ export function DeckDialog({
         const design = answer?.design ?? fallbackDesign(answer?.brandColor ?? edition.brandColor ?? null, calls);
         const titleOf = (sid: string | null) => sessions.find((s) => s.id === sid)?.title ?? (sid ? 'A removed session' : 'No session');
         const when = kind === 'session' ? `Day ${session!.day} · ${dayLabel(edition, session!.day)}` : `Day ${day} · ${dayLabel(edition, Number(day))}`;
-        const slug = (t: string) =>
-          t
-            .replace(/[^\w-]+/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '')
-            .slice(0, 60);
         await downloadDeck(
           {
             event: { name: edition.name, shortName: edition.shortName, when: kind === 'day' ? when : dateRange(edition.startsAt, edition.endsAt), where: edition.city ?? edition.venue },
@@ -110,15 +117,44 @@ export function DeckDialog({
     })();
   };
 
-  const choice = (value: Kind, label: string, hint: string) => (
+  /** The Build template: the session's (or the day's) commitments as cards or a table, no design step. */
+  const makeBuildDeck = async (session: Session | undefined) => {
+    try {
+      const { downloadBuildDeck } = await import('@/lib/calls-to-action/build-deck');
+      const lineOf = (s: Session) => [dayLabel(edition, s.day), timeRange(s.startsAt, s.endsAt), s.room].filter(Boolean).join(' | ');
+      const chosen = kind === 'session' ? [session!] : withCalls.filter((s) => String(s.day) === day).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      const where = edition.venue ?? edition.city;
+      await downloadBuildDeck(
+        {
+          sessions: chosen.map((s) => ({ title: s.title, when: lineOf(s), calls: approved.filter((c) => c.sessionId === s.id) })),
+          layout,
+          ...(kind === 'day' ? { day: { subtitle: [`Day ${day}`, dayLabel(edition, Number(day)), where].filter(Boolean).join(' · ') } } : {}),
+        },
+        kind === 'session' ? `${edition.shortName}-${slug(session!.title)}.pptx` : `${edition.shortName}-day-${day}-commitments.pptx`,
+      );
+      toast.push({
+        title: kind === 'session' ? 'Session slide downloaded' : 'End-of-day deck downloaded',
+        body: `Build commitment template, ${layout === 'cards' ? 'as cards' : 'as a table'}.`,
+        leading: { kind: 'icon', icon: PresentationChartBarIcon, tone: 'success' },
+      });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The deck could not be made. Try again.');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  /** One option of a radio group drawn as a choice card. */
+  const choice = <T extends string>(current: T, set: (v: T) => void, value: T, label: string, hint: string) => (
     <button
       type="button"
       role="radio"
-      aria-checked={kind === value}
-      onClick={() => setKind(value)}
-      className={cn('flex flex-1 flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left', kind === value ? 'border-primary bg-primary-soft/50' : 'border-border hover:border-border-strong')}
+      aria-checked={current === value}
+      onClick={() => set(value)}
+      className={cn('flex flex-1 flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left', current === value ? 'border-primary bg-primary-soft/50' : 'border-border hover:border-border-strong')}
     >
-      <span className={cn('text-sm', kind === value ? 'font-medium text-primary' : 'text-ink')}>{label}</span>
+      <span className={cn('text-sm', current === value ? 'font-medium text-primary' : 'text-ink')}>{label}</span>
       <span className="text-xs text-hint">{hint}</span>
     </button>
   );
@@ -128,22 +164,28 @@ export function DeckDialog({
       open={open}
       icon={PresentationChartBarIcon}
       title="Make a deck"
-      subtitle={`Designed for ${edition.shortName} from its colours, logo and cover. Only approved calls go in.`}
+      subtitle={build ? 'In the Build commitment template. Only approved calls go in.' : `Designed for ${edition.shortName} from its colours, logo and cover. Only approved calls go in.`}
       pending={pending}
-      pendingLabel="Designing… about a minute"
+      pendingLabel={build ? 'Making the deck…' : 'Designing… about a minute'}
       submitLabel={`Download${count ? ` (${count} ${count === 1 ? 'call' : 'calls'})` : ''}`}
       error={error}
       onSubmit={submit}
       onClose={onClose}
     >
-      {pending ? (
+      {pending && !build ? (
         <DeckProgress colour={edition.brandColor ?? '#002D74'} kind={kind} />
       ) : (
         <>
           <div role="radiogroup" aria-label="What the deck covers" className="flex flex-col gap-2 sm:flex-row">
-            {choice('session', 'One session', 'A single slide: actor, commitment, timeline')}
-            {choice('day', 'End of day', "The full deck for the day's sessions")}
+            {choice(kind, setKind, 'session', 'One session', build ? "The session's commitments and recommendations" : 'A single slide: actor, commitment, timeline')}
+            {choice(kind, setKind, 'day', 'End of day', build ? 'Build cover, each session, closing' : "The full deck for the day's sessions")}
           </div>
+          {build && (
+            <div role="radiogroup" aria-label="Layout" className="flex flex-col gap-2 sm:flex-row">
+              {choice(layout, setLayout, 'cards', 'Cards', 'Template #1: eight to a slide')}
+              {choice(layout, setLayout, 'table', 'Table', 'Template #2: up to twelve rows to a slide')}
+            </div>
+          )}
           {kind === 'session' ? (
             <Field id={`${id}-session`} label="Session">
               <Select
