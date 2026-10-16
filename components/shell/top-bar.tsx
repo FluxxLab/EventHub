@@ -19,8 +19,9 @@ export function TopBar({ user, onMenu }: { user: StaffUser; onMenu: () => void }
   const title = titleFor(pathname);
   const isAdmin = user.tier === 'admin';
 
+  // PIC's arcs sweep faintly through the middle of the bar, between the title and the controls
   return (
-    <header className="sticky top-0 z-30 flex h-22 shrink-0 items-center gap-6 border-b border-border bg-surface px-4 sm:px-7">
+    <header className="sticky top-0 z-30 flex h-22 shrink-0 items-center gap-6 border-b border-border bg-surface bg-[url(/brand/bar-arcs.svg)] bg-[length:auto_100%] bg-center bg-no-repeat px-4 sm:px-7">
       <button type="button" onClick={onMenu} aria-label="Open menu" className={cn(iconButton, 'md:hidden')}>
         <Bars3Icon className="size-5" />
       </button>

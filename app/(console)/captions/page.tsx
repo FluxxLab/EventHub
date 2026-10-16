@@ -21,7 +21,7 @@ import {
   TvIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
@@ -32,7 +32,7 @@ import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
-import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
+import { SegmentedTabs, tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
@@ -118,7 +118,8 @@ function subscribeSize(listener: () => void) {
 }
 
 /** The running caption stream for one session, as paragraphs, following the newest line. */
-function CaptionStream({ session }: { session: Session }) {
+/** One live session's captions: its room's state under the title, the room switcher (`toolbar`) above the stream. */
+function CaptionStream({ session, toolbar }: { session: Session; toolbar?: ReactNode }) {
   const feed = useCaptionFeed(session.id);
   const { clear, exportTranscript } = useCaptionActions(session.id);
   const toast = useToast();
@@ -151,7 +152,8 @@ function CaptionStream({ session }: { session: Session }) {
     <Panel
       className="flex flex-col"
       title={<span className="truncate">{session.title}</span>}
-      description={`${session.room} · ${feed.finals.length} ${feed.finals.length === 1 ? 'line' : 'lines'} on screen`}
+      description={<RoomContext session={session} />}
+      toolbar={toolbar}
       actions={
         <>
           <button type="button" onClick={() => download('csv')} disabled={exportTranscript.isPending} className={buttonClass({ style: 'outline', color: 'gray' })}>
@@ -169,6 +171,7 @@ function CaptionStream({ session }: { session: Session }) {
       footer={
         <>
           <Select label="Caption text size" value={size} options={SIZES.map((s) => ({ value: s.value, label: s.label }))} onChange={setCaptionSize} className="w-44" />
+          <span className="hidden text-xs text-hint lg:inline">Watching here counts as one caption listener on Live ops.</span>
           {following && !paused ? (
             <button type="button" onClick={() => setPaused(true)} className={buttonClass({ style: 'borderless', color: 'gray', className: 'ml-auto h-8' })}>
               <PauseIcon className="size-4" />
@@ -190,14 +193,17 @@ function CaptionStream({ session }: { session: Session }) {
         </>
       }
     >
-      {/* Sized to the window, so the footer controls stay in view and a big screen shows more. */}
+      {/*
+       * Sized to the window, less the navbar, tabs, panel header, room switcher, panel footer and the
+       * page footer, so the text-size and pause controls stay in view and a big screen shows more.
+       */}
       <div
         ref={scroller}
         onScroll={onScroll}
         role="log"
         aria-label={`Live captions: ${session.title}`}
         aria-live="off"
-        className="relative h-[calc(100dvh-28rem)] min-h-[18rem] overflow-y-auto px-5 py-4"
+        className={cn('relative min-h-[16rem] overflow-y-auto px-5 py-4', toolbar ? 'h-[calc(100dvh-32rem)]' : 'h-[calc(100dvh-28rem)]')}
       >
         {blocks.length === 0 && !feed.interim ? (
           <EmptyState className="h-full justify-center" icon={MicrophoneIcon} title="Waiting for the first words" body="Captions appear here as soon as the capture desk sends audio." />
@@ -263,8 +269,8 @@ function RoomContext({ session }: { session: Session }) {
   const noFeed = (!!metrics && !metrics.capturing) || streamDown;
   const audio = noFeed ? 'No audio feed' : source ? `Audio from the ${SOURCE_LABEL[source].toLowerCase()}` : metrics ? 'Receiving audio' : null;
   return (
-    <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-soft">
-      <span className="font-medium text-ink">{session.room}</span>
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <span className="text-ink">{session.room}</span>
       <span aria-hidden>·</span>
       <span>{metrics?.flags.cutToBreak ? 'On break' : 'Live'}</span>
       {audio && (
@@ -276,9 +282,12 @@ function RoomContext({ session }: { session: Session }) {
           </span>
         </>
       )}
-    </p>
+    </span>
   );
 }
+
+/** Up to this many live rooms switch with tabs; more fall back to a list. */
+const ROOM_TABS_MAX = 5;
 
 function Monitor({ sessions }: { sessions: Session[] }) {
   const [picked, setPicked] = useState<string | null>(null);
@@ -299,25 +308,16 @@ function Monitor({ sessions }: { sessions: Session[] }) {
       />
     );
   }
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <RoomContext session={session} />
-        {sessions.length > 1 && (
-          <Select
-            label="Live session"
-            value={session.id}
-            options={sessions.map((s) => ({ value: s.id, label: `${s.room} · ${s.title}` }))}
-            onChange={setPicked}
-            className="w-full sm:w-auto sm:max-w-md"
-          />
-        )}
-      </div>
-      {/* Keyed so switching sessions starts a fresh feed. */}
-      <CaptionStream key={session.id} session={session} />
-      <p className="text-xs text-hint">Watching here counts as one caption listener on Live ops.</p>
-    </div>
-  );
+  // which live room to watch: tabs named by room while there are a few, a list beyond that
+  const sameRoomTwice = new Set(sessions.map((s) => s.room)).size < sessions.length;
+  const switcher =
+    sessions.length < 2 ? undefined : sessions.length <= ROOM_TABS_MAX ? (
+      <SegmentedTabs label="Live room" value={session.id} options={sessions.map((s) => ({ value: s.id, label: sameRoomTwice ? `${s.room} · ${s.title}` : s.room }))} onChange={setPicked} />
+    ) : (
+      <Select label="Live session" value={session.id} options={sessions.map((s) => ({ value: s.id, label: `${s.room} · ${s.title}` }))} onChange={setPicked} className="w-full sm:w-auto sm:max-w-md" />
+    );
+  // keyed so switching sessions starts a fresh feed
+  return <CaptionStream key={session.id} session={session} toolbar={switcher} />;
 }
 
 /* -------------------------------------------------------------- sound desk */

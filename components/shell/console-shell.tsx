@@ -73,10 +73,10 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
             </div>
           </main>
           {/*
-           * Pinned to the bottom of the window, within the content column so it never slides under
+           * Pinned to the bottom of the window from tablet width up (a phone keeps the room for the page), within the content column so it never slides under
            * the sidebar; h-17 matches the sidebar's user row so the two top borders form one line.
            */}
-          <footer className="sticky bottom-0 z-20 flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface px-4 text-xs text-muted sm:px-7">
+          <footer className="flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface bg-[url(/brand/bar-arcs.svg)] bg-[length:auto_100%] bg-right bg-no-repeat px-4 text-xs text-muted sm:px-7 md:sticky md:bottom-0 md:z-20">
             Designed and maintained by Flux Eco
           </footer>
         </div>
