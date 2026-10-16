@@ -26,6 +26,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { moveOption, newTopicProblem, usageCounts, type TopicOption } from '@/lib/catalog/topics';
 import { useCreateInterest, useCreateTrack, useDeleteTopic, useInterestLibrary, useTrackLibrary, useUpdateTopics } from '@/lib/catalog/use-topics';
 import { useEditions } from '@/lib/events/use-editions';
+import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
 type Kind = 'track' | 'interest';
@@ -143,6 +144,7 @@ export function TopicLibrary({ kind }: { kind: Kind }) {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<{ option: TopicOption | null } | null>(null);
   const [deleting, setDeleting] = useState<TopicOption | null>(null);
+  const listRef = useListMotion<HTMLUListElement>();
 
   const all: TopicOption[] = [...(library.data ?? [])].sort(byOrder);
   const q = query.trim().toLowerCase();
@@ -214,7 +216,7 @@ export function TopicLibrary({ kind }: { kind: Kind }) {
           />
         )
       ) : (
-        <ul className={cn('transition-opacity', update.isPending && 'opacity-70')}>
+        <ul ref={listRef} className={cn('transition-opacity', update.isPending && 'opacity-70')}>
           {rows.map((o) => {
             const index = all.indexOf(o);
             const count = used.get(o.value) ?? 0;

@@ -35,6 +35,7 @@ import { KIND_LABEL, moveMaterial, sourceLabel, type Material, type MaterialKind
 import { useMaterialActions, useMaterials } from '@/lib/materials/use-materials';
 import type { Session } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
+import { useListMotion } from '@/lib/use-list-motion';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
@@ -118,6 +119,7 @@ function SessionMaterials({ session, canUpload }: { session: Session; canUpload:
   const [editing, setEditing] = useState<{ material: Material | null } | null>(null);
   const [removing, setRemoving] = useState<Material | null>(null);
   const list = materials.data ?? [];
+  const listRef = useListMotion<HTMLUListElement>();
   const add = (
     <button type="button" onClick={() => setEditing({ material: null })} className={buttonClass({ className: 'h-9' })}>
       <PlusIcon className="size-4" />
@@ -145,7 +147,7 @@ function SessionMaterials({ session, canUpload }: { session: Session; canUpload:
       ) : list.length === 0 ? (
         <EmptyState icon={PaperClipIcon} title="Nothing attached yet" body="Add the slides, a paper or the recording; delegates find them on the session in the app." action={add} />
       ) : (
-        <ul className="divide-y divide-border">
+        <ul ref={listRef} className="divide-y divide-border">
           {list.map((m, i) => (
             <MaterialRow
               key={m.id}

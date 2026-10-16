@@ -7,6 +7,7 @@ import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/field';
+import { SaveLabel, useJustSaved } from '@/components/ui/reveal';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tag } from '@/components/ui/tag';
@@ -302,6 +303,7 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
   const design = useCertificateDesign(editionId);
   const [progress, setProgress] = useState<number | null>(null);
   const save = useSaveCertificateDesign(editionId, setProgress);
+  const justSaved = useJustSaved(save);
   const remove = useRemoveCertificateDesign(editionId);
 
   const [draft, setDraft] = useState<Draft>({ artwork: null, name: DEFAULT_NAME, code: DEFAULT_CODE });
@@ -335,7 +337,12 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
   const pageHeightPt = portrait ? 841.89 : 595.28;
   const previewHeight = previewWidth / aspect;
   const selected = which === 'code' ? draft.code : draft.name;
-  const warnings = artwork ? [aspectWarning(artwork.width, artwork.height), lowResolution(artwork.width, artwork.height) ? `At ${artwork.width}×${artwork.height} the artwork will look soft in print. 3508×2480 (A4 at 300 dpi) is sharp.` : null].filter(Boolean) : [];
+  const warnings = artwork
+    ? [
+        aspectWarning(artwork.width, artwork.height),
+        lowResolution(artwork.width, artwork.height) ? `At ${artwork.width}×${artwork.height} the artwork will look soft in print. 3508×2480 (A4 at 300 dpi) is sharp.` : null,
+      ].filter(Boolean)
+    : [];
 
   const place = (w: Which, p: TextPlacement) => setDraft((d) => ({ ...d, [w]: p }));
   const moveTo = (w: Which, x: number, y: number) => {
@@ -374,7 +381,11 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
       { artwork, name: draft.name, code: draft.code },
       {
         onSuccess: () =>
-          toast.push({ title: 'Certificate saved', body: `Delegates at ${edition.shortName} can download it with their name printed on it.`, leading: { kind: 'icon', icon: AcademicCapIcon, tone: 'success' } }),
+          toast.push({
+            title: 'Certificate saved',
+            body: `Delegates at ${edition.shortName} can download it with their name printed on it.`,
+            leading: { kind: 'icon', icon: AcademicCapIcon, tone: 'success' },
+          }),
       },
     );
   };
@@ -406,10 +417,16 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
   };
 
   const fileInput = (
-    <input id={`${id}-file`} type="file" accept="image/png,image/jpeg" className="sr-only" onChange={(e) => {
-      void pick(e.target.files?.[0]);
-      e.target.value = '';
-    }} />
+    <input
+      id={`${id}-file`}
+      type="file"
+      accept="image/png,image/jpeg"
+      className="sr-only"
+      onChange={(e) => {
+        void pick(e.target.files?.[0]);
+        e.target.value = '';
+      }}
+    />
   );
 
   return (
@@ -431,7 +448,9 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
             {!template && !dirty && <Tag>Not set up</Tag>}
           </h2>
           <p className="text-sm text-hint">
-            {template ? `Each delegate downloads this with their own name. Saved ${ago(template.updatedAt, now).toLowerCase()}.` : 'Delegates can download a certificate for this event once a design is saved.'}
+            {template
+              ? `Each delegate downloads this with their own name. Saved ${ago(template.updatedAt, now).toLowerCase()}.`
+              : 'Delegates can download a certificate for this event once a design is saved.'}
           </p>
         </div>
       </header>
@@ -464,7 +483,10 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
             }}
             onDragLeave={() => setDragOver(false)}
             onDrop={drop}
-            className={cn('flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center', dragOver ? 'border-primary bg-primary-soft/40' : 'border-border-strong hover:border-primary')}
+            className={cn(
+              'flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center',
+              dragOver ? 'border-primary bg-primary-soft/40' : 'border-border-strong hover:border-primary',
+            )}
           >
             <PhotoIcon className="size-8 text-hint" />
             <span className="text-[0.9375rem] text-ink">Upload the certificate for {edition?.name ?? 'this event'}</span>
@@ -491,9 +513,29 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
               {previewWidth > 0 && (
                 <>
                   {dragging && selected?.x === 0.5 && <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 border-l border-dashed border-primary/40" />}
-                  <TextBox label="Delegate name" text={sampleName.trim() || SAMPLE_NAME} p={draft.name} width={previewWidth} height={previewHeight} selected={which === 'name'} onSelect={() => setWhich('name')} onMove={(x, y) => moveTo('name', x, y)} onDragging={setDragging} />
+                  <TextBox
+                    label="Delegate name"
+                    text={sampleName.trim() || SAMPLE_NAME}
+                    p={draft.name}
+                    width={previewWidth}
+                    height={previewHeight}
+                    selected={which === 'name'}
+                    onSelect={() => setWhich('name')}
+                    onMove={(x, y) => moveTo('name', x, y)}
+                    onDragging={setDragging}
+                  />
                   {draft.code && (
-                    <TextBox label="Certificate code" text={SAMPLE_CODE} p={draft.code} width={previewWidth} height={previewHeight} selected={which === 'code'} onSelect={() => setWhich('code')} onMove={(x, y) => moveTo('code', x, y)} onDragging={setDragging} />
+                    <TextBox
+                      label="Certificate code"
+                      text={SAMPLE_CODE}
+                      p={draft.code}
+                      width={previewWidth}
+                      height={previewHeight}
+                      selected={which === 'code'}
+                      onSelect={() => setWhich('code')}
+                      onMove={(x, y) => moveTo('code', x, y)}
+                      onDragging={setDragging}
+                    />
                   )}
                 </>
               )}
@@ -532,7 +574,11 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
                 <Switch checked={Boolean(draft.code)} labelledBy={`${id}-code-l`} onChange={(on) => setDraft((d) => ({ ...d, code: on ? (saved?.code ?? DEFAULT_CODE) : null }))} />
               </div>
             )}
-            {selected ? <Controls which={which} p={selected} pageHeightPt={pageHeightPt} onChange={(p) => place(which, p)} /> : <p className="text-sm text-hint">The code is left off. Verifiers will have nothing to check.</p>}
+            {selected ? (
+              <Controls which={which} p={selected} pageHeightPt={pageHeightPt} onChange={(p) => place(which, p)} />
+            ) : (
+              <p className="text-sm text-hint">The code is left off. Verifiers will have nothing to check.</p>
+            )}
           </div>
         </div>
       )}
@@ -565,7 +611,13 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
               </button>
             )}
             <button type="button" onClick={() => submit()} disabled={!dirty || save.isPending} className={buttonClass()}>
-              {progress !== null ? `Uploading ${Math.round(progress * 100)}%` : save.isPending ? 'Saving…' : `Save for ${edition?.shortName ?? 'this event'}`}
+              {progress !== null ? (
+                `Uploading ${Math.round(progress * 100)}%`
+              ) : (
+                <SaveLabel pending={save.isPending} saved={justSaved}>
+                  Save for {edition?.shortName ?? 'this event'}
+                </SaveLabel>
+              )}
             </button>
           </div>
           {save.error && <p className="w-full text-right text-sm text-danger">{save.error.message}</p>}
@@ -584,7 +636,11 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
           remove.mutate(undefined, {
             onSuccess: () => {
               setRemoving(false);
-              toast.push({ title: 'Certificate removed', body: `Delegates at ${edition?.shortName ?? 'this event'} can no longer download one.`, leading: { kind: 'icon', icon: AcademicCapIcon, tone: 'success' } });
+              toast.push({
+                title: 'Certificate removed',
+                body: `Delegates at ${edition?.shortName ?? 'this event'} can no longer download one.`,
+                leading: { kind: 'icon', icon: AcademicCapIcon, tone: 'success' },
+              });
             },
           })
         }

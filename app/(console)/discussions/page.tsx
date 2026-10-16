@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/field';
 import { Panel } from '@/components/ui/panel';
+import { Reveal } from '@/components/ui/reveal';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
@@ -16,6 +17,7 @@ import { runsEvents, useSession } from '@/lib/auth/session';
 import { commentState, sortThreads, threadMatches, type ModComment, type Thread } from '@/lib/discussions/discussions';
 import { useComments, useDiscussionActions, useThreads, type CommentView } from '@/lib/discussions/use-discussions';
 import { ago, count } from '@/lib/format';
+import { useListMotion } from '@/lib/use-list-motion';
 import { useNow } from '@/lib/use-now';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
@@ -154,6 +156,7 @@ function Comments({ thread, review, reviewCount, now }: { thread: Thread | null;
   const toast = useToast();
   const [hiding, setHiding] = useState<ModComment | null>(null);
   const list = useMemo(() => comments.data?.pages.flat() ?? [], [comments.data]);
+  const listRef = useListMotion<HTMLUListElement>();
 
   const title = review ? 'Needs review' : thread!.title;
   const subtitle = review
@@ -218,7 +221,8 @@ function Comments({ thread, review, reviewCount, now }: { thread: Thread | null;
         )
       ) : (
         <>
-          <ul className="divide-y divide-border">
+          {/* keyed by filter, so switching filters swaps the list rather than fading the old one out */}
+          <ul key={filter} ref={listRef} className="divide-y divide-border">
             {list.map((c) => (
               <CommentRow
                 key={c.id}
@@ -321,29 +325,38 @@ export default function DiscussionsPage() {
         <div className="border-b border-border p-3">
           <TextInput icon={MagnifyingGlassIcon} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a session" aria-label="Find a session" />
         </div>
-        <ul className="max-h-[calc(100dvh-22rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
-          {active.map((t) => (
-            <ThreadItem key={t.sessionId} thread={t} selected={t.sessionId === selectedId} now={now} onSelect={() => setPicked(t.sessionId)} />
-          ))}
-          {showEmpty && silent.map((t) => <ThreadItem key={t.sessionId} thread={t} selected={t.sessionId === selectedId} now={now} onSelect={() => setPicked(t.sessionId)} />)}
-          {active.length === 0 && !showEmpty && (
-            <li>
-              {search ? (
-                <EmptyState
-                  className="py-8"
-                  title="No session matches"
-                  action={
-                    <button type="button" onClick={() => setSearch('')} className={buttonClass({ style: 'outline', color: 'gray' })}>
-                      Clear search
-                    </button>
-                  }
-                />
-              ) : (
-                <EmptyState className="py-8" title="No comments in any session yet" />
-              )}
-            </li>
-          )}
-        </ul>
+        <div className="max-h-[calc(100dvh-22rem)] overflow-y-auto scrollbar-thin">
+          <ul className="divide-y divide-border">
+            {active.map((t) => (
+              <ThreadItem key={t.sessionId} thread={t} selected={t.sessionId === selectedId} now={now} onSelect={() => setPicked(t.sessionId)} />
+            ))}
+            {active.length === 0 && !showEmpty && (
+              <li>
+                {search ? (
+                  <EmptyState
+                    className="py-8"
+                    title="No session matches"
+                    action={
+                      <button type="button" onClick={() => setSearch('')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                        Clear search
+                      </button>
+                    }
+                  />
+                ) : (
+                  <EmptyState className="py-8" title="No comments in any session yet" />
+                )}
+              </li>
+            )}
+          </ul>
+          {/* sessions without comments ease open under the rest */}
+          <Reveal open={showEmpty}>
+            <ul className={cn('divide-y divide-border', active.length > 0 && 'border-t border-border')}>
+              {silent.map((t) => (
+                <ThreadItem key={t.sessionId} thread={t} selected={t.sessionId === selectedId} now={now} onSelect={() => setPicked(t.sessionId)} />
+              ))}
+            </ul>
+          </Reveal>
+        </div>
         {silent.length > 0 && (
           <div className="border-t border-border px-4 py-2">
             <button type="button" onClick={() => setShowEmpty((v) => !v)} className="text-xs text-ink-soft hover:text-ink">

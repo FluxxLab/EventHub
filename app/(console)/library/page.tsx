@@ -13,7 +13,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
@@ -42,9 +42,20 @@ import {
   type LibraryKind,
 } from '@/lib/library/library';
 import { uploadResource, useLibrary, useLibraryActions, type LibraryDraft } from '@/lib/library/use-library';
+import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
 const KIND_ICON: Record<LibraryKind, typeof DocumentTextIcon> = { document: DocumentTextIcon, video: PlayCircleIcon, audio: MusicalNoteIcon, link: GlobeAltIcon };
+
+/** One topic's resources; each topic is its own list, so moves and deletes animate within it. */
+function TopicList({ children }: { children: ReactNode }) {
+  const ref = useListMotion<HTMLUListElement>();
+  return (
+    <ul ref={ref} className="divide-y divide-border">
+      {children}
+    </ul>
+  );
+}
 
 /** The learning library in the app: resources organisers add here, shown with session materials and the Purple Book. */
 export default function LibraryPage() {
@@ -90,7 +101,7 @@ function Board({ edition }: { edition: Edition }) {
           {groups.map((g) => (
             <div key={g.topic}>
               <h3 className="border-b border-border bg-surface-soft px-6 py-2 text-xs font-medium uppercase tracking-wide text-hint">{g.topic}</h3>
-              <ul className="divide-y divide-border">
+              <TopicList>
                 {g.items.map((item) => {
                   const Icon = KIND_ICON[item.kind];
                   const at = ordered.indexOf(item);
@@ -162,7 +173,7 @@ function Board({ edition }: { edition: Edition }) {
                     </li>
                   );
                 })}
-              </ul>
+              </TopicList>
             </div>
           ))}
         </div>

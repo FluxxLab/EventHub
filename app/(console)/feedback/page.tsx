@@ -9,6 +9,7 @@ import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { Panel } from '@/components/ui/panel';
+import { Reveal } from '@/components/ui/reveal';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { runsEvents, useSession } from '@/lib/auth/session';
@@ -235,13 +236,22 @@ export default function FeedbackPage() {
               )
             }
           >
-            <ul className="max-h-[calc(100dvh-22rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
-              {rated.map((r) => (
-                <SessionItem key={r.sessionId} row={r} selected={r.sessionId === selected?.sessionId} onSelect={() => setPicked(r.sessionId)} />
-              ))}
-              {showUnrated && unrated.map((r) => <SessionItem key={r.sessionId} row={r} selected={r.sessionId === selected?.sessionId} onSelect={() => setPicked(r.sessionId)} />)}
-              {rated.length === 0 && !showUnrated && <li className="px-4 py-6 text-center text-sm text-hint">No ratings yet.</li>}
-            </ul>
+            <div className="max-h-[calc(100dvh-22rem)] overflow-y-auto scrollbar-thin">
+              <ul className="divide-y divide-border">
+                {rated.map((r) => (
+                  <SessionItem key={r.sessionId} row={r} selected={r.sessionId === selected?.sessionId} onSelect={() => setPicked(r.sessionId)} />
+                ))}
+                {rated.length === 0 && !showUnrated && <li className="px-4 py-6 text-center text-sm text-hint">No ratings yet.</li>}
+              </ul>
+              {/* sessions not rated ease open under the rest */}
+              <Reveal open={showUnrated}>
+                <ul className={cn('divide-y divide-border', rated.length > 0 && 'border-t border-border')}>
+                  {unrated.map((r) => (
+                    <SessionItem key={r.sessionId} row={r} selected={r.sessionId === selected?.sessionId} onSelect={() => setPicked(r.sessionId)} />
+                  ))}
+                </ul>
+              </Reveal>
+            </div>
           </Panel>
 
           {selected && <Detail key={selected.sessionId} row={selected} session={sessions.data?.find((s) => s.id === selected.sessionId)} />}

@@ -9,6 +9,7 @@ import { buttonClass } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
 import { Panel } from '@/components/ui/panel';
+import { SaveLabel, useJustSaved } from '@/components/ui/reveal';
 import { RowActions } from '@/components/ui/row-actions';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { tabPanelId, tabId, UnderlineTabs } from '@/components/ui/tabs';
@@ -52,6 +53,7 @@ function VenueCard({ edition }: { edition: Edition }) {
   const [form, setForm] = useState<VenueForm>(initial);
   const [errors, setErrors] = useState<Partial<Record<keyof VenueForm, string>>>({});
   const save = useSaveVenue(edition.id);
+  const justSaved = useJustSaved(save);
   const toast = useToast();
 
   // A different edition (or a fresh copy from the server) resets the form.
@@ -165,7 +167,9 @@ function VenueCard({ edition }: { edition: Edition }) {
               Discard
             </button>
             <button type="submit" disabled={!dirty || save.isPending} className={buttonClass()}>
-              {save.isPending ? 'Saving…' : 'Save venue'}
+              <SaveLabel pending={save.isPending} saved={justSaved}>
+                Save venue
+              </SaveLabel>
             </button>
           </div>
         </footer>

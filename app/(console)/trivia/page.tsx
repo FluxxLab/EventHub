@@ -18,6 +18,7 @@ import { count } from '@/lib/format';
 import { shares } from '@/lib/polls/polls';
 import { correctShare, EMPTY_DISTRIBUTION, OPTIONS, optionText, type TriviaForm, type TriviaQuestion, type TriviaStats } from '@/lib/trivia/trivia';
 import { useTrivia, useTriviaActions } from '@/lib/trivia/use-trivia';
+import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
 const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
@@ -237,6 +238,7 @@ function TriviaBoard({ editionId }: { editionId: string }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ question: TriviaQuestion | null } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const listRef = useListMotion<HTMLUListElement>();
 
   const all = useMemo(() => list.data ?? [], [list.data]);
   const live = all.find((q) => q.status === 'live') ?? null;
@@ -351,7 +353,7 @@ function TriviaBoard({ editionId }: { editionId: string }) {
           </button>
         }
       >
-        <ul className="max-h-[calc(100dvh-16rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
+        <ul ref={listRef} className="max-h-[calc(100dvh-16rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
           {all.map((q) => (
             <ListItem
               key={q.id}

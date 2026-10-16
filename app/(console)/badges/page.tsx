@@ -10,6 +10,7 @@ import { TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Pagination } from '@/components/ui/pagination';
 import { Panel } from '@/components/ui/panel';
+import { SaveLabel, useJustSaved } from '@/components/ui/reveal';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
@@ -551,6 +552,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
   const toast = useToast();
   const stored = useBadgeDesign(edition.id);
   const save = useSaveBadgeDesign(edition.id);
+  const justSaved = useJustSaved(save);
   const holders = useBadgeHolders(edition.id);
   const tiers = useTicketTypes(edition.id);
 
@@ -664,8 +666,10 @@ function BadgeBoard({ edition }: { edition: Edition }) {
                   }
                   className={buttonClass()}
                 >
-                  <CheckIcon className="size-4" />
-                  {save.isPending ? 'Saving…' : `Save for ${edition.shortName}`}
+                  {!justSaved && <CheckIcon className="size-4" />}
+                  <SaveLabel pending={save.isPending} saved={justSaved}>
+                    Save for {edition.shortName}
+                  </SaveLabel>
                 </button>
               </>
             }

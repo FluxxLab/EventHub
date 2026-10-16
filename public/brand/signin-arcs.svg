@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520" fill="none">
+  <!-- PIC's rings and swoosh, faint in the white half's corner -->
+  <g stroke="#002d74" stroke-opacity="0.07" stroke-width="1.5">
+    <circle cx="400" cy="400" r="90"/>
+    <circle cx="400" cy="400" r="160"/>
+    <circle cx="400" cy="400" r="230"/>
+    <circle cx="400" cy="400" r="300"/>
+  </g>
+  <path d="M150 400 A250 250 0 0 1 400 150" stroke="#fccc00" stroke-opacity="0.55" stroke-width="10" stroke-linecap="round"/>
+  <path d="M90 400 A310 310 0 0 1 400 90" stroke="#002d74" stroke-opacity="0.18" stroke-width="2" stroke-dasharray="3 8" stroke-linecap="round"/>
+  <circle cx="400" cy="400" r="60" fill="#002d74" fill-opacity="0.04"/>
+</svg>

@@ -19,6 +19,7 @@ import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { photoCount, PHOTO_TYPES, type Album, type Photo } from '@/lib/gallery/gallery';
 import { useAlbumActions, useAlbumPhotos, useAlbums, usePhotoUpload } from '@/lib/gallery/use-gallery';
+import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
 /** The event's photo gallery: albums organisers fill here, which delegates browse in the app. */
@@ -206,6 +207,7 @@ function AlbumView({ edition, album, onEdit, onPublish, onDeleted }: { edition: 
   const [dragging, setDragging] = useState(false);
   const [viewing, setViewing] = useState<Photo | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const gridRef = useListMotion<HTMLUListElement>();
 
   const add = (files: FileList | null) => {
     if (!files?.length || upload.running) return;
@@ -297,7 +299,7 @@ function AlbumView({ edition, album, onEdit, onPublish, onDeleted }: { edition: 
       ) : (photos.data ?? []).length === 0 ? (
         <EmptyState icon={PhotoIcon} title="No photos in this album yet" body="Drop photos above, or choose them, to add them." />
       ) : (
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        <ul ref={gridRef} className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
           {photos.data!.map((p) => (
             <li key={p.id}>
               <button

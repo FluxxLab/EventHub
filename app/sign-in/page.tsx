@@ -207,7 +207,12 @@ export default function SignInPage() {
   return (
     <main className="grid h-dvh overflow-hidden bg-surface lg:grid-cols-[minmax(0,1fr)_minmax(0,45%)]">
       {entering && <TransitionScreen label="Signing you in…" />}
-      <section className={'flex h-dvh min-h-0 flex-col px-6 py-6 sm:px-12 lg:px-[clamp(3rem,8vw,135px)] [@media(min-height:800px)]:py-10'}>
+      {/* the form's half: PIC's rings and gold swoosh faint in its lower corner */}
+      <section
+        className={
+          'flex h-dvh min-h-0 flex-col bg-[url(/brand/signin-arcs.svg)] bg-[length:30rem] bg-[position:right_-9rem_bottom_-8rem] bg-no-repeat px-6 py-6 sm:px-12 lg:px-[clamp(3rem,8vw,135px)] [@media(min-height:800px)]:py-10'
+        }
+      >
         <Image src="/pic-logo.png" alt="Policy Innovation Centre" width={64} height={64} priority className={'h-auto w-11 shrink-0 [@media(min-height:800px)]:w-14'} />
 
         <div className="flex min-h-0 flex-1 items-center">

@@ -34,6 +34,7 @@ import type { Session } from '@/lib/programme/programme';
 import { useSessions, useSessionsRealtime } from '@/lib/programme/use-sessions';
 import { isNew, matches, tally, type Question, type QuestionStatus } from '@/lib/questions/questions';
 import { useQuestionActions, useQuestions } from '@/lib/questions/use-questions';
+import { useListMotion } from '@/lib/use-list-motion';
 import { useNow } from '@/lib/use-now';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
@@ -184,6 +185,7 @@ function Queue({ session }: { session: Session }) {
   const [tab, setTab] = useUrlParam<QuestionStatus>('status', 'open', STATUSES);
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState<Question | null>(null);
+  const listRef = useListMotion<HTMLUListElement>();
 
   const all = useMemo(() => questions.data ?? [], [questions.data]);
   const totals = tally(all);
@@ -255,7 +257,8 @@ function Queue({ session }: { session: Session }) {
               <EmptyState icon={ChatBubbleLeftRightIcon} title={`No ${tab} questions`} body={TABS.find((t) => t.key === tab)!.empty} />
             )
           ) : (
-            <ul className="divide-y divide-border">
+            // keyed by tab, so switching tabs swaps the list rather than fading the old one out
+            <ul key={tab} ref={listRef} className="divide-y divide-border">
               {list.map((q) => (
                 <QuestionRow key={q.id} question={q} now={now} onStatus={onStatus} onDelete={setDeleting} />
               ))}

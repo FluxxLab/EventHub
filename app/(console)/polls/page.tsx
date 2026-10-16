@@ -18,6 +18,7 @@ import { elapsed, leaders, shares, type Poll } from '@/lib/polls/polls';
 import { usePollActions, usePolls, type PollBody } from '@/lib/polls/use-polls';
 import type { Session } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
+import { useListMotion } from '@/lib/use-list-motion';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 
@@ -224,6 +225,7 @@ export default function PollsPage() {
   const [picked, setPicked] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ poll: Poll | null } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const listRef = useListMotion<HTMLUListElement>();
 
   const all = useMemo(() => polls.data ?? [], [polls.data]);
   const live = all.find((p) => p.status === 'open') ?? null;
@@ -344,7 +346,7 @@ export default function PollsPage() {
           </button>
         }
       >
-        <ul className="max-h-[calc(100dvh-16rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
+        <ul ref={listRef} className="max-h-[calc(100dvh-16rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
           {all.map((p) => (
             <ListItem key={p.id} poll={p} selected={p.id === selected?.id} busy={busy} onSelect={() => setPicked(p.id)} onStart={() => requestStart(p)} onStop={() => stop(p)} />
           ))}
