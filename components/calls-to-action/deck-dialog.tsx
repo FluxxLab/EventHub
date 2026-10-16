@@ -116,10 +116,10 @@ export function DeckDialog({
       role="radio"
       aria-checked={kind === value}
       onClick={() => setKind(value)}
-      className={cn('flex flex-1 flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left', kind === value ? 'border-primary bg-primary-soft/50' : 'border-border hover:border-[#bdbdbd]')}
+      className={cn('flex flex-1 flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left', kind === value ? 'border-primary bg-primary-soft/50' : 'border-border hover:border-border-strong')}
     >
       <span className={cn('text-sm', kind === value ? 'font-medium text-primary' : 'text-ink')}>{label}</span>
-      <span className="text-xs text-[#7c7c7c]">{hint}</span>
+      <span className="text-xs text-hint">{hint}</span>
     </button>
   );
 

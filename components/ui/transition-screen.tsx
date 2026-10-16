@@ -8,7 +8,7 @@ export function TransitionScreen({ label }: { label: string }) {
   return (
     <div className="screen-in fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 bg-surface/95 backdrop-blur-sm">
       <LogoLoader size={96} label={label} />
-      <p className="text-sm text-[#525252]" aria-hidden>
+      <p className="text-sm text-ink-soft" aria-hidden>
         {label}
       </p>
     </div>

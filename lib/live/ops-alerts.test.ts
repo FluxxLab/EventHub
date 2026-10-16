@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { IngestRoom } from '@/lib/ingest/ingest';
-import { lateMinutes, opsProblems, overrunMinutes } from '@/lib/live/ops-alerts';
+import { lateMinutes, opsProblems, overrunLabel, overrunMinutes } from '@/lib/live/ops-alerts';
 
 const now = new Date('2027-09-07T11:15:00Z');
 const session = (over: Partial<{ id: string; title: string; room: string; endsAt: string }> = {}) => ({
@@ -22,6 +22,16 @@ describe('overrunMinutes', () => {
   it('flags only past the grace', () => {
     expect(overrunMinutes(session({ endsAt: '2027-09-07T11:06:00Z' }), now)).toBe(0);
     expect(overrunMinutes(session(), now)).toBe(15);
+  });
+});
+
+describe('overrunLabel', () => {
+  it('says how long in units that read well', () => {
+    expect(overrunLabel(25)).toBe('25 min');
+    expect(overrunLabel(190)).toBe('3 h 10 min');
+    expect(overrunLabel(120)).toBe('2 h');
+    expect(overrunLabel(1440)).toBe('1 day');
+    expect(overrunLabel(53925)).toBe('37 days');
   });
 });
 

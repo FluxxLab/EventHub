@@ -12,31 +12,32 @@ import { opsProblems } from '@/lib/live/ops-alerts';
 import { useBoard } from '@/lib/live/use-live';
 import { useNow } from '@/lib/use-now';
 
+/** The live-room problems worth acting on now: late starts, overruns, failed venue streams. */
+export function useOpsProblems() {
+  const live = useLiveSessions();
+  const streams = useIngestRooms();
+  const board = useBoard();
+  const now = useNow(30_000);
+  return useMemo(() => {
+    if (!live.data) return [];
+    const sessions = board.data ?? [];
+    const { day, isToday } = currentDay(sessions, now);
+    // Late starts only on a real event day, not while rehearsing on sample dates.
+    const programme = isToday ? sessions.filter((s) => s.day === day) : [];
+    return opsProblems(live.data, streams.disabled ? null : (streams.data ?? null), now, programme);
+  }, [live.data, streams.data, streams.disabled, board.data, now]);
+}
+
 /**
  * Tells whoever has the console open, on any page, about a problem worth acting on: a session
  * overdue to go live or left live past its end, or a room whose venue stream failed. Each
  * problem is announced once and stays on screen until dismissed. Renders nothing.
  */
 export function OpsAlerts() {
-  const live = useLiveSessions();
-  const streams = useIngestRooms();
-  const board = useBoard();
-  const now = useNow(30_000);
+  const problems = useOpsProblems();
   const toast = useToast();
   const router = useRouter();
   const announced = useRef(new Set<string>());
-
-  const problems = useMemo(
-    () => {
-      if (!live.data) return [];
-      const sessions = board.data ?? [];
-      const { day, isToday } = currentDay(sessions, now);
-      // Late starts only on a real event day, not while rehearsing on sample dates.
-      const programme = isToday ? sessions.filter((s) => s.day === day) : [];
-      return opsProblems(live.data, streams.disabled ? null : (streams.data ?? null), now, programme);
-    },
-    [live.data, streams.data, streams.disabled, board.data, now],
-  );
 
   useEffect(() => {
     const current = new Set(problems.map((p) => p.key));

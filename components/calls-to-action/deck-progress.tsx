@@ -72,8 +72,8 @@ export function DeckProgress({ colour, kind }: { colour: string; kind: 'session'
           const done = i < current;
           const now = i === current;
           return (
-            <li key={step.label} className={cn('flex items-center gap-3 text-sm', done ? 'text-ink' : now ? 'font-medium text-ink' : 'text-[#9a9a9a]')}>
-              <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full', done ? 'bg-primary text-on-primary' : now ? 'border-2 border-primary' : 'border border-[#d4d4d4]')}>
+            <li key={step.label} className={cn('flex items-center gap-3 text-sm', done ? 'text-ink' : now ? 'font-medium text-ink' : 'text-placeholder')}>
+              <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full', done ? 'bg-primary text-on-primary' : now ? 'border-2 border-primary' : 'border border-border')}>
                 {done ? <CheckIcon className="check-pop size-3" /> : now ? <span className="size-2 animate-pulse rounded-full bg-primary" /> : null}
               </span>
               {step.label}
@@ -82,7 +82,7 @@ export function DeckProgress({ colour, kind }: { colour: string; kind: 'session'
           );
         })}
       </ol>
-      <p className="text-xs text-[#7c7c7c]">This takes about a minute. The deck downloads when it is ready.</p>
+      <p className="text-xs text-hint">This takes about a minute. The deck downloads when it is ready.</p>
     </div>
   );
 }

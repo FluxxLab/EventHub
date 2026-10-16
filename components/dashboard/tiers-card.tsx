@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { ChartTooltip, TipRow, usePointerTip } from '@/components/ui/chart-tooltip';
-import { Card } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import { slices } from '@/lib/dashboard/chart';
 import type { DashboardView, TableRow } from '@/lib/dashboard/types';
 import { count } from '@/lib/format';
@@ -38,9 +38,9 @@ export function TiersCard({ tiers, status }: { tiers: TableRow[]; status: Dashbo
   const focus = active === null ? null : parts[active];
 
   return (
-    <Card title="Tickets by tier" className="flex flex-col">
+    <Panel title="Tickets by tier" className="flex flex-col" bodyClassName="flex flex-1 flex-col px-6 py-5">
       {parts.length === 0 ? (
-        <p className="flex flex-1 items-center justify-center py-10 text-sm text-muted">No tickets sold yet.</p>
+        <p className="flex flex-1 items-center justify-center py-10 text-sm text-hint">No tickets sold yet.</p>
       ) : (
         <>
           <div data-tip-host className="relative mx-auto aspect-square w-full max-w-44" onPointerLeave={clear}>
@@ -68,8 +68,12 @@ export function TiersCard({ tiers, status }: { tiers: TableRow[]; status: Dashbo
             </svg>
             {tip && parts[tip.item] && (
               <ChartTooltip x={tip.x} y={tip.y}>
-                <span className="block text-[#fdfdfd]/70">{parts[tip.item]!.label}</span>
-                <TipRow colour={parts[tip.item]!.other ? 'var(--chart-other)' : COLORS[tip.item]} value={count(parts[tip.item]!.value)} label={`tickets · ${Math.round(parts[tip.item]!.share * 100)}%`} />
+                <span className="block text-on-primary/70">{parts[tip.item]!.label}</span>
+                <TipRow
+                  colour={parts[tip.item]!.other ? 'var(--chart-other)' : COLORS[tip.item]}
+                  value={count(parts[tip.item]!.value)}
+                  label={`tickets · ${Math.round(parts[tip.item]!.share * 100)}%`}
+                />
               </ChartTooltip>
             )}
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center" aria-live="polite">
@@ -81,7 +85,7 @@ export function TiersCard({ tiers, status }: { tiers: TableRow[]; status: Dashbo
             {parts.map((part, i) => (
               <li
                 key={part.label}
-                className={cn('flex items-center gap-2 rounded-md text-xs', active !== null && active !== i && 'opacity-50')}
+                className={cn('flex items-center gap-2 text-xs', active !== null && active !== i && 'opacity-50')}
                 onPointerEnter={() => setActive(i)}
                 onPointerLeave={() => setActive(null)}
               >
@@ -94,18 +98,18 @@ export function TiersCard({ tiers, status }: { tiers: TableRow[]; status: Dashbo
           </ul>
         </>
       )}
-      <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-ink/5 pt-4 text-xs">
+      <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-border pt-4 text-xs">
         {[
           { label: 'Issued', value: status.ticketsIssued },
           { label: 'Admitted', value: status.admitted },
           { label: 'Unclaimed', value: status.unclaimedHolders },
         ].map((item) => (
           <div key={item.label}>
-            <dt className="text-ink/40">{item.label}</dt>
+            <dt className="text-hint">{item.label}</dt>
             <dd className="font-medium text-ink">{count(item.value)}</dd>
           </div>
         ))}
       </dl>
-    </Card>
+    </Panel>
   );
 }

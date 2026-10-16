@@ -34,6 +34,7 @@ export function SessionSpeakersDialog({ session, editionId, onClose }: { session
   }
 
   const chosen = new Set(picked.map((s) => s.id));
+  const dirty = session !== null && picked.map((s) => s.id).join() !== session.speakers.map((s) => s.id).join();
   const list = searchSpeakers(speakers.data ?? [], query);
   const toggle = (s: Speaker) => setPicked((was) => (chosen.has(s.id) ? was.filter((p) => p.id !== s.id) : [...was, s]));
   const close = () => {
@@ -70,12 +71,18 @@ export function SessionSpeakersDialog({ session, editionId, onClose }: { session
       error={save.error?.message ?? null}
       onClose={close}
       onSubmit={submit}
+      dirty={dirty}
     >
       {picked.length > 0 && (
         <ul className="flex flex-wrap gap-2" aria-label="Chosen speakers">
           {picked.map((s) => (
             <li key={s.id}>
-              <button type="button" onClick={() => toggle(s)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-primary bg-primary-soft px-3 text-sm text-primary" aria-label={`Remove ${s.name}`}>
+              <button
+                type="button"
+                onClick={() => toggle(s)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-primary bg-primary-soft px-3 text-sm text-primary"
+                aria-label={`Remove ${s.name}`}
+              >
                 {s.name} <span aria-hidden>×</span>
               </button>
             </li>
@@ -90,7 +97,7 @@ export function SessionSpeakersDialog({ session, editionId, onClose }: { session
           {speakers.error.message}
         </p>
       ) : list.length === 0 ? (
-        <p className="py-6 text-center text-sm text-[#7c7c7c]">{query ? `No speaker matches “${query}”.` : 'No speakers yet.'}</p>
+        <p className="py-6 text-center text-sm text-hint">{query ? `No speaker matches “${query}”.` : 'No speakers yet.'}</p>
       ) : (
         <ul className="-mx-2 grid max-h-72 gap-0.5 overflow-y-auto">
           {list.map((s) => {
@@ -102,14 +109,14 @@ export function SessionSpeakersDialog({ session, editionId, onClose }: { session
                   role="checkbox"
                   aria-checked={on}
                   onClick={() => toggle(s)}
-                  className={cn('flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-[#f6f6f6]', on && 'bg-primary-soft/50 hover:bg-primary-soft/70')}
+                  className={cn('flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface-soft', on && 'bg-primary-soft/50 hover:bg-primary-soft/70')}
                 >
                   <Avatar name={s.name} src={s.avatarUrl} size={40} className="rounded-full" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-ink">{s.name}</span>
-                    {affiliation(s) && <span className="block truncate text-xs text-[#7c7c7c]">{affiliation(s)}</span>}
+                    {affiliation(s) && <span className="block truncate text-xs text-hint">{affiliation(s)}</span>}
                   </span>
-                  <span className={cn('flex size-5 shrink-0 items-center justify-center rounded border', on ? 'border-primary bg-primary text-on-primary' : 'border-[#bdbdbd]')} aria-hidden>
+                  <span className={cn('flex size-5 shrink-0 items-center justify-center rounded border', on ? 'border-primary bg-primary text-on-primary' : 'border-border-strong')} aria-hidden>
                     {on && <CheckIcon className="size-3.5" />}
                   </span>
                 </button>
@@ -118,7 +125,7 @@ export function SessionSpeakersDialog({ session, editionId, onClose }: { session
           })}
         </ul>
       )}
-      <p className="flex items-center gap-1.5 text-sm text-[#7c7c7c]">
+      <p className="flex items-center gap-1.5 text-sm text-hint">
         <UserPlusIcon className="size-4 shrink-0" />
         Not on the list?
         <Link href="/speakers" className="text-primary hover:underline">

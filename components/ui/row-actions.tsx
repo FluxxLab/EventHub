@@ -61,7 +61,7 @@ export function RowActions({ name, onEdit, onDelete, actions = [] }: { name: str
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((o) => !o)}
-        className={cn('flex size-8 items-center justify-center rounded-lg text-[#525252] hover:bg-surface-soft', open && 'bg-surface-soft')}
+        className={cn('flex size-8 items-center justify-center rounded-lg text-ink-soft hover:bg-surface-soft', open && 'bg-surface-soft')}
       >
         <EllipsisVerticalIcon className="size-5" />
       </button>

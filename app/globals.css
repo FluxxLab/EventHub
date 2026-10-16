@@ -16,10 +16,17 @@
   --background: #fdfdfd;
   --surface: #fdfdfd;
   --surface-soft: #f5f5f5;
+  /* wells and tracks: switch tracks, progress bars, segmented controls */
+  --surface-sunken: #e8e8e8;
   --border: #dcdcdc;
+  /* inputs and controls: a border that reads as a boundary (3:1 against the surface) */
+  --border-strong: #b5b5b5;
   --divider: #ededed;
 
   --ink: #292929;
+  /* secondary text, and small hints and captions (5.2:1 on the surface: readable at 12px) */
+  --ink-soft: #525252;
+  --hint: #6b6b6b;
   --muted: #6b7280;
   --placeholder: #9ca3af;
 
@@ -27,6 +34,9 @@
   --success-soft: #eaf6f0;
   --danger: #cc0000;
   --danger-soft: #fdecec;
+  /* cautions: late, overrunning, needs detail */
+  --warning: #7a5d00;
+  --warning-soft: #fdf6e0;
 
   /*
    * Chart series, in this fixed order: brand navy and gold stepped into the chart lightness band
@@ -51,10 +61,14 @@
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-soft: var(--surface-soft);
+  --color-surface-sunken: var(--surface-sunken);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-divider: var(--divider);
 
   --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-hint: var(--hint);
   --color-muted: var(--muted);
   --color-placeholder: var(--placeholder);
 
@@ -62,6 +76,10 @@
   --color-success-soft: var(--success-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  /* the name some pages already used for the pale caution fill */
+  --color-gold-soft: var(--warning-soft);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -85,6 +103,102 @@ body {
   color: var(--ink);
 }
 
+/*
+ * Dark appearance (Appearance in the account menu): the same roles, redrawn for a dark room.
+ * Console pages only (the shell marks itself `data-console`): kiosks, display boards and the
+ * public pages keep their own light look whatever the organiser picked.
+ * Raised surfaces are lighter than the background; text and borders keep their contrast.
+ */
+:root[data-theme='dark']:has([data-console]) {
+  color-scheme: dark;
+  --primary: #8fb3ff;
+  --primary-soft: #1a2846;
+  --on-primary: #0b1530;
+  --secondary: #fccc00;
+  --secondary-soft: #33290d;
+  --gold: #e0b44a;
+  --background: #0f1115;
+  --surface: #16191f;
+  --surface-soft: #1d2129;
+  --surface-sunken: #262b34;
+  --border: #2d323c;
+  --border-strong: #4c5361;
+  --divider: #23272f;
+  --ink: #ececf1;
+  --ink-soft: #c5c8d0;
+  --hint: #9ea4b0;
+  --muted: #9ca3af;
+  --placeholder: #6b7280;
+  --success: #4cc38a;
+  --success-soft: #11291d;
+  --danger: #ff6b6b;
+  --danger-soft: #3b1618;
+  --warning: #e8c15a;
+  --warning-soft: #33290f;
+  --chart-other: #4c5361;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system']:has([data-console]) {
+    color-scheme: dark;
+    --primary: #8fb3ff;
+    --primary-soft: #1a2846;
+    --on-primary: #0b1530;
+    --secondary: #fccc00;
+    --secondary-soft: #33290d;
+    --gold: #e0b44a;
+    --background: #0f1115;
+    --surface: #16191f;
+    --surface-soft: #1d2129;
+    --surface-sunken: #262b34;
+    --border: #2d323c;
+    --border-strong: #4c5361;
+    --divider: #23272f;
+    --ink: #ececf1;
+    --ink-soft: #c5c8d0;
+    --hint: #9ea4b0;
+    --muted: #9ca3af;
+    --placeholder: #6b7280;
+    --success: #4cc38a;
+    --success-soft: #11291d;
+    --danger: #ff6b6b;
+    --danger-soft: #3b1618;
+    --warning: #e8c15a;
+    --warning-soft: #33290f;
+    --chart-other: #4c5361;
+}
+}
+
+/* The PIC logo's navy wordmark needs a light ground: in dark mode it sits on a small white plate. */
+:root[data-theme='dark'] .logo-plate {
+  border-radius: 0.375rem;
+  background: #ffffff;
+  padding: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] .logo-plate {
+    border-radius: 0.375rem;
+    background: #ffffff;
+    padding: 2px;
+  }
+}
+
+/* "Increase contrast" in the computer's settings: darker hints and borders, so edges and small print stand out. */
+@media (prefers-contrast: more) {
+  :root:not([data-theme='dark']) {
+    --ink-soft: #3d3d3d;
+    --hint: #4d4d4d;
+    --muted: #4b5563;
+    --border: #9a9a9a;
+    --border-strong: #6b6b6b;
+  }
+  :root[data-theme='dark']:has([data-console]) {
+    --ink-soft: #e2e4ea;
+    --hint: #c3c7d0;
+    --border: #5a6170;
+    --border-strong: #8a92a2;
+  }
+}
+
 /* Text never goes heavier than 500 (medium); these elements default to bold in browsers. */
 b,
 strong,
@@ -93,12 +207,16 @@ th {
 }
 
 /*
- * No focus outline anywhere, by request. Text fields still show focus through their own border
- * and ring (focus: classes), which is not an outline.
+ * Focus: nothing on mouse clicks (by request), but a ring when the keyboard moves focus, so people
+ * who navigate without a mouse can see where they are (WCAG 2.4.7). Text fields keep their own
+ * border-and-ring focus and are left out.
  */
-*:focus,
-*:focus-visible {
+*:focus {
   outline: none;
+}
+:where(a, button, [role='button'], [role='tab'], [role='menuitem'], [role='switch'], [role='radio'], [role='checkbox'], summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* The logo loader's breath (components/ui/logo-loader.tsx). */
@@ -230,7 +348,51 @@ th {
 .deck-art .deck-line {
   animation: deck-line 3.6s ease-out infinite both;
 }
+/*
+ * A spinner waits a moment before it shows, so a quick save never flickers one on and off; once
+ * shown it turns as usual.
+ */
+@keyframes spinner-in {
+  to {
+    opacity: 1;
+  }
+}
+.spinner-delay {
+  opacity: 0;
+  animation:
+    spin 0.9s linear infinite,
+    spinner-in 0.15s ease-out 0.2s forwards;
+}
+
+/* Phones: form text at 16px, below which iOS zooms the page when a field is tapped. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* The skip link: hidden until the keyboard reaches it, first thing on every console page. */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 200;
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .spinner-delay {
+    animation: spinner-in 0.15s ease-out 0.2s forwards;
+  }
   .screen-in,
   .pop-in,
   .row-flash,

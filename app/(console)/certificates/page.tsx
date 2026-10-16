@@ -18,7 +18,7 @@ import { fileProblem, formatBytes } from '@/lib/materials/materials';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
+const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
 /** Publish or replace the Purple Book: a PDF (uploaded here) or a link to where it lives. */
@@ -97,7 +97,7 @@ function PublishDialog({ open, current, onClose }: { open: boolean; current: Pur
               setSource(s);
               setProblem(null);
             }}
-            className={cn('h-9 rounded-lg border px-3 text-sm', source === s ? 'border-primary bg-primary-soft/50 font-medium text-primary' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+            className={cn('h-9 rounded-lg border px-3 text-sm', source === s ? 'border-primary bg-primary-soft/50 font-medium text-primary' : 'border-border text-ink-soft hover:border-border-strong')}
           >
             {s === 'upload' ? 'Upload a PDF' : 'Link to it'}
           </button>
@@ -105,14 +105,14 @@ function PublishDialog({ open, current, onClose }: { open: boolean; current: Pur
       </div>
       {source === 'upload' ? (
         <div>
-          <label htmlFor={`${id}-file`} className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-dashed border-[#bdbdbd] px-4 py-6 text-center hover:border-primary">
-            {file ? <DocumentTextIcon className="size-6 text-primary" /> : <DocumentArrowUpIcon className="size-6 text-[#7c7c7c]" />}
+          <label htmlFor={`${id}-file`} className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-dashed border-border-strong px-4 py-6 text-center hover:border-primary">
+            {file ? <DocumentTextIcon className="size-6 text-primary" /> : <DocumentArrowUpIcon className="size-6 text-hint" />}
             <span className="text-sm text-ink">{file ? file.name : 'Choose the PDF'}</span>
-            <span className="text-xs text-[#7c7c7c]">{file ? `${formatBytes(file.size)} · click to choose another` : 'Up to 50 MB'}</span>
+            <span className="text-xs text-hint">{file ? `${formatBytes(file.size)} · click to choose another` : 'Up to 50 MB'}</span>
             <input id={`${id}-file`} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
           </label>
           {progress !== null && (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#f1f1f1]">
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-soft">
               <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress * 100}%` }} />
             </div>
           )}
@@ -148,7 +148,7 @@ function VerifyCard() {
         <h2 id={`${id}-t`} className="flex items-center gap-2 text-base font-medium text-ink">
           <ShieldCheckIcon className="size-5 text-primary" /> Check a certificate
         </h2>
-        <p className="text-sm text-[#7c7c7c]">Every certificate carries a code. Enter one to confirm who it was issued to.</p>
+        <p className="text-sm text-hint">Every certificate carries a code. Enter one to confirm who it was issued to.</p>
       </header>
       <form
         className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-end"
@@ -187,12 +187,12 @@ function VerifyCard() {
                 {result.issuedAt && <> on {day(result.issuedAt)}</>}.
               </p>
             ) : (
-              <p className="text-sm text-[#525252]">Check it was typed exactly as printed. Codes are not case-sensitive.</p>
+              <p className="text-sm text-ink-soft">Check it was typed exactly as printed. Codes are not case-sensitive.</p>
             )}
           </div>
         </div>
       )}
-      <p className="border-t border-border bg-[#f6f6f6] px-6 py-3 text-xs text-[#7c7c7c]">
+      <p className="border-t border-border bg-surface-soft px-6 py-3 text-xs text-hint">
         Delegates download their certificate from the app as a PDF with their name printed on it. Verifiers can check codes without an account.
       </p>
     </section>
@@ -210,7 +210,7 @@ export default function CertificatesPage() {
   if (!isAdmin) {
     return (
       <div className={cn(cardClass, 'mx-auto max-w-lg p-10 text-center')}>
-        <BookOpenIcon className="mx-auto size-8 text-[#7c7c7c]" />
+        <BookOpenIcon className="mx-auto size-8 text-hint" />
         <p className="mt-2 font-medium text-ink">Certificates and the Purple Book are managed by organisers</p>
       </div>
     );
@@ -219,7 +219,7 @@ export default function CertificatesPage() {
   return (
     <div className="mx-auto grid w-full max-w-5xl items-start gap-5 lg:grid-cols-2">
       {editions.isPending ? (
-        <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
+        <Skeleton className="h-96 rounded-xl lg:col-span-2" />
       ) : editions.isError ? (
         <p role="alert" className={cn(cardClass, 'p-6 text-sm text-danger lg:col-span-2')}>
           {editions.error.message}
@@ -227,7 +227,7 @@ export default function CertificatesPage() {
       ) : editions.data.length ? (
         <CertificateDesigner editions={editions.data} />
       ) : (
-        <p className={cn(cardClass, 'p-6 text-sm text-[#7c7c7c] lg:col-span-2')}>Create an event first: each event has its own certificate.</p>
+        <p className={cn(cardClass, 'p-6 text-sm text-hint lg:col-span-2')}>Create an event first: each event has its own certificate.</p>
       )}
 
       {auth.user.tier === 'admin' && (
@@ -236,7 +236,7 @@ export default function CertificatesPage() {
             <h2 id="pb-title" className="flex items-center gap-2 text-base font-medium text-ink">
               <BookOpenIcon className="size-5 text-primary" /> The Purple Book
             </h2>
-            <p className="text-sm text-[#7c7c7c]">The summit’s published report, downloadable from the app.</p>
+            <p className="text-sm text-hint">The summit’s published report, downloadable from the app.</p>
           </header>
           {book.isPending ? (
             <div className="p-6">
@@ -252,19 +252,19 @@ export default function CertificatesPage() {
                 <DocumentTextIcon className="size-6" />
               </span>
               <div className="min-w-0 flex-1">
-                <a href={book.data.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[15px] text-ink hover:text-primary hover:underline">
+                <a href={book.data.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[0.9375rem] text-ink hover:text-primary hover:underline">
                   <span className="truncate">{book.data.title}</span>
-                  <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0 text-[#7c7c7c]" />
+                  <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0 text-hint" />
                 </a>
-                <p className="text-xs text-[#7c7c7c]">
+                <p className="text-xs text-hint">
                   {book.data.sizeLabel && `${book.data.sizeLabel} · `}Updated {ago(book.data.updatedAt, now).toLowerCase()}
                 </p>
               </div>
             </div>
           ) : (
-            <p className="px-6 py-8 text-sm text-[#7c7c7c]">Not published yet. The app hides its download until there is a copy.</p>
+            <p className="px-6 py-8 text-sm text-hint">Not published yet. The app hides its download until there is a copy.</p>
           )}
-          <footer className="flex justify-end border-t border-border bg-[#f6f6f6] px-6 py-3">
+          <footer className="flex justify-end border-t border-border bg-surface-soft px-6 py-3">
             <button type="button" onClick={() => setPublishing(true)} className={buttonClass()}>
               {book.data ? 'Replace' : 'Publish'}
             </button>

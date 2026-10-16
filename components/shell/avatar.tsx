@@ -11,14 +11,14 @@ export type AvatarSize = 16 | 20 | 24 | 28 | 32 | 40 | 48 | 80;
  * and offset from the corner (negative sits it slightly outside the circle).
  */
 const SPEC: Record<AvatarSize, { text: string; icon: string; dot: number; ring: number; offset: number }> = {
-  80: { text: 'text-[30px]', icon: 'size-12', dot: 16, ring: 2, offset: 2 },
+  80: { text: 'text-[1.875rem]', icon: 'size-12', dot: 16, ring: 2, offset: 2 },
   48: { text: 'text-xl', icon: 'size-8', dot: 12, ring: 1.5, offset: 1 },
   40: { text: 'text-lg', icon: 'size-6', dot: 10, ring: 1.5, offset: 0 },
   32: { text: 'text-base', icon: 'size-5', dot: 8, ring: 1.5, offset: 0 },
   28: { text: 'text-sm', icon: 'size-4', dot: 8, ring: 1.5, offset: 0 },
   24: { text: 'text-xs', icon: 'size-4', dot: 8, ring: 1.5, offset: -1 },
-  20: { text: 'text-[10px]', icon: 'size-4', dot: 6, ring: 1.5, offset: -1 },
-  16: { text: 'text-[8px]', icon: 'size-3', dot: 6, ring: 1.5, offset: -2 },
+  20: { text: 'text-[0.625rem]', icon: 'size-4', dot: 6, ring: 1.5, offset: -1 },
+  16: { text: 'text-[0.5rem]', icon: 'size-3', dot: 6, ring: 1.5, offset: -2 },
 };
 
 const initials = (name: string) =>

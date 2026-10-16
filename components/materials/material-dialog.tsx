@@ -46,14 +46,20 @@ export function MaterialDialog({
   const [errors, setErrors] = useState<Errors>({});
   const [dragging, setDragging] = useState(false);
   const [openedFor, setOpenedFor] = useState<Material | null | undefined>(undefined);
+  const [initial, setInitial] = useState<MaterialForm | null>(null);
   const uploaded = !!material && sourceLabel(material.url) === 'Uploaded PDF';
 
   if (open && openedFor !== material) {
     setOpenedFor(material);
-    setForm(material ? { ...materialFormOf(material), source: uploaded ? 'upload' : 'link', url: uploaded ? '' : material.url } : emptyMaterial(canUpload));
+    const opened = material ? { ...materialFormOf(material), source: uploaded ? ('upload' as const) : ('link' as const), url: uploaded ? '' : material.url } : emptyMaterial(canUpload);
+    setForm(opened);
+    setInitial(opened);
     setFile(null);
     setErrors({});
   }
+
+  // Something typed or chosen since it opened: Cancel asks before throwing it away.
+  const dirty = open && (!!file || JSON.stringify(form) !== JSON.stringify(initial));
 
   const set = <K extends keyof MaterialForm>(key: K, value: MaterialForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -85,6 +91,7 @@ export function MaterialDialog({
       pending={pending}
       submitLabel={progress !== null ? `Uploading ${Math.round(progress * 100)}%` : material ? 'Save' : 'Add material'}
       error={error}
+      dirty={dirty}
       onClose={() => {
         setOpenedFor(undefined);
         onClose();
@@ -115,7 +122,7 @@ export function MaterialDialog({
               onClick={() => set('source', s)}
               className={cn(
                 'h-9 rounded-lg border px-3 text-sm transition-colors',
-                form.source === s ? 'border-primary bg-primary-soft/50 font-medium text-primary' : 'border-border text-[#525252] hover:border-[#bdbdbd]',
+                form.source === s ? 'border-primary bg-primary-soft/50 font-medium text-primary' : 'border-border text-ink-soft hover:border-border-strong',
               )}
             >
               {s === 'upload' ? 'Upload a PDF' : 'Add a link'}
@@ -127,7 +134,7 @@ export function MaterialDialog({
       {form.source === 'upload' ? (
         <div>
           {uploaded && !file && (
-            <p className="mb-2 flex items-center gap-2 text-sm text-[#525252]">
+            <p className="mb-2 flex items-center gap-2 text-sm text-ink-soft">
               <DocumentTextIcon className="size-4" /> Current file kept. Drop a new PDF to replace it.
             </p>
           )}
@@ -141,26 +148,26 @@ export function MaterialDialog({
             onDrop={onDrop}
             className={cn(
               'flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors',
-              errors.hasFile ? 'border-danger' : dragging ? 'border-primary bg-primary-soft/40' : 'border-[#bdbdbd] hover:border-primary',
+              errors.hasFile ? 'border-danger' : dragging ? 'border-primary bg-primary-soft/40' : 'border-border-strong hover:border-primary',
             )}
           >
             {file ? (
               <>
                 <DocumentTextIcon className="size-6 text-primary" />
                 <span className="text-sm text-ink">{file.name}</span>
-                <span className="text-xs text-[#7c7c7c]">{formatBytes(file.size)} · click to choose another</span>
+                <span className="text-xs text-hint">{formatBytes(file.size)} · click to choose another</span>
               </>
             ) : (
               <>
-                <DocumentArrowUpIcon className="size-6 text-[#7c7c7c]" />
+                <DocumentArrowUpIcon className="size-6 text-hint" />
                 <span className="text-sm text-ink">Drop a PDF here, or click to choose</span>
-                <span className="text-xs text-[#7c7c7c]">Slides exported to PDF work best. Up to 50 MB.</span>
+                <span className="text-xs text-hint">Slides exported to PDF work best. Up to 50 MB.</span>
               </>
             )}
             <input id={id('file')} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
           </label>
           {progress !== null && (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#f1f1f1]" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-soft" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
               <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress * 100}%` }} />
             </div>
           )}
@@ -194,7 +201,14 @@ export function MaterialDialog({
       </div>
 
       {file && (
-        <button type="button" onClick={() => { setFile(null); set('hasFile', false); }} className="-mt-2 flex items-center gap-1 self-start text-xs text-[#525252] hover:text-ink">
+        <button
+          type="button"
+          onClick={() => {
+            setFile(null);
+            set('hasFile', false);
+          }}
+          className="-mt-2 flex items-center gap-1 self-start text-xs text-ink-soft hover:text-ink"
+        >
           <XMarkIcon className="size-3.5" /> Remove the chosen file
         </button>
       )}

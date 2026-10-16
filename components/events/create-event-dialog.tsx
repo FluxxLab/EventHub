@@ -34,7 +34,7 @@ function Section({ title, description, children }: { title: string; description:
     <section className="grid gap-4 border-b border-border py-6 first:pt-0 last:border-b-0 last:pb-0 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-8">
       <div>
         <h3 className="text-sm font-medium text-ink">{title}</h3>
-        <p className="mt-1 text-xs leading-5 text-[#7c7c7c]">{description}</p>
+        <p className="mt-1 text-xs leading-5 text-hint">{description}</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </section>
@@ -336,7 +336,7 @@ export function CreateEventDialog({ open, onClose, edition = null }: { open: boo
 
         <div className="shrink-0 px-6 pb-6 pt-4">
           {!edition && (
-            <p className="mb-3 flex items-center gap-2 text-xs text-[#7c7c7c]">
+            <p className="mb-3 flex items-center gap-2 text-xs text-hint">
               <EyeSlashIcon className="size-4 shrink-0" />
               Saved as a draft, hidden from delegates until you announce it.
             </p>

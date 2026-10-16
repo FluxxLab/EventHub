@@ -15,13 +15,17 @@ import {
   SignalSlashIcon,
   StopCircleIcon,
 } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 import { useId, useMemo, useState, type ComponentType, type ReactNode, type SVGProps } from 'react';
 
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
+import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { runsEvents, useSession } from '@/lib/auth/session';
@@ -31,8 +35,9 @@ import { useRealtimeStatus } from '@/lib/api/realtime';
 import { useBoard, useLiveActions, useLiveOverview, useLiveRealtime } from '@/lib/live/use-live';
 import { SOURCE_LABEL, type IngestRoom } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
-import { lateMinutes, overrunMinutes } from '@/lib/live/ops-alerts';
+import { lateMinutes, overrunLabel, overrunMinutes } from '@/lib/live/ops-alerts';
 import { useNow } from '@/lib/use-now';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
 const hm = (iso: string) =>
@@ -41,14 +46,6 @@ const hm = (iso: string) =>
     minute: '2-digit',
   });
 const slot = (s: Pick<BoardSession, 'startsAt' | 'endsAt'>) => `${hm(s.startsAt)} – ${hm(s.endsAt)}`;
-
-/** How long a session has overrun, in units that read well: "25 min", "3 h 10 min", "36 days". */
-const overrunLabel = (minutes: number) => {
-  if (minutes < 60) return `${minutes} min`;
-  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`;
-  const days = Math.floor(minutes / (24 * 60));
-  return `${days} ${days === 1 ? 'day' : 'days'}`;
-};
 
 type Pending =
   | {
@@ -66,10 +63,7 @@ function Notice({ tone, icon: Icon, children }: { tone: 'danger' | 'gold'; icon:
   return (
     <p
       role="alert"
-      className={cn(
-        'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
-        tone === 'danger' ? 'border-danger/30 bg-danger-soft text-danger' : 'border-gold/40 bg-secondary-soft text-[#7a5d00]',
-      )}
+      className={cn('flex items-start gap-2 rounded-lg border px-3 py-2 text-sm', tone === 'danger' ? 'border-danger/30 bg-danger-soft text-danger' : 'border-warning/30 bg-warning-soft text-warning')}
     >
       <Icon className="mt-0.5 size-4 shrink-0" />
       <span>{children}</span>
@@ -82,8 +76,8 @@ function RoomFigure({ icon: Icon, label, children }: { icon: Icon; label: string
   return (
     <div className="flex items-center gap-2">
       <dt className="sr-only">{label}</dt>
-      <Icon className="size-4 text-[#7c7c7c]" aria-hidden />
-      <dd className="flex items-center gap-1.5 text-sm text-[#525252]">{children}</dd>
+      <Icon className="size-4 text-hint" aria-hidden />
+      <dd className="flex items-center gap-1.5 text-sm text-ink-soft">{children}</dd>
     </div>
   );
 }
@@ -94,7 +88,7 @@ function ToggleRow({ label, hint, children }: { label: string; hint: string; chi
     <div className="flex items-center justify-between gap-3 py-2">
       <div id={id} className="min-w-0">
         <p className="text-sm text-ink">{label}</p>
-        <p className="text-xs text-[#7c7c7c]">{hint}</p>
+        <p className="text-xs text-hint">{hint}</p>
       </div>
       {children(id)}
     </div>
@@ -165,126 +159,122 @@ function RoomCard({
   );
 
   const next = state.next ? (
-    <p className="truncate text-sm text-[#525252]" title={state.next.title}>
-      <span className="text-[#7c7c7c]">Next · {slot(state.next)} · </span>
+    <p className="truncate text-sm text-ink-soft" title={state.next.title}>
+      <span className="text-hint">Next · {slot(state.next)} · </span>
       {state.next.title}
     </p>
   ) : (
-    <p className="text-sm text-[#7c7c7c]">No more sessions here today.</p>
+    <p className="text-sm text-hint">No more sessions here today.</p>
   );
 
   return (
-    <section aria-label={state.room} className={cn('rounded-lg border bg-surface', live ? (onBreak ? 'border-gold/60' : 'border-success/60') : 'border-border')}>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <h2 className="truncate text-xl font-medium text-ink">{state.room}</h2>
-          {status}
+    <Panel
+      title={<span className="truncate">{state.room}</span>}
+      badge={status}
+      actions={actions || undefined}
+      className={cn(live && (onBreak ? 'border-gold/60' : 'border-success/60'))}
+      bodyClassName="flex flex-col gap-4 px-6 py-5"
+    >
+      {(state.conflict || late > 0 || overrun > 0 || streamProblem) && (
+        <div className="flex flex-col gap-2">
+          {state.conflict && (
+            <Notice tone="danger" icon={ExclamationTriangleIcon}>
+              Two sessions are live in this room; captions go to only one. End the one that is over.
+            </Notice>
+          )}
+          {late > 0 && state.next && (
+            <Notice tone="gold" icon={ClockIcon}>
+              “{state.next.title}” was due at {hm(state.next.startsAt)} and is not live. Captions start once it is.
+            </Notice>
+          )}
+          {overrun > 0 && (
+            <Notice tone="gold" icon={ClockIcon}>
+              Still live {overrunLabel(overrun)} past its {hm(live!.endsAt)} end. End it if it is over: captions keep running until it is.
+            </Notice>
+          )}
+          {streamProblem && (
+            <Notice tone="danger" icon={SignalSlashIcon}>
+              {streamProblem}
+            </Notice>
+          )}
         </div>
-        {actions}
-      </header>
+      )}
 
-      <div className="flex flex-col gap-4 px-5 py-4">
-        {(state.conflict || late > 0 || overrun > 0 || streamProblem) && (
-          <div className="flex flex-col gap-2">
-            {state.conflict && (
-              <Notice tone="danger" icon={ExclamationTriangleIcon}>
-                Two sessions are live in this room; captions go to only one. End the one that is over.
-              </Notice>
-            )}
-            {late > 0 && state.next && (
-              <Notice tone="gold" icon={ClockIcon}>
-                “{state.next.title}” was due at {hm(state.next.startsAt)} and is not live. Captions start once it is.
-              </Notice>
-            )}
-            {overrun > 0 && (
-              <Notice tone="gold" icon={ClockIcon}>
-                Still live {overrunLabel(overrun)} past its {hm(live!.endsAt)} end. End it if it is over: captions keep running until it is.
-              </Notice>
-            )}
-            {streamProblem && (
-              <Notice tone="danger" icon={SignalSlashIcon}>
-                {streamProblem}
-              </Notice>
-            )}
-          </div>
-        )}
-
-        {live ? (
-          <div className={cn('grid gap-x-10 gap-y-4', m && canControl && 'lg:grid-cols-[minmax(0,1fr)_22rem]')}>
-            <div className="flex min-w-0 flex-col gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[#7c7c7c]">On air · {slot(live)}</p>
-                <p className="mt-1 line-clamp-2 text-lg font-medium text-ink">{live.title}</p>
-              </div>
-              {m && (
-                <dl className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <RoomFigure icon={EyeIcon} label="Watching in the app">
-                    <span className="font-medium tabular-nums text-ink">{count(m.viewers)}</span> watching
-                  </RoomFigure>
-                  <RoomFigure icon={MicrophoneIcon} label="Following captions">
-                    <span className="font-medium tabular-nums text-ink">{count(m.captionListeners)}</span> following captions
-                  </RoomFigure>
-                  <RoomFigure icon={feedDown ? SignalSlashIcon : SignalIcon} label="Audio">
-                    Audio
-                    <Tag tone={feedDown ? 'danger' : 'green'} dot>
-                      {feedDown ? 'No feed' : source ? SOURCE_LABEL[source] : 'Receiving'}
-                    </Tag>
-                  </RoomFigure>
-                </dl>
-              )}
-              {feedDown && !streamProblem && <p className="text-sm text-danger">No audio has reached captions from this room in the last 30 seconds. Check the Sound desk.</p>}
-              <div className="mt-auto border-t border-border pt-3">{next}</div>
+      {live ? (
+        <div className={cn('grid gap-x-10 gap-y-4', m && canControl && 'lg:grid-cols-[minmax(0,1fr)_22rem]')}>
+          <div className="flex min-w-0 flex-col gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-hint">On air · {slot(live)}</p>
+              <p className="mt-1 line-clamp-2 text-lg font-medium text-ink">{live.title}</p>
             </div>
-
-            {m && canControl && (
-              <div className="divide-y divide-border lg:border-l lg:border-border lg:pl-6">
-                <ToggleRow label="Cut to break" hint={onBreak ? 'Delegates see the break screen.' : 'Show the break screen in the app.'}>
-                  {(labelId) => (
-                    <Switch
-                      checked={onBreak}
-                      tone="gold"
-                      labelledBy={labelId}
-                      disabled={setBreak.isPending}
-                      onChange={(active) =>
-                        setBreak.mutate(
-                          { sessionId: live.id, active },
-                          { onError: (e) => toast.push({ title: 'Break not changed', leading: { kind: 'icon', icon: ExclamationTriangleIcon, tone: 'danger' }, body: e.message }) },
-                        )
-                      }
-                    />
-                  )}
-                </ToggleRow>
-                <ToggleRow label="Captions overlay" hint="Captions over the stream.">
-                  {(labelId) => (
-                    <Switch checked={m.flags.captionsOverlay} labelledBy={labelId} disabled={setOverlays.isPending} onChange={(captions) => setOverlays.mutate({ sessionId: live.id, captions })} />
-                  )}
-                </ToggleRow>
-                <ToggleRow label="Sign language" hint="The interpreter window.">
-                  {(labelId) => (
-                    <Switch
-                      checked={m.flags.signLanguageOverlay}
-                      labelledBy={labelId}
-                      disabled={setOverlays.isPending}
-                      onChange={(signLanguage) => setOverlays.mutate({ sessionId: live.id, signLanguage })}
-                    />
-                  )}
-                </ToggleRow>
-              </div>
+            {m && (
+              <dl className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <RoomFigure icon={EyeIcon} label="Watching in the app">
+                  <span className="font-medium tabular-nums text-ink">{count(m.viewers)}</span> watching
+                </RoomFigure>
+                <RoomFigure icon={MicrophoneIcon} label="Following captions">
+                  <span className="font-medium tabular-nums text-ink">{count(m.captionListeners)}</span> following captions
+                </RoomFigure>
+                <RoomFigure icon={feedDown ? SignalSlashIcon : SignalIcon} label="Audio">
+                  Audio
+                  <Tag tone={feedDown ? 'danger' : 'green'} dot>
+                    {feedDown ? 'No feed' : source ? SOURCE_LABEL[source] : 'Receiving'}
+                  </Tag>
+                </RoomFigure>
+              </dl>
             )}
+            {feedDown && !streamProblem && <p className="text-sm text-danger">No audio has reached captions from this room in the last 30 seconds. Check the Sound desk.</p>}
+            <div className="mt-auto border-t border-border pt-3">{next}</div>
           </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="flex items-center gap-2 text-sm text-ink">
-              <PauseCircleIcon className="size-5 text-[#7c7c7c]" /> Nothing on air
-            </p>
-            <span className="text-[#bdbdbd]" aria-hidden>
-              ·
-            </span>
-            {next}
-          </div>
-        )}
-      </div>
-    </section>
+
+          {m && canControl && (
+            <div className="divide-y divide-border lg:border-l lg:border-border lg:pl-6">
+              <ToggleRow label="Cut to break" hint={onBreak ? 'Delegates see the break screen.' : 'Show the break screen in the app.'}>
+                {(labelId) => (
+                  <Switch
+                    checked={onBreak}
+                    tone="gold"
+                    labelledBy={labelId}
+                    disabled={setBreak.isPending}
+                    onChange={(active) =>
+                      setBreak.mutate(
+                        { sessionId: live.id, active },
+                        { onError: (e) => toast.push({ title: 'Break not changed', leading: { kind: 'icon', icon: ExclamationTriangleIcon, tone: 'danger' }, body: e.message }) },
+                      )
+                    }
+                  />
+                )}
+              </ToggleRow>
+              <ToggleRow label="Captions overlay" hint="Captions over the stream.">
+                {(labelId) => (
+                  <Switch checked={m.flags.captionsOverlay} labelledBy={labelId} disabled={setOverlays.isPending} onChange={(captions) => setOverlays.mutate({ sessionId: live.id, captions })} />
+                )}
+              </ToggleRow>
+              <ToggleRow label="Sign language" hint="The interpreter window.">
+                {(labelId) => (
+                  <Switch
+                    checked={m.flags.signLanguageOverlay}
+                    labelledBy={labelId}
+                    disabled={setOverlays.isPending}
+                    onChange={(signLanguage) => setOverlays.mutate({ sessionId: live.id, signLanguage })}
+                  />
+                )}
+              </ToggleRow>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="flex items-center gap-2 text-sm text-ink">
+            <PauseCircleIcon className="size-5 text-hint" /> Nothing on air
+          </p>
+          <span className="text-placeholder" aria-hidden>
+            ·
+          </span>
+          {next}
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -298,7 +288,7 @@ function ConnectionIndicator({ refreshing }: { refreshing: boolean }) {
     demo: 'Demo data',
   }[connection];
   return (
-    <p className="flex items-center gap-2 text-xs text-[#7c7c7c]" aria-live="polite">
+    <p className="flex items-center gap-2 text-xs text-hint" aria-live="polite">
       <span
         className={cn('size-2 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
         aria-hidden
@@ -320,12 +310,13 @@ export default function LiveOpsPage() {
   const streamOf = (room: string) => (streams.disabled ? null : (streams.data?.find((r) => r.room.trim().toLowerCase() === room.trim().toLowerCase()) ?? null));
   const toast = useToast();
   const [pending, setPending] = useState<Pending | null>(null);
-  const [pickedDay, setPickedDay] = useState<number | null>(null);
+  const [pickedDay, setPickedDay] = useUrlParam<string>('day', '');
 
   const sessions = useMemo(() => board.data ?? [], [board.data]);
   const auto = useMemo(() => currentDay(sessions), [sessions]);
-  const day = pickedDay ?? auto.day;
   const days = useMemo(() => [...new Set(sessions.map((s) => s.day))].sort((a, b) => a - b), [sessions]);
+  // A day from the address only counts when the programme has it.
+  const day = days.includes(Number(pickedDay)) ? Number(pickedDay) : auto.day;
   const rooms = useMemo(() => roomStates(sessions, overview.data ?? [], day), [sessions, overview.data, day]);
   const sum = totals(rooms);
 
@@ -364,22 +355,12 @@ export default function LiveOpsPage() {
     return (
       <div className="flex flex-col gap-5" aria-busy="true">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-56" />
+          <Skeleton key={i} className="h-56 rounded-xl" />
         ))}
       </div>
     );
   }
-  if (board.isError && !board.data) {
-    return (
-      <div role="alert" className="rounded-lg border border-border bg-surface p-10 text-center">
-        <p className="font-medium text-ink">The live board could not load.</p>
-        <p className="mt-1 text-sm text-muted">{board.error.message}</p>
-        <button type="button" onClick={() => void board.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
-  }
+  if (board.isError && !board.data) return <ErrorState framed title="The live board could not load" error={board.error} onRetry={() => void board.refetch()} />;
 
   return (
     <div className="flex flex-col gap-5">
@@ -388,32 +369,19 @@ export default function LiveOpsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           {days.length > 1 && (
-            <div role="tablist" aria-label="Day" className="flex gap-1 rounded-lg bg-[#f1f1f1] p-1">
-              {days.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  role="tab"
-                  aria-selected={day === d}
-                  onClick={() => setPickedDay(d)}
-                  className={cn('rounded-md px-3 py-1.5 text-sm', day === d ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink')}
-                >
-                  Day {d}
-                  {auto.isToday && d === auto.day && <span className="ml-1.5 text-xs text-success">today</span>}
-                </button>
-              ))}
-            </div>
+            <SegmentedTabs
+              label="Day"
+              options={days.map((d) => ({ value: String(d), label: auto.isToday && d === auto.day ? `Day ${d} · today` : `Day ${d}` }))}
+              value={String(day)}
+              onChange={setPickedDay}
+            />
           )}
-          {!auto.isToday && <p className="text-xs text-[#7c7c7c]">No sessions are scheduled for today; showing Day {day} to rehearse.</p>}
+          {!auto.isToday && <p className="text-xs text-hint">No sessions are scheduled for today; showing Day {day} to rehearse.</p>}
         </div>
         <ConnectionIndicator refreshing={overview.isFetching || board.isFetching} />
       </div>
 
-      {!isAdmin && (
-        <p className="rounded-lg bg-primary-soft px-4 py-3 text-sm text-primary">
-          You can follow the rooms here. Starting sessions and the broadcast switches are for organisers; run captions from the Captions page.
-        </p>
-      )}
+      {!isAdmin && <p className="rounded-lg bg-primary-soft px-4 py-3 text-sm text-primary">Starting sessions and the broadcast switches are for organisers; run captions from the Captions page.</p>}
 
       {isAdmin && (
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
@@ -432,10 +400,18 @@ export default function LiveOpsPage() {
       )}
 
       {rooms.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-10 text-center text-sm text-muted">
-          <PauseCircleIcon className="mx-auto mb-2 size-8 text-[#7c7c7c]" />
-          No sessions on Day {day}. Add them on the Programme page.
-        </div>
+        <EmptyState
+          framed
+          icon={PauseCircleIcon}
+          title={`No sessions on Day ${day}`}
+          action={
+            isAdmin && (
+              <Link href="/programme" className={buttonClass()}>
+                Add sessions
+              </Link>
+            )
+          }
+        />
       ) : (
         <div className="flex flex-col gap-5">
           {rooms.map((r) => (

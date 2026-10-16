@@ -94,24 +94,24 @@ export function LeadLinkDialog({
           {link ? (
             <div className="flex flex-col items-center gap-3">
               <div className="size-44 [&_svg]:size-full" aria-hidden dangerouslySetInnerHTML={{ __html: qr }} />
-              <p className="text-center text-xs text-[#7c7c7c]">Scan with the phone’s camera to open it, or send the link.</p>
+              <p className="text-center text-xs text-hint">Scan with the phone’s camera to open it, or send the link.</p>
               <div className="flex w-full gap-2">
-                <input readOnly value={link} aria-label="Scanner link" onFocus={(e) => e.currentTarget.select()} className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-[#f6f6f6] px-3 font-mono text-xs text-ink" />
+                <input readOnly value={link} aria-label="Scanner link" onFocus={(e) => e.currentTarget.select()} className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-surface-soft px-3 font-mono text-xs text-ink" />
                 <button type="button" onClick={() => void copy()} className={buttonClass({ style: 'outline', color: 'gray', className: 'h-10' })}>
                   {copied ? <CheckIcon className="size-4" /> : <ClipboardDocumentIcon className="size-4" />}
                   {copied ? 'Copied' : 'Copy'}
                 </button>
               </div>
-              <p className="rounded-lg bg-gold/10 px-3 py-2 text-xs text-[#8a6d00]">
+              <p className="rounded-lg bg-gold/10 px-3 py-2 text-xs text-warning">
                 This link is shown only now. Send it to the stand’s staff only: anyone with it can see the stand’s leads.
               </p>
             </div>
           ) : hasLink ? (
-            <p className="rounded-lg bg-[#f6f6f6] px-3 py-2.5 text-sm text-[#525252]">
+            <p className="rounded-lg bg-surface-soft px-3 py-2.5 text-sm text-ink-soft">
               A link was made on {madeOn}, and the stand has {summary?.leads ?? 0} {summary?.leads === 1 ? 'lead' : 'leads'}. For safety it is not shown again. Make a new one to send it again: the old link stops working, the leads stay.
             </p>
           ) : (
-            <p className="rounded-lg bg-[#f6f6f6] px-3 py-2.5 text-sm text-[#525252]">This stand has no scanner link yet.</p>
+            <p className="rounded-lg bg-surface-soft px-3 py-2.5 text-sm text-ink-soft">This stand has no scanner link yet.</p>
           )}
 
           {error && (

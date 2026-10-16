@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 import { BreadcrumbProvider, Breadcrumbs } from '@/components/shell/breadcrumbs';
 import { usePathname } from 'next/navigation';
@@ -9,7 +9,7 @@ import { OpsAlerts } from '@/components/shell/ops-alerts';
 import { Sidebar } from '@/components/shell/sidebar';
 import { TopBar } from '@/components/shell/top-bar';
 import type { StaffUser } from '@/lib/auth/session';
-import { navFor } from '@/lib/nav';
+import { navFor, titleFor } from '@/lib/nav';
 import { cn } from '@/lib/utils';
 
 /** Remembers, per browser, whether the organiser pinned the sidebar open. */
@@ -35,6 +35,11 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
   const [peek, setPeek] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+  // the browser tab names the page, so a row of console tabs can be told apart
+  useEffect(() => {
+    const title = titleFor(pathname);
+    document.title = title === 'PIC Events' ? 'PIC Events Admin' : `${title} · PIC Events Admin`;
+  }, [pathname]);
 
   const togglePin = () =>
     setPinned((was) => {
@@ -48,29 +53,32 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
 
   return (
     <BreadcrumbProvider>
-    <div className="flex min-h-screen bg-background">
-      {/* Opening (by hover or pin) widens this column, so the navbar and page move with the sidebar. */}
-      <div className={cn('sticky top-0 hidden h-dvh shrink-0 transition-[width] duration-200 ease-out md:block', pinned || peek ? 'w-75' : 'w-18')}>
-        <Sidebar user={user} groups={groups} pinned={pinned} peek={peek} onPeek={setPeek} onTogglePin={togglePin} />
+      <div data-console className="flex min-h-screen bg-background">
+        <a href="#content" className="skip-link">
+          Skip to content
+        </a>
+        {/* Opening (by hover or pin) widens this column, so the navbar and page move with the sidebar. */}
+        <div className={cn('sticky top-0 hidden h-dvh shrink-0 transition-[width] duration-200 ease-out md:block', pinned || peek ? 'w-75' : 'w-18')}>
+          <Sidebar user={user} groups={groups} pinned={pinned} peek={peek} onPeek={setPeek} onTogglePin={togglePin} />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar user={user} onMenu={() => setMenuOpen(true)} />
+          <OpsAlerts />
+          <main id="content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none sm:px-7">
+            {/* where the page sits, above its content rather than in the navbar */}
+            <Breadcrumbs pathname={pathname} className="mb-4" />
+            {children}
+          </main>
+          {/*
+           * Pinned to the bottom of the window, within the content column so it never slides under
+           * the sidebar; h-17 matches the sidebar's user row so the two top borders form one line.
+           */}
+          <footer className="sticky bottom-0 z-20 flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface px-4 text-xs text-muted sm:px-7">
+            Designed and maintained by Flux Eco
+          </footer>
+        </div>
+        <NavMenu groups={groups} open={menuOpen} onClose={closeMenu} />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar user={user} onMenu={() => setMenuOpen(true)} />
-        <OpsAlerts />
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-7">
-          {/* where the page sits, above its content rather than in the navbar */}
-          <Breadcrumbs pathname={pathname} className="mb-4" />
-          {children}
-        </main>
-        {/*
-         * Pinned to the bottom of the window, within the content column so it never slides under
-         * the sidebar; h-17 matches the sidebar's user row so the two top borders form one line.
-         */}
-        <footer className="sticky bottom-0 z-20 flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface px-4 text-xs text-muted sm:px-7">
-          Designed and maintained by Flux Eco
-        </footer>
-      </div>
-      <NavMenu groups={groups} open={menuOpen} onClose={closeMenu} />
-    </div>
     </BreadcrumbProvider>
   );
 }

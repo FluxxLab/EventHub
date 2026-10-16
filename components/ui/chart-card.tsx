@@ -11,18 +11,32 @@ export const CHART_COLOURS = ['#51c0ff', '#8b5cf6', '#ff5e5e', '#fe9239', '#5252
 export const chartColour = (i: number) => CHART_COLOURS[i % CHART_COLOURS.length]!;
 
 /** A chart's card: title and description over a divider, the chart, and an optional footer of actions. */
-export function ChartCard({ title, description, action, footer, className, children }: { title: string; description?: ReactNode; action?: ReactNode; footer?: ReactNode; className?: string; children: ReactNode }) {
+export function ChartCard({
+  title,
+  description,
+  action,
+  footer,
+  className,
+  children,
+}: {
+  title: string;
+  description?: ReactNode;
+  action?: ReactNode;
+  footer?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <section aria-label={title} className={cn('flex min-w-0 flex-col overflow-hidden rounded-lg border border-[#dcdcdc] bg-[#fdfdfd]', className)}>
-      <header className="flex items-start justify-between gap-3 border-b border-[#dcdcdc] px-5 py-4">
+    <section aria-label={title} className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface', className)}>
+      <header className="flex items-start justify-between gap-3 border-b border-border px-6 py-5">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="text-xl font-medium leading-[30px] text-ink">{title}</h2>
-          {description && <p className="text-sm leading-5 text-[#525252]">{description}</p>}
+          <h2 className="text-lg font-medium text-ink">{title}</h2>
+          {description && <p className="text-sm text-hint">{description}</p>}
         </div>
         {action}
       </header>
-      <div className="flex flex-1 flex-col gap-3 px-5 py-4">{children}</div>
-      {footer && <footer className="flex gap-4 border-t border-[#dcdcdc] px-5 py-4">{footer}</footer>}
+      <div className="flex flex-1 flex-col gap-3 px-6 py-5">{children}</div>
+      {footer && <footer className="flex gap-4 border-t border-border px-6 py-3">{footer}</footer>}
     </section>
   );
 }
@@ -36,12 +50,12 @@ export function Stat({ label, value, change, changeLabel }: { label: string; val
       <p className="truncate text-sm leading-5 text-ink">{label}</p>
       <p className="text-3xl font-medium leading-[38px] tabular-nums text-ink">{value}</p>
       {change !== undefined && change !== null ? (
-        <p className={cn('flex items-center gap-1 text-sm leading-5', up ? 'text-[#10a957]' : 'text-[#ff5e5e]')}>
+        <p className={cn('flex items-center gap-1 text-sm leading-5', up ? 'text-success' : 'text-danger')}>
           <Trend className="size-5" />
-          {Math.abs(change).toFixed(1)}%{changeLabel && <span className="text-[#7c7c7c]">&nbsp;{changeLabel}</span>}
+          {Math.abs(change).toFixed(1)}%{changeLabel && <span className="text-hint">&nbsp;{changeLabel}</span>}
         </p>
       ) : (
-        changeLabel && <p className="truncate text-sm leading-5 text-[#7c7c7c]">{changeLabel}</p>
+        changeLabel && <p className="truncate text-sm leading-5 text-hint">{changeLabel}</p>
       )}
     </div>
   );
@@ -54,7 +68,7 @@ export function Legend({ items, direction = 'column' }: { items: { label: string
   return (
     <ul className={cn('flex gap-4', direction === 'column' ? 'flex-col' : 'flex-wrap')}>
       {items.map((item) => (
-        <li key={item.label} className="flex items-center gap-1.5 text-xs leading-[18px] text-[#525252]">
+        <li key={item.label} className="flex items-center gap-1.5 text-xs leading-[18px] text-ink-soft">
           <span className="size-2.5 shrink-0" style={{ background: item.colour }} aria-hidden />
           {item.label}
           {item.detail && <span className="tabular-nums text-ink">{item.detail}</span>}
@@ -81,7 +95,7 @@ export function DonutChart({ slices, total, format = String, label }: { slices: 
     <div className="flex flex-wrap items-center justify-around gap-6">
       <div data-tip-host className="relative size-48 shrink-0" onPointerLeave={clear}>
         <svg viewBox="0 0 100 100" className="size-full -rotate-90" role="img" aria-label={`${label}: ${slices.map((s) => `${s.label} ${sum ? Math.round((s.value / sum) * 100) : 0}%`).join(', ')}`}>
-          <circle cx={50} cy={50} r={R} fill="none" stroke="#f1f1f1" strokeWidth={14} />
+          <circle cx={50} cy={50} r={R} fill="none" stroke="var(--surface-sunken)" strokeWidth={14} />
           {sum > 0 &&
             slices.map((s, i) => {
               const length = (s.value / sum) * C;
@@ -114,7 +128,7 @@ export function DonutChart({ slices, total, format = String, label }: { slices: 
         </svg>
         {tip && slices[tip.item] && (
           <ChartTooltip x={tip.x} y={tip.y}>
-            <span className="block text-[#fdfdfd]/70">{slices[tip.item]!.label}</span>
+            <span className="block text-on-primary/70">{slices[tip.item]!.label}</span>
             <TipRow colour={chartColour(tip.item)} value={format(slices[tip.item]!.value)} label={sum ? `${Math.round((slices[tip.item]!.value / sum) * 100)}%` : undefined} />
           </ChartTooltip>
         )}
@@ -122,12 +136,12 @@ export function DonutChart({ slices, total, format = String, label }: { slices: 
           {shown ? (
             <>
               <span className="text-xl font-medium tabular-nums text-ink">{sum ? Math.round((shown.value / sum) * 100) : 0}%</span>
-              <span className="text-xs text-[#525252]">{shown.label}</span>
+              <span className="text-xs text-ink-soft">{shown.label}</span>
             </>
           ) : (
             <>
               <span className="text-xl font-medium tabular-nums text-ink">{total ?? format(sum)}</span>
-              <span className="text-xs text-[#525252]">in total</span>
+              <span className="text-xs text-ink-soft">in total</span>
             </>
           )}
         </div>

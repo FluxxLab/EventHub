@@ -50,7 +50,7 @@ function Section({ title, description, children }: { title: string; description:
     <section className="grid gap-4 border-b border-border py-6 first:pt-0 last:border-b-0 last:pb-0 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-8">
       <div>
         <h3 className="text-sm font-medium text-ink">{title}</h3>
-        <p className="mt-1 text-xs leading-5 text-[#7c7c7c]">{description}</p>
+        <p className="mt-1 text-xs leading-5 text-hint">{description}</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </section>
@@ -207,10 +207,10 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
                   'flex gap-1.5 rounded-lg border bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-shadow',
                   errors.description
                     ? 'border-danger focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_var(--danger-soft)]'
-                    : 'border-[#bdbdbd] focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
+                    : 'border-border-strong focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
                 )}
               >
-                <DocumentTextIcon className="mt-px size-5 shrink-0 text-[#525252]" />
+                <DocumentTextIcon className="mt-px size-5 shrink-0 text-ink-soft" />
                 <textarea
                   id={id('description')}
                   rows={3}
@@ -219,7 +219,7 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
                   placeholder="Welcome and framing for the two days."
                   aria-invalid={!!errors.description || undefined}
                   aria-describedby={describedBy(id('description'), errors.description)}
-                  className="min-w-0 flex-1 resize-none bg-transparent text-sm leading-5 text-[#525252] outline-none placeholder:text-placeholder"
+                  className="min-w-0 flex-1 resize-none bg-transparent text-sm leading-5 text-ink-soft outline-none placeholder:text-placeholder"
                 />
               </div>
             </Field>
@@ -263,7 +263,7 @@ export function CreateSessionDialog({ open, onClose, edition, day, session = nul
             {session && (
               <Field id={id('status')} label="Status" className="sm:col-span-2">
                 <Select id={id('status')} value={status} options={STATUS_OPTIONS} onChange={setStatusChoice} />
-                {status !== session.status && <p className="mt-1.5 text-xs text-[#7a5d00]">On save: {statusEffect({ room: form.room || session.room }, status)}</p>}
+                {status !== session.status && <p className="mt-1.5 text-xs text-warning">On save: {statusEffect({ room: form.room || session.room }, status)}</p>}
               </Field>
             )}
           </Section>

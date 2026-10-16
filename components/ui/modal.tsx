@@ -13,7 +13,7 @@ export const MODAL_WIDTH = { sm: 'max-w-[22rem]', md: 'max-w-lg', lg: 'max-w-3xl
 
 export function modalClass(width: keyof typeof MODAL_WIDTH = 'md', className?: string) {
   return cn(
-    'm-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-xl border border-[#dcdcdc] bg-[#fdfdfd] p-0 text-left text-ink',
+    'm-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-xl border border-border bg-surface p-0 text-left text-ink',
     'shadow-lg backdrop:bg-ink/40',
     MODAL_WIDTH[width],
     className,
@@ -33,7 +33,7 @@ export function ModalHeader({ icon: Icon, iconClassName, title, titleId, subtitl
         </h2>
       </div>
       {subtitle && (
-        <div id={subtitleId} className="text-sm leading-5 text-[#7c7c7c]">
+        <div id={subtitleId} className="text-sm leading-5 text-hint">
           {subtitle}
         </div>
       )}

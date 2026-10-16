@@ -8,7 +8,8 @@ import type { FeatureCollection, Geometry } from 'geojson';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 
 import { ChartTooltip, TipRow, usePointerTip } from '@/components/ui/chart-tooltip';
-import { Card, Skeleton } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import type { DashboardView } from '@/lib/dashboard/types';
 import { count } from '@/lib/format';
 import { ISO_NUMERIC } from '@/lib/iso-numeric';
@@ -54,13 +55,13 @@ export function GeoCard({ geography }: { geography: DashboardView['geography'] }
   }, [world.data, geography]);
 
   return (
-    <Card title="Tickets by country" action={<span className="text-xs text-ink/40">{count(total)} tickets</span>}>
+    <Panel title="Tickets by country" actions={<span className="text-sm text-hint">{count(total)} tickets</span>} className="flex flex-col" bodyClassName="flex flex-1 flex-col px-6 py-5">
       <div className="flex flex-col gap-4">
         <div data-tip-host className="relative" onPointerLeave={clear}>
           {world.isPending ? (
             <Skeleton className="aspect-[2/1] w-full" />
           ) : world.isError ? (
-            <p className="flex aspect-[2/1] items-center justify-center text-sm text-muted">The map could not load.</p>
+            <p className="flex aspect-[2/1] items-center justify-center text-sm text-hint">The map could not load.</p>
           ) : (
             <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="h-auto w-full" role="img" aria-label="World map shaded by tickets sold per country">
               {shapes.map((shape) => (
@@ -79,13 +80,13 @@ export function GeoCard({ geography }: { geography: DashboardView['geography'] }
           )}
           {tip && (
             <ChartTooltip x={tip.x} y={tip.y}>
-              <span className="block text-[#fdfdfd]/70">{tip.item.name}</span>
+              <span className="block text-on-primary/70">{tip.item.name}</span>
               <TipRow colour={tip.item.tickets ? 'var(--primary)' : undefined} value={tip.item.tickets ? count(tip.item.tickets) : 'No'} label="tickets" />
             </ChartTooltip>
           )}
         </div>
         {geography.length === 0 ? (
-          <p className="self-center text-sm text-muted">No paid orders yet.</p>
+          <p className="self-center text-sm text-hint">No paid orders yet.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {geography.slice(0, 4).map((row) => (
@@ -94,7 +95,7 @@ export function GeoCard({ geography }: { geography: DashboardView['geography'] }
                   <span className="font-medium text-ink">{row.name}</span>
                   <span className="tabular-nums text-muted">{count(row.tickets)}</span>
                 </div>
-                <span className="mt-1 block h-0.5 overflow-hidden rounded-full bg-ink/5">
+                <span className="mt-1 block h-0.5 overflow-hidden rounded-full bg-surface-sunken">
                   <span className="block h-full rounded-full bg-primary" style={{ width: `${(row.tickets / max) * 100}%` }} />
                 </span>
               </li>
@@ -102,6 +103,6 @@ export function GeoCard({ geography }: { geography: DashboardView['geography'] }
           </ul>
         )}
       </div>
-    </Card>
+    </Panel>
   );
 }

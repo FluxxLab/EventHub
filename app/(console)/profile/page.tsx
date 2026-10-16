@@ -1,7 +1,7 @@
 'use client';
 
 import { Avatar } from '@/components/shell/avatar';
-import { Card } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import { useSession, TIER_LABEL } from '@/lib/auth/session';
 
 /** The signed-in user's own details, as the console knows them. Read-only for now. */
@@ -20,7 +20,7 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <h1 className="sr-only">Profile</h1>
-      <Card title="Your account">
+      <Panel title="Your account" description="Your details as the console knows them." bodyClassName="p-6">
         <div className="flex items-center gap-4">
           <Avatar name={user.name} src={user.avatarUrl} size={80} online />
           <div className="min-w-0">
@@ -36,7 +36,7 @@ export default function ProfilePage() {
             </div>
           ))}
         </dl>
-      </Card>
+      </Panel>
     </div>
   );
 }

@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { BanknotesIcon, ChartBarIcon, PencilSquareIcon, PlusIcon, QrCodeIcon, ShoppingCartIcon, TicketIcon } from '@heroicons/react/24/outline';
-import { useState, type KeyboardEvent } from 'react';
+import { useState } from 'react';
 
 import { OrdersCard } from '@/components/dashboard/orders-card';
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { TierDialog } from '@/components/ticketing/tier-dialog';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
+import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useDashboard } from '@/lib/dashboard/use-dashboard';
 import type { Edition } from '@/lib/events/events';
@@ -17,53 +20,14 @@ import { useWorkingEdition } from '@/lib/events/working-edition';
 import { count, moneyCompact } from '@/lib/format';
 import { EXTRA_CURRENCIES, formatMoney, priceModeOf, remaining, soldShare, type TicketType } from '@/lib/ticketing/ticketing';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface shadow-lg';
-const th = 'h-15 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
+const th = 'h-15 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 
-const TABS = [
-  { key: 'tiers', label: 'Ticket tiers', icon: TicketIcon },
-  { key: 'sales', label: 'Sales', icon: ChartBarIcon },
-] as const;
-type Tab = (typeof TABS)[number]['key'];
-
-function Tabs({ tab, onChange, tierCount }: { tab: Tab; onChange: (tab: Tab) => void; tierCount: number | undefined }) {
-  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    const next = TABS[(TABS.findIndex((t) => t.key === tab) + 1) % TABS.length]!.key;
-    onChange(next);
-    document.getElementById(`ticketing-tab-${next}`)?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Ticketing sections" onKeyDown={onKey} className="flex gap-6 border-b border-border">
-      {TABS.map((t) => {
-        const selected = tab === t.key;
-        return (
-          <button
-            key={t.key}
-            id={`ticketing-tab-${t.key}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls="ticketing-panel"
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(t.key)}
-            className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm transition-colors',
-              selected ? 'border-primary font-medium text-primary' : 'border-transparent text-[#525252] hover:text-ink',
-            )}
-          >
-            <t.icon className="size-4" />
-            {t.label}
-            {t.key === 'tiers' && tierCount !== undefined && <Tag tone={selected ? 'primary' : 'gray'}>{tierCount}</Tag>}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const TABS = ['tiers', 'sales'] as const;
+type Tab = (typeof TABS)[number];
 
 /** The tier's price: naira first, then any other currencies, or its mode when it has no price. */
 function PriceCell({ tier }: { tier: TicketType }) {
@@ -86,14 +50,14 @@ function SoldCell({ tier }: { tier: TicketType }) {
   return (
     <div className="w-44">
       <p className="text-sm tabular-nums text-ink">
-        {count(tier.sold)} <span className="text-[#7c7c7c]">{tier.capacity ? `of ${count(tier.capacity)}` : 'sold, unlimited'}</span>
+        {count(tier.sold)} <span className="text-hint">{tier.capacity ? `of ${count(tier.capacity)}` : 'sold, unlimited'}</span>
       </p>
       {share !== null && (
         <>
-          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#ececec]" aria-hidden>
-            <span className={cn('block h-full rounded-full', share >= 1 ? 'bg-danger' : share >= 0.85 ? 'bg-gold' : 'bg-primary')} style={{ width: `${share * 100}%` }} />
+          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
+            <span className={cn('block h-full rounded-full', share >= 1 ? 'bg-danger' : share >= 0.85 ? 'bg-warning' : 'bg-primary')} style={{ width: `${share * 100}%` }} />
           </span>
-          <p className={cn('mt-1 text-xs', left === 0 ? 'text-danger' : 'text-[#7c7c7c]')}>{left === 0 ? 'Sold out' : `${count(left!)} left`}</p>
+          <p className={cn('mt-1 text-xs', left === 0 ? 'text-danger' : 'text-hint')}>{left === 0 ? 'Sold out' : `${count(left!)} left`}</p>
         </>
       )}
     </div>
@@ -105,42 +69,37 @@ function TiersPanel({ edition }: { edition: Edition }) {
   const [editing, setEditing] = useState<{ tier: TicketType | null } | null>(null);
 
   return (
-    <section aria-labelledby="tiers-title" className={cardClass}>
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-6">
-        <div>
-          <h2 id="tiers-title" className="text-xl font-medium text-ink">
-            Ticket tiers
-          </h2>
-          <p className="mt-0.5 text-sm text-[#7c7c7c]">What delegates can buy at checkout, in the order it lists them.</p>
-        </div>
+    <Panel
+      title="Ticket tiers"
+      count={tiers.data?.tiers.length}
+      description="What delegates can buy at checkout, in the order it lists them."
+      actions={
         <button type="button" onClick={() => setEditing({ tier: null })} className={buttonClass()}>
           <PlusIcon className="size-4" />
           Add tier
         </button>
-      </header>
-
+      }
+      footer={
+        // Shown only while the API lacks the organiser route that lists off-sale tiers too.
+        tiers.data?.onSaleOnly && tiers.data.tiers.length > 0 ? 'Only tiers on sale are listed. A tier taken off sale drops out of this list; its tickets stay valid.' : undefined
+      }
+    >
       {tiers.isError && !tiers.data ? (
-        <div role="alert" className="p-10 text-center">
-          <p className="font-medium text-ink">Ticket tiers could not load.</p>
-          <p className="mt-1 text-sm text-muted">{tiers.error.message}</p>
-          <button type="button" onClick={() => void tiers.refetch()} className={buttonClass({ className: 'mt-4' })}>
-            Try again
-          </button>
-        </div>
-      ) : !tiers.isPending && (tiers.data?.tiers ?? []).length === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-            <TicketIcon className="size-6" />
-          </span>
-          <div>
-            <p className="text-sm font-medium text-ink">No ticket tiers yet</p>
-            <p className="mt-1 max-w-sm text-sm text-[#7c7c7c]">Add a tier, such as Standard, VIP or Student, so delegates can get tickets for {edition.shortName}.</p>
-          </div>
-          <button type="button" onClick={() => setEditing({ tier: null })} className={buttonClass({ style: 'outline', color: 'gray' })}>
-            <PlusIcon className="size-4" />
-            Add the first tier
-          </button>
-        </div>
+        <ErrorState title="Ticket tiers could not load" error={tiers.error} onRetry={() => void tiers.refetch()} />
+      ) : tiers.isPending ? (
+        <LoadingRows rows={3} />
+      ) : tiers.data!.tiers.length === 0 ? (
+        <EmptyState
+          icon={TicketIcon}
+          title="No ticket tiers yet"
+          body={`Add a tier, such as Standard, VIP or Student, so delegates can get tickets for ${edition.shortName}.`}
+          action={
+            <button type="button" onClick={() => setEditing({ tier: null })} className={buttonClass()}>
+              <PlusIcon className="size-4" />
+              Add tier
+            </button>
+          }
+        />
       ) : (
         <div className="relative overflow-x-auto">
           <table className="w-full min-w-[52rem] border-collapse">
@@ -163,63 +122,51 @@ function TiersPanel({ edition }: { edition: Edition }) {
                 </th>
               </tr>
             </thead>
-            <tbody aria-busy={tiers.isPending}>
-              {tiers.isPending
-                ? [0, 1, 2].map((i) => (
-                    <tr key={i} className="even:bg-[#f6f6f6]">
-                      <td colSpan={5} className={td}>
-                        <Skeleton className="h-10" />
-                      </td>
-                    </tr>
-                  ))
-                : tiers.data!.tiers.map((tier) => (
-                    <tr key={tier.id} className={cn('even:bg-[#f6f6f6] last:[&>td]:border-b-0', !tier.isActive && 'text-[#7c7c7c] [&>td>*]:opacity-60')}>
-                      <td className={td}>
-                        <p className="flex items-center gap-2 text-[#525252]">
-                          {tier.name}
-                          {!tier.isActive && <Tag>Off sale</Tag>}
-                        </p>
-                        <p className="text-xs text-placeholder">Section: {tier.section}</p>
-                      </td>
-                      <td className={td}>
-                        <PriceCell tier={tier} />
-                      </td>
-                      <td className={td}>
-                        <SoldCell tier={tier} />
-                      </td>
-                      <td className={cn(td, 'max-w-xs')}>
-                        {tier.perks.length === 0 ? (
-                          <span className="text-placeholder">Nothing listed</span>
-                        ) : (
-                          <p className="line-clamp-2 text-xs text-[#525252]" title={tier.perks.join('\n')}>
-                            {tier.perks.join(' · ')}
-                          </p>
-                        )}
-                      </td>
-                      <td className={cn(td, 'text-right')}>
-                        <button
-                          type="button"
-                          onClick={() => setEditing({ tier })}
-                          className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true })}
-                          aria-label={`Edit ${tier.name}`}
-                          title="Edit"
-                        >
-                          <PencilSquareIcon className="size-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+            <tbody>
+              {tiers.data!.tiers.map((tier) => (
+                <tr key={tier.id} className={cn('even:bg-surface-soft last:[&>td]:border-b-0', !tier.isActive && 'text-hint [&>td>*]:opacity-60')}>
+                  <td className={td}>
+                    <p className="flex items-center gap-2 text-ink-soft">
+                      {tier.name}
+                      {!tier.isActive && <Tag>Off sale</Tag>}
+                    </p>
+                    <p className="text-xs text-placeholder">Section: {tier.section}</p>
+                  </td>
+                  <td className={td}>
+                    <PriceCell tier={tier} />
+                  </td>
+                  <td className={td}>
+                    <SoldCell tier={tier} />
+                  </td>
+                  <td className={cn(td, 'max-w-xs')}>
+                    {tier.perks.length === 0 ? (
+                      <span className="text-placeholder">Nothing listed</span>
+                    ) : (
+                      <p className="line-clamp-2 text-xs text-ink-soft" title={tier.perks.join('\n')}>
+                        {tier.perks.join(' · ')}
+                      </p>
+                    )}
+                  </td>
+                  <td className={cn(td, 'text-right')}>
+                    <button
+                      type="button"
+                      onClick={() => setEditing({ tier })}
+                      className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true })}
+                      aria-label={`Edit ${tier.name}`}
+                      title="Edit"
+                    >
+                      <PencilSquareIcon className="size-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-          {tiers.data?.onSaleOnly && (
-            // Shown only while the API lacks the organiser route that lists off-sale tiers too.
-            <p className="border-t border-border bg-[#f6f6f6] px-6 py-3 text-xs text-[#7c7c7c]">Only tiers on sale are listed. A tier taken off sale drops out of this list; its tickets stay valid.</p>
-          )}
         </div>
       )}
 
       <TierDialog open={!!editing} onClose={() => setEditing(null)} editionId={edition.id} tier={editing?.tier ?? null} />
-    </section>
+    </Panel>
   );
 }
 
@@ -229,21 +176,13 @@ function SalesPanel({ edition }: { edition: Edition }) {
   const data = dashboard.data;
 
   if (dashboard.isError && !data) {
-    return (
-      <div role="alert" className={cn(cardClass, 'p-10 text-center')}>
-        <p className="font-medium text-ink">Sales could not load.</p>
-        <p className="mt-1 text-sm text-muted">{dashboard.error.message}</p>
-        <button type="button" onClick={() => void dashboard.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
+    return <ErrorState framed title="Sales could not load" error={dashboard.error} onRetry={() => void dashboard.refetch()} />;
   }
   if (!data) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy="true">
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4" aria-busy="true">
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-28" />
+          <Skeleton key={i} className="h-37.5" />
         ))}
       </div>
     );
@@ -263,17 +202,17 @@ function SalesPanel({ edition }: { edition: Edition }) {
           icon={QrCodeIcon}
           value={
             <>
-              {count(o.admitted)} <span className="text-sm font-normal text-[#7c7c7c]">of {count(o.ticketsIssued)}</span>
+              {count(o.admitted)} <span className="text-sm font-normal text-hint">of {count(o.ticketsIssued)}</span>
             </>
           }
         >
-          <span className="block h-1.5 overflow-hidden rounded-full bg-[#ececec]" aria-hidden>
+          <span className="block h-1.5 overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
             <span className="block h-full rounded-full bg-success" style={{ width: `${admittedShare * 100}%` }} />
           </span>
         </FigureCard>
       </div>
       <OrdersCard orders={data.recentOrders} />
-      <p className="text-xs text-[#7c7c7c]">These are the latest orders. A full order list, refunds and re-sending tickets need endpoints the API does not have yet.</p>
+      <p className="text-xs text-hint">The latest orders only: a full order list, refunds and re-sending tickets need API endpoints that do not exist yet.</p>
     </div>
   );
 }
@@ -283,19 +222,26 @@ export default function TicketingPage() {
   const editions = working.editions;
   // picking an event here switches every page to it
   const setPicked = working.setEditionId;
-  const [tab, setTab] = useState<Tab>('tiers');
+  const [tab, setTab] = useUrlParam<Tab>('tab', 'tiers', TABS);
   const edition = working.edition;
   const tiers = useTicketTypes(edition?.id);
 
-  if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
+  if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
   if (!edition) {
     return (
-      <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-border bg-surface p-10 text-center">
-        <h1 className="text-xl font-medium text-ink">No events yet</h1>
-        <p className="mt-2 text-sm text-muted">Tickets belong to an event. Create the event first.</p>
-        <Link href="/events" className={buttonClass({ className: 'mt-6' })}>
-          Go to Events
-        </Link>
+      <div className="mx-auto mt-10 w-full max-w-lg">
+        <h1 className="sr-only">Ticketing</h1>
+        <EmptyState
+          framed
+          icon={TicketIcon}
+          title="No events yet"
+          body="Tickets belong to an event. Create the event first."
+          action={
+            <Link href="/events" className={buttonClass()}>
+              Go to Events
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -305,14 +251,23 @@ export default function TicketingPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="truncate text-lg font-medium text-ink">{edition.name}</h1>
-          <p className="mt-0.5 text-sm text-[#7c7c7c]">Ticket tiers and sales for this event.</p>
+          <p className="mt-0.5 text-sm text-hint">Ticket tiers and sales for this event.</p>
         </div>
         <div className="w-80 max-w-full">
           <Select label="Event" value={edition.id} options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))} onChange={setPicked} />
         </div>
       </header>
-      <Tabs tab={tab} onChange={setTab} tierCount={tiers.data?.tiers.length} />
-      <div id="ticketing-panel" role="tabpanel" aria-labelledby={`ticketing-tab-${tab}`}>
+      <UnderlineTabs
+        label="Ticketing sections"
+        idBase="ticketing"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'tiers', label: 'Ticket tiers', icon: TicketIcon, count: tiers.data?.tiers.length },
+          { value: 'sales', label: 'Sales', icon: ChartBarIcon },
+        ]}
+      />
+      <div id={tabPanelId('ticketing', tab)} role="tabpanel" aria-labelledby={tabId('ticketing', tab)}>
         {tab === 'tiers' ? <TiersPanel edition={edition} /> : <SalesPanel edition={edition} />}
       </div>
     </div>

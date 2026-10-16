@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Manrope } from 'next/font/google';
 
 import { Providers } from '@/lib/providers/providers';
+import { THEME_SCRIPT } from '@/lib/theme';
 import './globals.css';
 
 // Manrope, the typeface the delegate app uses, so the console reads as the same product.
@@ -18,8 +19,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${manrope.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans">
+    // the theme script sets data-theme before React hydrates, hence the warning suppressed here
+    <html lang="en" className={`${manrope.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="min-h-full bg-background font-sans text-ink">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -9,6 +9,8 @@ import { TriviaDialog } from '@/components/trivia/trivia-dialog';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { useRealtimeStatus } from '@/lib/api/realtime';
@@ -18,7 +20,7 @@ import { correctShare, EMPTY_DISTRIBUTION, OPTIONS, optionText, type TriviaForm,
 import { useTrivia, useTriviaActions } from '@/lib/trivia/use-trivia';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
+const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
 const answers = (n: number) => `${count(n)} ${n === 1 ? 'answer' : 'answers'}`;
 
 /** Start (green play) or stop (red stop), the same control as Polls. */
@@ -66,13 +68,7 @@ function ListItem({
   const played = stats?.playCount ?? 0;
   const right = stats ? correctShare(stats.distribution, question.correctOption) : null;
   const meta =
-    question.status === 'live'
-      ? `Live · ${answers(played)}`
-      : question.status === 'closed'
-        ? right === null
-          ? 'Closed · nobody answered'
-          : `${answers(played)} · ${right}% right`
-        : 'Draft';
+    question.status === 'live' ? `Live · ${answers(played)}` : question.status === 'closed' ? (right === null ? 'Closed · nobody answered' : `${answers(played)} · ${right}% right`) : 'Draft';
   return (
     <li>
       <div
@@ -81,12 +77,12 @@ function ListItem({
         aria-pressed={selected}
         onClick={onSelect}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect())}
-        className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-[#f6f6f6]')}
+        className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
       >
         <RunButton question={question} busy={busy} onStart={onStart} onStop={onStop} />
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-sm text-ink">{question.text}</p>
-          <p className={cn('mt-0.5 text-xs', question.status === 'live' ? 'text-danger' : 'text-[#7c7c7c]')}>{meta}</p>
+          <p className={cn('mt-0.5 text-xs', question.status === 'live' ? 'text-danger' : 'text-hint')}>{meta}</p>
         </div>
       </div>
     </li>
@@ -97,9 +93,12 @@ function ConnectionDot() {
   const connection = useRealtimeStatus();
   const label = { live: 'Updating live', connecting: 'Connecting…', offline: 'Offline', demo: 'Demo data' }[connection];
   return (
-    <span className="flex items-center gap-1.5 text-xs text-[#7c7c7c]">
+    <span className="flex items-center gap-1.5 text-xs text-hint">
       <span
-        className={cn('size-1.5 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
+        className={cn(
+          'size-1.5 rounded-full',
+          connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder',
+        )}
         aria-hidden
       />
       {label}
@@ -141,17 +140,17 @@ function Detail({
             Live
           </span>
         ) : (
-          <span className="text-xs text-[#7c7c7c]">{question.status === 'closed' ? 'Closed' : 'Draft'}</span>
+          <span className="text-xs text-hint">{question.status === 'closed' ? 'Closed' : 'Draft'}</span>
         )}
         {counted && (
           <div className="flex items-baseline gap-5 text-sm tabular-nums" aria-live="polite">
             {right !== null && (
               <p>
-                <span className="text-2xl font-medium text-ink">{right}%</span> <span className="text-[#7c7c7c]">right</span>
+                <span className="text-2xl font-medium text-ink">{right}%</span> <span className="text-hint">right</span>
               </p>
             )}
             <p>
-              <span className="text-2xl font-medium text-ink">{count(played)}</span> <span className="text-[#7c7c7c]">{played === 1 ? 'answer' : 'answers'}</span>
+              <span className="text-2xl font-medium text-ink">{count(played)}</span> <span className="text-hint">{played === 1 ? 'answer' : 'answers'}</span>
             </p>
           </div>
         )}
@@ -168,24 +167,24 @@ function Detail({
               <li key={o} className={cn('rounded-lg border px-3 py-2.5', correct ? 'border-primary/40 bg-primary-soft/30' : 'border-border')}>
                 <div className="flex items-center gap-3 text-sm">
                   <span
-                    className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium', correct ? 'bg-primary text-on-primary' : 'bg-[#f1f1f1] text-[#525252]')}
+                    className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium', correct ? 'bg-primary text-on-primary' : 'bg-surface-soft text-ink-soft')}
                     aria-hidden
                   >
                     {correct ? <CheckIcon className="size-3.5" /> : o}
                   </span>
-                  <span className={cn('min-w-0 flex-1', correct ? 'font-medium text-ink' : 'text-[#525252]')}>
+                  <span className={cn('min-w-0 flex-1', correct ? 'font-medium text-ink' : 'text-ink-soft')}>
                     {optionText(question, o)}
                     {correct && <span className="sr-only"> (correct answer)</span>}
                   </span>
                   {counted && (
-                    <span className="shrink-0 tabular-nums text-[#525252]">
-                      {pct[i]}%<span className="ml-2 text-[#7c7c7c]">{count(distribution[o])}</span>
+                    <span className="shrink-0 tabular-nums text-ink-soft">
+                      {pct[i]}%<span className="ml-2 text-hint">{count(distribution[o])}</span>
                     </span>
                   )}
                 </div>
                 {counted && (
-                  <div className="mt-2 ml-9 h-1.5 overflow-hidden rounded-full bg-[#f1f1f1]">
-                    <div className={cn('h-full rounded-full transition-[width] duration-500 ease-out', correct ? 'bg-primary' : 'bg-[#bdbdbd]')} style={{ width: `${pct[i]}%` }} />
+                  <div className="mt-2 ml-9 h-1.5 overflow-hidden rounded-full bg-surface-soft">
+                    <div className={cn('h-full rounded-full transition-[width] duration-500 ease-out', correct ? 'bg-primary' : 'bg-border-strong')} style={{ width: `${pct[i]}%` }} />
                   </div>
                 )}
               </li>
@@ -193,14 +192,14 @@ function Detail({
           })}
         </ul>
         {question.explanation && (
-          <div className="mt-5 rounded-lg bg-[#f6f6f6] px-4 py-3">
-            <p className="text-xs text-[#7c7c7c]">Shown with the answer</p>
-            <p className="mt-0.5 text-sm text-[#525252]">{question.explanation}</p>
+          <div className="mt-5 rounded-lg bg-surface-soft px-4 py-3">
+            <p className="text-xs text-hint">Shown with the answer</p>
+            <p className="mt-0.5 text-sm text-ink-soft">{question.explanation}</p>
           </div>
         )}
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-[#f6f6f6] px-6 py-3">
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-soft px-6 py-3">
         <ConnectionDot />
         <div className="flex items-center gap-1">
           {question.status !== 'closed' && (
@@ -260,18 +259,8 @@ function TriviaBoard({ editionId }: { editionId: string }) {
   const requestStart = (q: TriviaQuestion) => (live && live.id !== q.id ? setPending({ kind: 'start', question: q }) : run(q));
   const end = (q: TriviaQuestion) => stop.mutate({ id: q.id }, { onError: fail('Question not stopped') });
 
-  if (list.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
-  if (list.isError && !list.data) {
-    return (
-      <div role="alert" className="mx-auto max-w-6xl rounded-2xl border border-border bg-surface p-10 text-center">
-        <p className="font-medium text-ink">Trivia could not load.</p>
-        <p className="mt-1 text-sm text-muted">{list.error.message}</p>
-        <button type="button" onClick={() => void list.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
-  }
+  if (list.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (list.isError && !list.data) return <ErrorState framed className="mx-auto w-full max-w-6xl" title="Trivia could not load" error={list.error} onRetry={() => void list.refetch()} />;
 
   const dialogs = (
     <>
@@ -333,19 +322,19 @@ function TriviaBoard({ editionId }: { editionId: string }) {
   if (all.length === 0) {
     return (
       <>
-        <div className={cn(cardClass, 'mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-6 py-16 text-center')}>
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-            <TrophyIcon className="size-6" />
-          </span>
-          <div>
-            <p className="font-medium text-ink">No trivia questions yet</p>
-            <p className="mt-1 max-w-md text-sm text-[#7c7c7c]">Write a few for the breaks, then start each one here. Delegates answer on their phones and see the answer when you stop it.</p>
-          </div>
-          <button type="button" onClick={() => setEditing({ question: null })} className={buttonClass()}>
-            <PlusIcon className="size-4" />
-            Add question
-          </button>
-        </div>
+        <EmptyState
+          framed
+          className="mx-auto w-full max-w-6xl"
+          icon={TrophyIcon}
+          title="No trivia questions yet"
+          body="Write a few for the breaks; delegates answer on their phones and see the answer when you stop it."
+          action={
+            <button type="button" onClick={() => setEditing({ question: null })} className={buttonClass()}>
+              <PlusIcon className="size-4" />
+              Add question
+            </button>
+          }
+        />
         {dialogs}
       </>
     );
@@ -353,16 +342,16 @@ function TriviaBoard({ editionId }: { editionId: string }) {
 
   return (
     <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-      <section aria-label="All questions" className={cardClass}>
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <p className="text-sm text-[#525252]">
-            {all.length} {all.length === 1 ? 'question' : 'questions'}
-          </p>
+      <Panel
+        title="Questions"
+        count={all.length}
+        actions={
           <button type="button" onClick={() => setEditing({ question: null })} className={buttonClass({ className: 'h-9' })}>
             <PlusIcon className="size-4" />
             New question
           </button>
-        </header>
+        }
+      >
         <ul className="max-h-[calc(100dvh-16rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
           {all.map((q) => (
             <ListItem
@@ -377,7 +366,7 @@ function TriviaBoard({ editionId }: { editionId: string }) {
             />
           ))}
         </ul>
-      </section>
+      </Panel>
 
       {selected && (
         <Detail

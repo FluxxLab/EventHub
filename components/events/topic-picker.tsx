@@ -77,7 +77,7 @@ export function TopicPicker({
     <div role="group" aria-labelledby={`${id}-label`} className="grid gap-2 sm:col-span-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p id={`${id}-label`} className="text-sm text-ink">
-          {label} <span className="text-xs text-[#7c7c7c]">{library ? `${selected.length} of ${options.length}` : ''}</span>
+          {label} <span className="text-xs text-hint">{library ? `${selected.length} of ${options.length}` : ''}</span>
         </p>
         {options.length > 1 && (
           <button type="button" onClick={() => onChange(allOn ? [] : options.map((o) => o.value))} className="text-xs text-primary hover:underline">
@@ -85,7 +85,7 @@ export function TopicPicker({
           </button>
         )}
       </div>
-      <p className="-mt-1 text-xs text-[#7c7c7c]">{hint}</p>
+      <p className="-mt-1 text-xs text-hint">{hint}</p>
 
       {error ? (
         <p role="alert" className="text-sm text-danger">
@@ -107,12 +107,12 @@ export function TopicPicker({
                 onClick={() => onChange(toggleValue(selected, o.value))}
                 className={cn(
                   'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors',
-                  on ? 'border-primary bg-primary-soft text-primary' : 'border-border text-[#525252] hover:border-[#bdbdbd] hover:text-ink',
+                  on ? 'border-primary bg-primary-soft text-primary' : 'border-border text-ink-soft hover:border-border-strong hover:text-ink',
                 )}
               >
                 {on && <CheckIcon className="size-3.5" />}
                 {o.label}
-                {!o.isActive && <span className="text-xs text-[#7c7c7c]">(retired)</span>}
+                {!o.isActive && <span className="text-xs text-hint">(retired)</span>}
               </button>
             );
           })}
@@ -120,7 +120,7 @@ export function TopicPicker({
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="inline-flex h-8 items-center gap-1 rounded-full border border-dashed border-[#bdbdbd] px-3 text-sm text-[#525252] hover:border-primary hover:text-primary"
+              className="inline-flex h-8 items-center gap-1 rounded-full border border-dashed border-border-strong px-3 text-sm text-ink-soft hover:border-primary hover:text-primary"
             >
               <PlusIcon className="size-3.5" /> New {noun}
             </button>
@@ -160,7 +160,7 @@ export function TopicPicker({
               Cancel
             </button>
           </div>
-          <p className={cn('text-xs', problem ? 'text-danger' : 'text-[#7c7c7c]')}>{problem ?? `Added to the shared list too, so other events can use it.`}</p>
+          <p className={cn('text-xs', problem ? 'text-danger' : 'text-hint')}>{problem ?? `Added to the shared list too, so other events can use it.`}</p>
         </div>
       )}
     </div>

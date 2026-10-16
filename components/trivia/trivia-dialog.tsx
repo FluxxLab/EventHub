@@ -12,7 +12,7 @@ type Errors = Partial<Record<keyof TriviaForm, string>>;
 const textareaClass = (invalid: boolean) =>
   cn(
     'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-sm leading-5 text-ink shadow-xs outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-    invalid ? 'border-danger' : 'border-[#bdbdbd]',
+    invalid ? 'border-danger' : 'border-border-strong',
   );
 
 /**
@@ -58,6 +58,8 @@ export function TriviaDialog({
       pending={pending}
       submitLabel={question ? 'Save question' : 'Add question'}
       error={error}
+      // differs from what it opened with: Cancel asks before discarding
+      dirty={JSON.stringify(form) !== JSON.stringify(question ? triviaFormOf(question) : emptyTrivia())}
       onClose={() => {
         setOpenedFor(undefined);
         onClose();
@@ -95,7 +97,7 @@ export function TriviaDialog({
       <fieldset>
         <div className="mb-1.5 flex items-baseline justify-between">
           <legend className="text-sm font-medium text-ink">Answers</legend>
-          <span className="text-xs text-[#7c7c7c]">Tap a letter to mark the correct one</span>
+          <span className="text-xs text-hint">Tap a letter to mark the correct one</span>
         </div>
         <div role="radiogroup" aria-label="Correct answer" className="flex flex-col gap-2">
           {OPTIONS.map((o: TriviaOption) => {
@@ -106,7 +108,7 @@ export function TriviaDialog({
                 <div
                   className={cn(
                     'flex items-center rounded-lg border bg-surface shadow-xs focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-                    errors[key] ? 'border-danger' : correct ? 'border-primary' : 'border-[#bdbdbd]',
+                    errors[key] ? 'border-danger' : correct ? 'border-primary' : 'border-border-strong',
                   )}
                 >
                   <button
@@ -117,7 +119,7 @@ export function TriviaDialog({
                     onClick={() => set('correctOption', o)}
                     className={cn(
                       'ml-1.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors',
-                      correct ? 'bg-primary text-on-primary' : 'bg-[#f1f1f1] text-[#525252] hover:bg-[#e5e5e5]',
+                      correct ? 'bg-primary text-on-primary' : 'bg-surface-soft text-ink-soft hover:bg-surface-sunken',
                     )}
                   >
                     {correct ? <CheckIcon className="size-4" /> : o}
@@ -143,9 +145,9 @@ export function TriviaDialog({
       <div>
         <div className="mb-1.5 flex items-baseline justify-between">
           <label htmlFor={id('explanation')} className="text-sm font-medium text-ink">
-            Explanation <span className="font-normal text-[#7c7c7c]">(optional)</span>
+            Explanation <span className="font-normal text-hint">(optional)</span>
           </label>
-          <span className="text-xs tabular-nums text-[#7c7c7c]">{form.explanation.trim().length}/400</span>
+          <span className="text-xs tabular-nums text-hint">{form.explanation.trim().length}/400</span>
         </div>
         <textarea
           id={id('explanation')}

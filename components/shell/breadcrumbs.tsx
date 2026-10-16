@@ -34,7 +34,7 @@ export function useSubPage(label: string | null, onBack: () => void) {
   }, [label, setSub]);
 }
 
-const crumbClass = 'truncate rounded text-[#7c7c7c] transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+const crumbClass = 'truncate rounded text-hint transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 
 /** Where this page sits: Dashboard › section › page, and a step inside the page when one is open. */
 export function Breadcrumbs({ pathname, className }: { pathname: string; className?: string }) {
@@ -50,7 +50,7 @@ export function Breadcrumbs({ pathname, className }: { pathname: string; classNa
           const current = i === last && !sub;
           return (
             <li key={`${c.label}-${i}`} className={cn('flex min-w-0 items-center gap-1', c.section && 'hidden sm:flex')}>
-              {i > 0 && <ChevronRightIcon className="size-3 shrink-0 text-[#bdbdbd]" aria-hidden />}
+              {i > 0 && <ChevronRightIcon className="size-3 shrink-0 text-placeholder" aria-hidden />}
               {current ? (
                 <span aria-current="page" className="truncate text-ink">
                   {c.label}
@@ -65,14 +65,14 @@ export function Breadcrumbs({ pathname, className }: { pathname: string; classNa
                   {c.label}
                 </Link>
               ) : (
-                <span className="truncate text-[#7c7c7c]">{c.label}</span>
+                <span className="truncate text-hint">{c.label}</span>
               )}
             </li>
           );
         })}
         {sub && (
           <li className="flex min-w-0 items-center gap-1">
-            <ChevronRightIcon className="size-3 shrink-0 text-[#bdbdbd]" aria-hidden />
+            <ChevronRightIcon className="size-3 shrink-0 text-placeholder" aria-hidden />
             <span aria-current="page" className="max-w-[40ch] truncate text-ink">
               {sub.label}
             </span>

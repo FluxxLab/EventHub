@@ -6,12 +6,14 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type P
 import { EventBar } from '@/components/events/event-bar';
 import { useSubPage } from '@/components/shell/breadcrumbs';
 import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Pagination } from '@/components/ui/pagination';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
+import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toaster';
 import {
   artworkMismatch,
@@ -48,10 +50,10 @@ import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { count } from '@/lib/format';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
-const th = 'h-12 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
+const th = 'h-12 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 const SWATCHES = ['#002d74', '#10a957', '#b8860b', '#8b5cf6', '#e0115f', '#fe9239', '#292929', '#ffffff'];
 const MM = 3.7795;
@@ -110,7 +112,9 @@ function BadgePreview({
   }, [payload]);
   const sample = holder ?? SAMPLE_HOLDER;
   // the QR arrives after mount, so the document (which needs the page's origin for the logo) is only built in the browser
-  const doc = svg ? `<!doctype html><html><head><style>${badgeCss(design.size)}html,body{overflow:hidden}</style></head><body>${badgeMarkup(sample, design, { shortName: edition.shortName, logo, artworkUrl }, svg)}</body></html>` : '';
+  const doc = svg
+    ? `<!doctype html><html><head><style>${badgeCss(design.size)}html,body{overflow:hidden}</style></head><body>${badgeMarkup(sample, design, { shortName: edition.shortName, logo, artworkUrl }, svg)}</body></html>`
+    : '';
 
   const { w, h } = SIZE_MM[design.size];
   const scale = Math.min(320 / (w * MM), 380 / (h * MM));
@@ -132,10 +136,10 @@ function BadgePreview({
           />
         )}
       </div>
-      <p className="text-xs text-[#7c7c7c]">
+      <p className="text-xs text-hint">
         {holder ? holder.name : 'Sample badge'} · prints at {Math.round(w)} × {Math.round(h)} mm
       </p>
-      {onPlace && layout && <p className="-mt-1 text-center text-xs text-[#7c7c7c]">Drag the photo, name and QR into place, or select one and use the arrow keys.</p>}
+      {onPlace && layout && <p className="-mt-1 text-center text-xs text-hint">Drag the photo, name and QR into place, or select one and use the arrow keys.</p>}
     </div>
   );
 }
@@ -168,7 +172,7 @@ function PlaceHandle({ part, placement, onPlace }: { part: BadgePart; placement:
       style={{ left: `${placement.x * 100}%`, top: `${placement.y * 100}%`, width: 44, height: 44 }}
     >
       <span className="absolute inset-0 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 group-focus-visible:border-solid group-focus-visible:bg-primary/20" />
-      <span className="relative rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium leading-none text-white">{PART_LABEL[part].split(' ')[0]}</span>
+      <span className="relative rounded bg-primary px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-on-primary">{PART_LABEL[part].split(' ')[0]}</span>
     </button>
   );
 }
@@ -219,8 +223,8 @@ function ArtworkSection({
     <Section title="Background artwork">
       {!design.artwork || !artworkUrl ? (
         <>
-          <p className="-mt-1 text-xs text-[#7c7c7c]">
-            Use your own design, with sponsors and branding, in place of the header band. Make it {Math.round(w)} × {Math.round(h)} mm ({px.width} × {px.height} px at 300 dpi), leaving clear space for the name, photo and QR.
+          <p className="-mt-1 text-xs text-hint">
+            Your own design in place of the header band: {Math.round(w)} × {Math.round(h)} mm ({px.width} × {px.height} px at 300 dpi), with clear space for the name, photo and QR.
           </p>
           <label htmlFor={inputId} className={cn(buttonClass({ style: 'outline', color: 'gray' }), 'w-fit cursor-pointer', progress !== null && 'pointer-events-none opacity-60')}>
             <PhotoIcon className="size-4" />
@@ -238,7 +242,10 @@ function ArtworkSection({
               className="h-20 w-auto rounded border border-border object-contain"
             />
             <div className="flex flex-col gap-1.5">
-              <label htmlFor={inputId} className={cn(buttonClass({ style: 'borderless', color: 'gray', className: 'h-8 w-fit px-2' }), 'cursor-pointer', progress !== null && 'pointer-events-none opacity-60')}>
+              <label
+                htmlFor={inputId}
+                className={cn(buttonClass({ style: 'borderless', color: 'gray', className: 'h-8 w-fit px-2' }), 'cursor-pointer', progress !== null && 'pointer-events-none opacity-60')}
+              >
                 <PhotoIcon className="size-4" />
                 {progress !== null ? `Uploading… ${Math.round(progress * 100)}%` : 'Replace'}
               </label>
@@ -249,7 +256,7 @@ function ArtworkSection({
             </div>
           </div>
           {(mismatch > 0.03 || low) && (
-            <p className="flex items-start gap-1.5 text-xs text-[#8a6d00]">
+            <p className="flex items-start gap-1.5 text-xs text-warning">
               <ExclamationTriangleIcon className="mt-px size-4 shrink-0" />
               {mismatch > 0.03 ? `This image is a different shape from a ${SIZE_LABEL[design.size].split(' · ')[0]} badge, so its edges are cropped. ` : ''}
               {low ? `At ${shape!.width} px wide it may print soft; ${px.width} px is best.` : ''}
@@ -259,7 +266,7 @@ function ArtworkSection({
             <ul className="flex flex-col gap-2">
               {BADGE_PARTS.map((part) => (
                 <li key={part} className="grid grid-cols-[8rem_minmax(0,1fr)_3rem] items-center gap-3">
-                  <label htmlFor={`${inputId}-${part}`} className="text-sm text-[#525252]">
+                  <label htmlFor={`${inputId}-${part}`} className="text-sm text-ink-soft">
                     {PART_LABEL[part]}
                   </label>
                   <input
@@ -272,7 +279,7 @@ function ArtworkSection({
                     onChange={(e) => onScale(part, Number(e.target.value))}
                     className="accent-primary"
                   />
-                  <span className="text-right text-xs tabular-nums text-[#7c7c7c]">{Math.round(design.layout![part].scale * 100)}%</span>
+                  <span className="text-right text-xs tabular-nums text-hint">{Math.round(design.layout![part].scale * 100)}%</span>
                 </li>
               ))}
             </ul>
@@ -287,7 +294,7 @@ function ArtworkSection({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2.5 border-b border-border px-5 py-4 last:border-b-0">
+    <div className="flex flex-col gap-2.5 border-b border-border px-6 py-4 last:border-b-0">
       <p className="text-sm font-medium text-ink">{title}</p>
       {children}
     </div>
@@ -338,7 +345,7 @@ function LookSection({
     <>
       <Section title="Event branding">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-[#7c7c7c]">
+          <p className="text-xs text-hint">
             {eventColour || edition.logoUrl ? 'The colour and logo set for this event in Events › Branding.' : 'This event has no colour or logo yet: add them in Events › Branding.'}
           </p>
           <button
@@ -372,7 +379,7 @@ function LookSection({
                 onClick={() => (l === 'custom' && !design.logoKey ? input.current?.click() : onChange({ logo: l }))}
                 className={cn(
                   'rounded-lg border px-3 py-2 text-left text-sm transition-colors disabled:opacity-50',
-                  design.logo === l ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-[#525252] hover:border-[#bdbdbd]',
+                  design.logo === l ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-ink-soft hover:border-border-strong',
                 )}
               >
                 {LOGO_LABEL[l]}
@@ -380,7 +387,15 @@ function LookSection({
             );
           })}
         </div>
-        <input ref={input} type="file" accept="image/png,image/jpeg" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void upload(e.target.files?.[0]).finally(() => (e.target.value = ''))} />
+        <input
+          ref={input}
+          type="file"
+          accept="image/png,image/jpeg"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => void upload(e.target.files?.[0]).finally(() => (e.target.value = ''))}
+        />
         {design.logo === 'custom' && (
           <div className="flex flex-wrap items-center gap-3">
             {uploadedLogo && (
@@ -409,15 +424,18 @@ function LookSection({
               role="radio"
               aria-checked={design.headerStyle === value}
               onClick={() => onChange({ headerStyle: value })}
-              className={cn('rounded-lg border px-3 py-2.5 text-left text-sm transition-colors', design.headerStyle === value ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+              className={cn(
+                'rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
+                design.headerStyle === value ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-ink-soft hover:border-border-strong',
+              )}
             >
               <span className="block font-medium">{label}</span>
-              <span className="block text-xs text-[#7c7c7c]">{hint}</span>
+              <span className="block text-xs text-hint">{hint}</span>
             </button>
           ))}
         </div>
-        <label htmlFor="badge-heading" className="mt-1 text-sm text-[#525252]">
-          Words in the header <span className="text-[#7c7c7c]">(empty shows only the logo)</span>
+        <label htmlFor="badge-heading" className="mt-1 text-sm text-ink-soft">
+          Words in the header <span className="text-hint">(empty shows only the logo)</span>
         </label>
         <TextInput
           id="badge-heading"
@@ -429,7 +447,7 @@ function LookSection({
       </Section>
 
       <Section title="Card colour">
-        <p className="-mt-1 text-xs text-[#7c7c7c]">Behind the name and details. Text turns white on dark colours; the QR keeps a white square so it still scans.</p>
+        <p className="-mt-1 text-xs text-hint">Behind the name and details; the QR keeps a white square so it still scans.</p>
         <ColourPicker label="Card colour" value={design.background} onChange={(background) => onChange({ background })} />
       </Section>
     </>
@@ -450,7 +468,7 @@ function ColourPicker({ value, onChange, label }: { value: string; onChange: (he
           style={{ background: s }}
         />
       ))}
-      <label className="relative flex h-6 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2 text-xs text-[#525252] hover:border-[#bdbdbd]">
+      <label className="relative flex h-6 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2 text-xs text-ink-soft hover:border-border-strong">
         <span className="size-3 rounded-sm" style={{ background: value }} aria-hidden />
         Custom
         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label={`${label}: custom colour`} />
@@ -501,7 +519,7 @@ function PreviewDialog({
       {holder && (
         <div className="flex flex-col gap-5 p-6">
           <ModalHeader icon={IdentificationIcon} title={holder.name} titleId={titleId} subtitle={`${holder.tierName} · ${holder.code}`} />
-          <div className="rounded-lg bg-[#f6f6f6] py-5">
+          <div className="rounded-lg bg-surface-soft py-5">
             <BadgePreview holder={holder} design={design} edition={edition} artworkUrl={artworkUrl} logo={logo} />
           </div>
           <ModalActions>
@@ -555,7 +573,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
   const [pageNo, setPageNo] = useState(1);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
-  const [tab, setTab] = useState<'print' | 'design'>('print');
+  const [tab, setTab] = useUrlParam<'print' | 'design'>('tab', 'print', ['print', 'design']);
   useSubPage(tab === 'design' ? 'Design' : null, () => setTab('print'));
 
   const all = useMemo(() => holders.data ?? [], [holders.data]);
@@ -575,17 +593,12 @@ function BadgeBoard({ edition }: { edition: Edition }) {
     return [{ value: 'all', label: 'All tiers' }, ...[...seen].map(([value, label]) => ({ value, label }))];
   }, [tiers.data, all]);
 
-  if (stored.isPending || !design) return <Skeleton className="h-[36rem] w-full rounded-2xl" />;
-  if (stored.isError) {
-    return (
-      <p role="alert" className={cn(cardClass, 'p-6 text-sm text-danger')}>
-        {stored.error.message}
-      </p>
-    );
-  }
+  if (stored.isError) return <ErrorState framed title="The badge design could not load." error={stored.error} onRetry={() => void stored.refetch()} />;
+  if (stored.isPending || !design) return <LoadingRows className="rounded-xl border border-border bg-surface" />;
 
   const edit = (next: Partial<BadgeDesign>) => setDraft({ ...design, ...next });
-  const toggle = (field: (typeof BADGE_FIELDS)[number], on: boolean) => edit({ fields: on ? BADGE_FIELDS.filter((f) => f === field || design.fields.includes(f)) : design.fields.filter((f) => f !== field) });
+  const toggle = (field: (typeof BADGE_FIELDS)[number], on: boolean) =>
+    edit({ fields: on ? BADGE_FIELDS.filter((f) => f === field || design.fields.includes(f)) : design.fields.filter((f) => f !== field) });
 
   const print = async (list: BadgeHolder[], how: PrintLayout) => {
     if (list.length === 0) return;
@@ -603,32 +616,16 @@ function BadgeBoard({ edition }: { edition: Edition }) {
 
   const tabs = [
     { value: 'print' as const, label: 'Print badges' },
-    { value: 'design' as const, label: 'Design' },
+    // the tabs carry no badge slot, so unsaved changes show in the label
+    { value: 'design' as const, label: dirty ? 'Design (unsaved)' : 'Design' },
   ];
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Badges" className="flex gap-1 rounded-lg bg-[#f1f1f1] p-1">
-          {tabs.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.value}
-              onClick={() => setTab(t.value)}
-              className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
-                tab === t.value ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#525252] hover:text-ink',
-              )}
-            >
-              {t.label}
-              {t.value === 'design' && dirty && <span className="size-1.5 rounded-full bg-gold" aria-label="unsaved changes" />}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border">
+        <UnderlineTabs label="Badges" idBase="badges" options={tabs} value={tab} onChange={setTab} className="border-b-0" />
         {tab === 'print' && (
-          <p className="text-sm text-[#7c7c7c]">
+          <p className="pb-3 text-sm text-hint">
             {dirty ? 'Printing with your unsaved design changes. ' : stored.data?.saved ? '' : 'Printing with the event’s colour and logo until a design is saved. '}
             <button type="button" onClick={() => setTab('design')} className="text-primary hover:underline">
               {dirty ? 'Review and save' : 'Change the design'}
@@ -638,263 +635,284 @@ function BadgeBoard({ edition }: { edition: Edition }) {
       </div>
 
       {tab === 'design' && (
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <section aria-labelledby="badge-design" className={cardClass}>
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-            <div>
-              <h2 id="badge-design" className="text-base font-medium text-ink">
-                Badge design
-              </h2>
-              <p className="text-sm text-[#7c7c7c]">{stored.data?.saved ? `Saved for ${edition.shortName}` : 'Not saved yet: badges print with the event’s colour and logo until you save a design.'}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {dirty && (
-                <button type="button" onClick={() => setDraft(null)} className={buttonClass({ style: 'borderless', color: 'gray' })}>
-                  <ArrowPathIcon className="size-4" />
-                  Undo changes
-                </button>
-              )}
-              <button
-                type="button"
-                disabled={(!dirty && !!stored.data?.saved) || save.isPending}
-                onClick={() =>
-                  save.mutate({ design, artworkUrl, logoUrl: uploadedLogo }, {
-                    onSuccess: () => {
-                      setDraft(null);
-                      toast.push({ title: 'Badge design saved', body: `Badges for ${edition.shortName} print with it from now on.`, leading: { kind: 'icon', icon: CheckIcon, tone: 'success' } });
-                    },
-                    onError: (e) => toast.push({ title: 'Design not saved', body: e.message, leading: { kind: 'icon', icon: XCircleIcon, tone: 'danger' } }),
-                  })
-                }
-                className={buttonClass()}
-              >
-                <CheckIcon className="size-4" />
-                {save.isPending ? 'Saving…' : `Save for ${edition.shortName}`}
-              </button>
-            </div>
-          </header>
-
-          <Section title="Size">
-            <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Badge size">
-              {BADGE_SIZES.map((s) => (
+        <div role="tabpanel" id={tabPanelId('badges', 'design')} aria-labelledby={tabId('badges', 'design')} className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
+          <Panel
+            title="Badge design"
+            description={stored.data?.saved ? `Saved for ${edition.shortName}` : 'Not saved yet: badges print with the event’s colour and logo.'}
+            actions={
+              <>
+                {dirty && (
+                  <button type="button" onClick={() => setDraft(null)} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                    <ArrowPathIcon className="size-4" />
+                    Undo changes
+                  </button>
+                )}
                 <button
-                  key={s}
                   type="button"
-                  role="radio"
-                  aria-checked={design.size === s}
-                  onClick={() => edit({ size: s })}
-                  className={cn('rounded-lg border px-3 py-2.5 text-left text-sm transition-colors', design.size === s ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+                  disabled={(!dirty && !!stored.data?.saved) || save.isPending}
+                  onClick={() =>
+                    save.mutate(
+                      { design, artworkUrl, logoUrl: uploadedLogo },
+                      {
+                        onSuccess: () => {
+                          setDraft(null);
+                          toast.push({ title: 'Badge design saved', body: `Badges for ${edition.shortName} print with it from now on.`, leading: { kind: 'icon', icon: CheckIcon, tone: 'success' } });
+                        },
+                        onError: (e) => toast.push({ title: 'Design not saved', body: e.message, leading: { kind: 'icon', icon: XCircleIcon, tone: 'danger' } }),
+                      },
+                    )
+                  }
+                  className={buttonClass()}
                 >
-                  <span className="block font-medium">{SIZE_LABEL[s].split(' · ')[0]}</span>
-                  <span className="block text-xs text-[#7c7c7c]">{SIZE_LABEL[s].split(' · ')[1]}</span>
+                  <CheckIcon className="size-4" />
+                  {save.isPending ? 'Saving…' : `Save for ${edition.shortName}`}
                 </button>
-              ))}
-            </div>
-          </Section>
-
-          <ArtworkSection
-            editionId={edition.id}
-            design={design}
-            artworkUrl={artworkUrl}
-            onUploaded={(key, url) => {
-              setLocalArt({ key, url });
-              edit({ artwork: key, layout: design.layout ?? defaultLayout(design.size) });
-            }}
-            onRemove={() => edit({ artwork: null, layout: null })}
-            onScale={(part, scale) => design.layout && edit({ layout: { ...design.layout, [part]: clampPlacement({ ...design.layout[part], scale }) } })}
-          />
-
-          {!design.artwork && (
-            <LookSection
-              editionId={edition.id}
-              edition={edition}
-              design={design}
-              uploadedLogo={uploadedLogo}
-              onChange={edit}
-              onLogoUploaded={(key, url) => {
-                setLocalLogo({ key, url });
-                edit({ logo: 'custom', logoKey: key });
-              }}
-            />
-          )}
-
-          <Section title={design.artwork ? 'Accent colour' : 'Header colour'}>
-            {design.artwork && <p className="-mt-1 text-xs text-[#7c7c7c]">Your artwork replaces the header band; this colours the initials shown for people without a photo.</p>}
-            <ColourPicker label={design.artwork ? 'Accent colour' : 'Header colour'} value={design.accent} onChange={(accent) => edit({ accent })} />
-          </Section>
-
-          <Section title="On the badge">
-            <p className="-mt-1 text-xs text-[#7c7c7c]">The name is always printed. Blank details are left out for that person.</p>
-            <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
-              {BADGE_FIELDS.map((f) => (
-                <li key={f} className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-[#525252]">{FIELD_LABEL[f]}</span>
-                  <Switch checked={design.fields.includes(f)} onChange={(on) => toggle(f, on)} label={FIELD_LABEL[f]} />
-                </li>
-              ))}
-            </ul>
-            {!design.fields.includes('qr') && <p className="text-xs text-danger">Without the QR code, the badge cannot be scanned at the door.</p>}
-          </Section>
-
-          {design.fields.includes('tier') && (
-            <Section title="Tier colours">
-              <p className="-mt-1 text-xs text-[#7c7c7c]">The band at the foot of the badge, so the door and ushers can tell tiers apart at a glance.</p>
-              {tierNames.length === 0 ? (
-                <p className="text-sm text-[#7c7c7c]">No ticket tiers yet.</p>
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {tierNames.map((name) => (
-                    <li key={name} className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <span className="w-28 truncate text-sm text-ink">{name}</span>
-                      <ColourPicker label={`${name} colour`} value={tierColour(design, name)} onChange={(c) => setDraft(withTierColour(design, name, c))} />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              </>
+            }
+          >
+            <Section title="Size">
+              <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Badge size">
+                {BADGE_SIZES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={design.size === s}
+                    onClick={() => edit({ size: s })}
+                    className={cn(
+                      'rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
+                      design.size === s ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-ink-soft hover:border-border-strong',
+                    )}
+                  >
+                    <span className="block font-medium">{SIZE_LABEL[s].split(' · ')[0]}</span>
+                    <span className="block text-xs text-hint">{SIZE_LABEL[s].split(' · ')[1]}</span>
+                  </button>
+                ))}
+              </div>
             </Section>
-          )}
-        </section>
 
-        <section aria-label="Preview" className={cn(cardClass, 'flex flex-col items-center gap-4 bg-[#f6f6f6] px-5 py-6 lg:sticky lg:top-4')}>
-          <BadgePreview
-            holder={sample}
-            design={design}
-            edition={edition}
-            artworkUrl={artworkUrl}
-            logo={logo}
-            onPlace={(part, placement) => design.layout && edit({ layout: { ...design.layout, [part]: placement } })}
-          />
-          <button type="button" disabled={printing} onClick={() => void print([sample ?? SAMPLE_HOLDER], 'single')} className={buttonClass({ style: 'outline', color: 'gray' })}>
-            <PrinterIcon className="size-4" />
-            Print a test badge
-          </button>
-        </section>
-      </div>
+            <ArtworkSection
+              editionId={edition.id}
+              design={design}
+              artworkUrl={artworkUrl}
+              onUploaded={(key, url) => {
+                setLocalArt({ key, url });
+                edit({ artwork: key, layout: design.layout ?? defaultLayout(design.size) });
+              }}
+              onRemove={() => edit({ artwork: null, layout: null })}
+              onScale={(part, scale) => design.layout && edit({ layout: { ...design.layout, [part]: clampPlacement({ ...design.layout[part], scale }) } })}
+            />
+
+            {!design.artwork && (
+              <LookSection
+                editionId={edition.id}
+                edition={edition}
+                design={design}
+                uploadedLogo={uploadedLogo}
+                onChange={edit}
+                onLogoUploaded={(key, url) => {
+                  setLocalLogo({ key, url });
+                  edit({ logo: 'custom', logoKey: key });
+                }}
+              />
+            )}
+
+            <Section title={design.artwork ? 'Accent colour' : 'Header colour'}>
+              {design.artwork && <p className="-mt-1 text-xs text-hint">Colours the initials shown for people without a photo.</p>}
+              <ColourPicker label={design.artwork ? 'Accent colour' : 'Header colour'} value={design.accent} onChange={(accent) => edit({ accent })} />
+            </Section>
+
+            <Section title="On the badge">
+              <p className="-mt-1 text-xs text-hint">The name is always printed. Blank details are left out for that person.</p>
+              <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+                {BADGE_FIELDS.map((f) => (
+                  <li key={f} className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-ink-soft">{FIELD_LABEL[f]}</span>
+                    <Switch checked={design.fields.includes(f)} onChange={(on) => toggle(f, on)} label={FIELD_LABEL[f]} />
+                  </li>
+                ))}
+              </ul>
+              {!design.fields.includes('qr') && <p className="text-xs text-danger">Without the QR code, the badge cannot be scanned at the door.</p>}
+            </Section>
+
+            {design.fields.includes('tier') && (
+              <Section title="Tier colours">
+                <p className="-mt-1 text-xs text-hint">A band at the foot of the badge, so the door can tell tiers apart.</p>
+                {tierNames.length === 0 ? (
+                  <p className="text-sm text-hint">No ticket tiers yet.</p>
+                ) : (
+                  <ul className="flex flex-col gap-3">
+                    {tierNames.map((name) => (
+                      <li key={name} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <span className="w-28 truncate text-sm text-ink">{name}</span>
+                        <ColourPicker label={`${name} colour`} value={tierColour(design, name)} onChange={(c) => setDraft(withTierColour(design, name, c))} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+            )}
+          </Panel>
+
+          <section aria-label="Preview" className="flex flex-col items-center gap-4 rounded-xl border border-border bg-surface-soft px-5 py-6 lg:sticky lg:top-4">
+            <BadgePreview
+              holder={sample}
+              design={design}
+              edition={edition}
+              artworkUrl={artworkUrl}
+              logo={logo}
+              onPlace={(part, placement) => design.layout && edit({ layout: { ...design.layout, [part]: placement } })}
+            />
+            <button type="button" disabled={printing} onClick={() => void print([sample ?? SAMPLE_HOLDER], 'single')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+              <PrinterIcon className="size-4" />
+              Print a test badge
+            </button>
+          </section>
+        </div>
       )}
 
       {tab === 'print' && (
-      <section aria-labelledby="badge-holders" className={cardClass}>
-        <header className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
-          <div className="mr-auto">
-            <h2 id="badge-holders" className="text-base font-medium text-ink">
-              Ticket holders
-            </h2>
-            <p className="text-sm text-[#7c7c7c]">{holders.data ? `${count(shown.length)} of ${count(all.length)} ${all.length === 1 ? 'badge' : 'badges'}` : 'Loading…'}</p>
-          </div>
-          <TextInput
-            icon={MagnifyingGlassIcon}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPageNo(1);
-            }}
-            placeholder="Name, organisation or code"
-            aria-label="Search ticket holders"
-            className="w-64"
-          />
-          <div className="w-40">
-            <Select
-              label="Tier"
-              value={tier}
-              options={tierOptions}
-              onChange={(v) => {
-                setTier(v);
-                setPageNo(1);
-              }}
-            />
-          </div>
-          <div className="w-52">
-            <Select<PrintLayout>
-              label="Print layout"
-              value={layout}
-              options={[
-                { value: 'sheet', label: `A4 sheets · ${perSheet} per page` },
-                { value: 'single', label: 'Badge printer · 1 per page' },
-              ]}
-              onChange={setLayout}
-            />
-          </div>
-          <button type="button" disabled={shown.length === 0 || printing} onClick={() => void print(shown, layout)} className={buttonClass()}>
-            <PrinterIcon className="size-4" />
-            {printing ? 'Preparing…' : `Print ${count(shown.length)} ${shown.length === 1 ? 'badge' : 'badges'}`}
-          </button>
-        </header>
-
-        {holders.isPending ? (
-          <div className="flex flex-col gap-2 p-5">
-            {Array.from({ length: 5 }, (_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : holders.isError ? (
-          <div role="alert" className="p-10 text-center">
-            <p className="font-medium text-ink">Ticket holders could not load.</p>
-            <p className="mt-1 text-sm text-muted">{holders.error.message}</p>
-            <button type="button" onClick={() => void holders.refetch()} className={buttonClass({ className: 'mt-4' })}>
-              Try again
-            </button>
-          </div>
-        ) : all.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-              <IdentificationIcon className="size-6" />
-            </span>
-            <p className="font-medium text-ink">No tickets issued yet</p>
-            <p className="max-w-md text-sm text-[#7c7c7c]">A badge appears here for every ticket as soon as it is paid for or issued.</p>
-          </div>
-        ) : shown.length === 0 ? (
-          <p className="px-6 py-12 text-center text-sm text-[#7c7c7c]">Nobody matches. Try another name or tier.</p>
-        ) : (
-          <>
-            <div className="relative overflow-x-auto">
-              <table className="w-full min-w-[44rem] border-collapse">
-                <thead>
-                  <tr>
-                    <th className={th}>Name</th>
-                    <th className={th}>Tier</th>
-                    <th className={th}>Ticket code</th>
-                    <th className={th}>At the door</th>
-                    <th className={cn(th, 'text-right')}>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((h) => (
-                    <tr key={h.ticketId}>
-                      <td className={td}>
-                        <p className="text-ink">{h.name}</p>
-                        <p className="text-xs text-[#7c7c7c]">{[h.title, h.organisation].filter(Boolean).join(', ') || '—'}</p>
-                      </td>
-                      <td className={td}>
-                        <span className="inline-flex items-center gap-2 text-[#525252]">
-                          <span className="size-2.5 rounded-sm" style={{ background: tierColour(design, h.tierName) }} aria-hidden />
-                          {h.tierName}
-                        </span>
-                      </td>
-                      <td className={cn(td, 'font-mono text-xs text-[#525252]')}>{h.code}</td>
-                      <td className={cn(td, 'text-[#525252]')}>{h.admitted > 0 ? `In${h.quantity > 1 ? ` · ${h.admitted} of ${h.quantity}` : ''}` : 'Not yet'}</td>
-                      <td className={cn(td, 'text-right whitespace-nowrap')}>
-                        <button type="button" onClick={() => setPreviewId(h.ticketId)} className={buttonClass({ style: 'borderless', color: 'gray' })} aria-label={`Preview ${h.name}'s badge`}>
-                          <EyeIcon className="size-4" />
-                          Preview
-                        </button>
-                        <button type="button" disabled={printing} onClick={() => void print([h], 'single')} className={buttonClass({ style: 'borderless', color: 'primary' })} aria-label={`Print ${h.name}'s badge`}>
-                          <PrinterIcon className="size-4" />
-                          Print
-                        </button>
-                      </td>
+        <div role="tabpanel" id={tabPanelId('badges', 'print')} aria-labelledby={tabId('badges', 'print')}>
+          <Panel
+            title="Ticket holders"
+            count={holders.data ? all.length : undefined}
+            description={
+              holders.data && shown.length !== all.length ? `${count(shown.length)} of ${count(all.length)} badges shown` : 'One badge for every ticket, to print together or reprint at the desk.'
+            }
+            actions={
+              <button type="button" disabled={shown.length === 0 || printing} onClick={() => void print(shown, layout)} className={buttonClass()}>
+                <PrinterIcon className="size-4" />
+                {printing ? 'Preparing…' : `Print ${count(shown.length)} ${shown.length === 1 ? 'badge' : 'badges'}`}
+              </button>
+            }
+            toolbar={
+              <>
+                <TextInput
+                  icon={MagnifyingGlassIcon}
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPageNo(1);
+                  }}
+                  placeholder="Name, organisation or code"
+                  aria-label="Search ticket holders"
+                  className="w-64"
+                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="w-40">
+                    <Select
+                      label="Tier"
+                      value={tier}
+                      options={tierOptions}
+                      onChange={(v) => {
+                        setTier(v);
+                        setPageNo(1);
+                      }}
+                    />
+                  </div>
+                  <div className="w-52">
+                    <Select<PrintLayout>
+                      label="Print layout"
+                      value={layout}
+                      options={[
+                        { value: 'sheet', label: `A4 sheets · ${perSheet} per page` },
+                        { value: 'single', label: 'Badge printer · 1 per page' },
+                      ]}
+                      onChange={setLayout}
+                    />
+                  </div>
+                </div>
+              </>
+            }
+            footer={pages > 1 && <Pagination page={page} pages={pages} onChange={setPageNo} label="Badge pages" className="ml-auto p-0 sm:p-0" />}
+          >
+            {holders.isPending ? (
+              <LoadingRows />
+            ) : holders.isError ? (
+              <ErrorState title="Ticket holders could not load." error={holders.error} onRetry={() => void holders.refetch()} />
+            ) : all.length === 0 ? (
+              <EmptyState
+                icon={IdentificationIcon}
+                title="No tickets issued yet"
+                body="A badge appears here for every ticket as soon as it is paid for or issued."
+                action={
+                  <button type="button" onClick={() => setTab('design')} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                    Design the badge
+                  </button>
+                }
+              />
+            ) : shown.length === 0 ? (
+              <EmptyState
+                icon={MagnifyingGlassIcon}
+                title="Nobody matches"
+                body="Try another name or tier."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setTier('all');
+                      setPageNo(1);
+                    }}
+                    className={buttonClass({ style: 'outline', color: 'gray' })}
+                  >
+                    Clear filters
+                  </button>
+                }
+              />
+            ) : (
+              <div className="relative overflow-x-auto">
+                <table className="w-full min-w-[44rem] border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={th}>Name</th>
+                      <th className={th}>Tier</th>
+                      <th className={th}>Ticket code</th>
+                      <th className={th}>At the door</th>
+                      <th className={cn(th, 'text-right')}>
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex justify-end px-5 py-3">
-              <Pagination page={page} pages={pages} onChange={setPageNo} label="Badge pages" />
-            </div>
-          </>
-        )}
-      </section>
+                  </thead>
+                  <tbody>
+                    {rows.map((h) => (
+                      <tr key={h.ticketId}>
+                        <td className={td}>
+                          <p className="text-ink">{h.name}</p>
+                          <p className="text-xs text-hint">{[h.title, h.organisation].filter(Boolean).join(', ') || '—'}</p>
+                        </td>
+                        <td className={td}>
+                          <span className="inline-flex items-center gap-2 text-ink-soft">
+                            <span className="size-2.5 rounded-sm" style={{ background: tierColour(design, h.tierName) }} aria-hidden />
+                            {h.tierName}
+                          </span>
+                        </td>
+                        <td className={cn(td, 'font-mono text-xs text-ink-soft')}>{h.code}</td>
+                        <td className={cn(td, 'text-ink-soft')}>{h.admitted > 0 ? `In${h.quantity > 1 ? ` · ${h.admitted} of ${h.quantity}` : ''}` : 'Not yet'}</td>
+                        <td className={cn(td, 'text-right whitespace-nowrap')}>
+                          <button type="button" onClick={() => setPreviewId(h.ticketId)} className={buttonClass({ style: 'borderless', color: 'gray' })} aria-label={`Preview ${h.name}'s badge`}>
+                            <EyeIcon className="size-4" />
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            disabled={printing}
+                            onClick={() => void print([h], 'single')}
+                            className={buttonClass({ style: 'borderless', color: 'primary' })}
+                            aria-label={`Print ${h.name}'s badge`}
+                          >
+                            <PrinterIcon className="size-4" />
+                            Print
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        </div>
       )}
       <PreviewDialog
         holder={previewing}

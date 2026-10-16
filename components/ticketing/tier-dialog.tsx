@@ -24,7 +24,7 @@ function Section({ title, description, children }: { title: string; description:
     <section className="grid gap-4 border-b border-border py-6 first:pt-0 last:border-b-0 last:pb-0 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-8">
       <div>
         <h3 className="text-sm font-medium text-ink">{title}</h3>
-        <p className="mt-1 text-xs leading-5 text-[#7c7c7c]">{description}</p>
+        <p className="mt-1 text-xs leading-5 text-hint">{description}</p>
       </div>
       <div className="flex flex-col gap-4">{children}</div>
     </section>
@@ -156,8 +156,8 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
                 placeholder={'All plenaries and parallel sessions\nLunch both days'}
                 aria-describedby={describedBy(id('perks'), errors.perks, 'hint')}
                 className={cn(
-                  'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-sm leading-5 text-[#525252] shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-                  errors.perks ? 'border-danger' : 'border-[#bdbdbd]',
+                  'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-sm leading-5 text-ink-soft shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
+                  errors.perks ? 'border-danger' : 'border-border-strong',
                 )}
               />
             </Field>
@@ -178,7 +178,7 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
                   )}
                 >
                   <span className={cn('block text-sm', form.mode === m.value ? 'font-medium text-primary' : 'text-ink')}>{m.label}</span>
-                  <span className="block text-xs text-[#7c7c7c]">{m.hint}</span>
+                  <span className="block text-xs text-hint">{m.hint}</span>
                 </button>
               ))}
             </div>
@@ -200,7 +200,7 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
                 {showCurrencies ? (
                   <fieldset className="flex flex-col gap-2">
                     <legend className="mb-1 text-sm text-ink">
-                      Prices in other currencies <span className="text-[#7c7c7c]">(optional)</span>
+                      Prices in other currencies <span className="text-hint">(optional)</span>
                     </legend>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {EXTRA_CURRENCIES.map((c) => (
@@ -216,7 +216,7 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
                       ))}
                     </div>
                     {errors.extra && <p className="text-xs text-danger">{errors.extra}</p>}
-                    <p className="text-xs text-[#7c7c7c]">A buyer abroad pays in their currency only if every tier in their basket has a price in it; otherwise in naira.</p>
+                    <p className="text-xs text-hint">A buyer abroad pays in their currency only if every tier in their basket has a price in it; otherwise in naira.</p>
                   </fieldset>
                 ) : (
                   <button type="button" onClick={() => setShowCurrencies(true)} className="self-start text-sm text-primary hover:underline">
@@ -251,7 +251,7 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
             <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div id={id('onsale-label')}>
                 <p className="text-sm text-ink">On sale</p>
-                <p className="text-xs text-[#7c7c7c]">
+                <p className="text-xs text-hint">
                   {form.isActive ? 'Listed at checkout now.' : 'Hidden from checkout; tickets already sold stay valid. Switch it back on any time.'}
                 </p>
               </div>
@@ -261,7 +261,7 @@ export function TierDialog({ open, onClose, editionId, tier }: { open: boolean; 
                 aria-checked={form.isActive}
                 aria-labelledby={id('onsale-label')}
                 onClick={() => set('isActive', !form.isActive)}
-                className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors', form.isActive ? 'bg-success' : 'bg-[#d4d4d4]')}
+                className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors', form.isActive ? 'bg-success' : 'bg-border-strong')}
               >
                 <span
                   className={cn(

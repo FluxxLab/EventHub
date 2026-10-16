@@ -46,6 +46,7 @@ export function TopicDialog({
       pending={pending}
       submitLabel={initial === null ? 'Create topic' : 'Save'}
       error={error}
+      dirty={name !== (initial ?? '')}
       onClose={() => {
         setOpenedFor(undefined);
         onClose();
@@ -126,6 +127,8 @@ export function PitchDialog({
       pending={pending}
       submitLabel={pitch ? 'Save pitch' : 'Add pitch'}
       error={error}
+      // differs from what it opened with: Cancel asks before discarding
+      dirty={JSON.stringify(form) !== JSON.stringify(pitch ? pitchFormOf(pitch) : emptyPitch())}
       onClose={() => {
         setOpenedFor(undefined);
         onClose();
@@ -175,7 +178,7 @@ export function PitchDialog({
           <label htmlFor={id('description')} className="text-sm text-ink">
             What it is
           </label>
-          <span className="text-xs tabular-nums text-[#7c7c7c]">{form.description.trim().length}/600</span>
+          <span className="text-xs tabular-nums text-hint">{form.description.trim().length}/600</span>
         </div>
         <textarea
           id={id('description')}
@@ -188,7 +191,7 @@ export function PitchDialog({
           aria-describedby={errors.description ? id('description-error') : id('description-hint')}
           className={cn(
             'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-sm leading-5 text-ink shadow-xs outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-            errors.description ? 'border-danger' : 'border-[#bdbdbd]',
+            errors.description ? 'border-danger' : 'border-border-strong',
           )}
         />
         {errors.description ? (
@@ -196,7 +199,7 @@ export function PitchDialog({
             {errors.description}
           </p>
         ) : (
-          <p id={id('description-hint')} className="mt-1 text-xs text-[#7c7c7c]">
+          <p id={id('description-hint')} className="mt-1 text-xs text-hint">
             Delegates read this on the ballot, so one or two plain sentences.
           </p>
         )}

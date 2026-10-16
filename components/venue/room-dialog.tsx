@@ -119,8 +119,8 @@ export function RoomDialog({ open, onClose, editionId, room }: { open: boolean; 
               placeholder="Plenaries; 600 seats, step-free entrance on the east side."
               aria-describedby={describedBy(id('notes'), errors.notes, 'hint')}
               className={cn(
-                'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-sm leading-5 text-[#525252] shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
-                errors.notes ? 'border-danger' : 'border-[#bdbdbd]',
+                'w-full resize-none rounded-lg border bg-surface px-3 py-2.5 text-sm leading-5 text-ink-soft shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none transition-shadow placeholder:text-placeholder focus:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]',
+                errors.notes ? 'border-danger' : 'border-border-strong',
               )}
             />
           </Field>

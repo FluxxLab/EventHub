@@ -40,7 +40,7 @@ const NAV = [
 
 export default function WelcomePage() {
   return (
-    <div className="flex min-h-dvh flex-col items-center bg-[#f6f6f6] text-ink">
+    <div className="flex min-h-dvh flex-col items-center bg-surface-soft text-ink">
       <NavBar />
       <Hero />
       <Features />
@@ -54,7 +54,7 @@ export default function WelcomePage() {
 
 function NavBar() {
   return (
-    <header className="sticky top-0 z-20 flex h-24 w-full items-center justify-between gap-6 border-b border-[#f1f1f1] bg-background px-5 md:px-20">
+    <header className="sticky top-0 z-20 flex h-24 w-full items-center justify-between gap-6 border-b border-divider bg-background px-5 md:px-20">
       <Link href="/welcome" className="flex items-center gap-1">
         <span className="flex size-12 items-center justify-center rounded-lg p-1">
           <Image src="/pic-logo.png" alt="" width={40} height={40} className="size-10 object-contain" priority />
@@ -63,7 +63,7 @@ function NavBar() {
       </Link>
       <nav aria-label="Site" className="hidden flex-1 items-center justify-center gap-1 lg:flex">
         {NAV.map(({ href, label, icon: Icon, caret }) => (
-          <a key={href} href={href} className="flex items-center gap-1 rounded p-3 text-sm font-medium hover:bg-[#f1f1f1]">
+          <a key={href} href={href} className="flex items-center gap-1 rounded p-3 text-sm font-medium hover:bg-surface-soft">
             <Icon className="size-5" aria-hidden />
             {label}
             {caret && <ChevronDownIcon className="size-3" aria-hidden />}
@@ -92,7 +92,7 @@ function Hero() {
       <div className="grid lg:min-h-[600px] lg:grid-cols-2">
         <div id="demo" className="flex scroll-mt-28 flex-col items-start justify-center gap-5 px-5 py-12 md:px-20">
           <h1 className="max-w-[560px] text-4xl font-medium leading-tight tracking-[-0.02em] text-balance md:text-5xl md:leading-[60px]">Run your whole event on one platform, priced in naira</h1>
-          <p className="max-w-[560px] text-lg leading-[30px] text-[#525252] md:text-xl">
+          <p className="max-w-[560px] text-lg leading-[30px] text-ink-soft md:text-xl">
             Registration, ticketing, check-in, badges, live sessions and sponsor leads, built by the Policy Innovation Centre for events in Nigeria.
           </p>
           <DemoForm />
@@ -121,7 +121,7 @@ function HeroPicture() {
             ['Sponsor leads', '612'],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg bg-surface-soft p-3">
-              <p className="text-xs text-[#7c7c7c]">{label}</p>
+              <p className="text-xs text-hint">{label}</p>
               <p className="mt-1 text-xl font-medium tabular-nums">{value}</p>
             </div>
           ))}
@@ -133,11 +133,11 @@ function HeroPicture() {
             ['12:00', 'Women in trade finance', 'Hall B', 'Later'],
           ].map(([time, title, room, state]) => (
             <div key={title} className="grid grid-cols-[3rem_1fr_auto] items-center gap-3 border-t border-divider py-2">
-              <span className="tabular-nums text-[#7c7c7c]">{time}</span>
+              <span className="tabular-nums text-hint">{time}</span>
               <span className="truncate">
-                {title} <span className="text-[#7c7c7c]">· {room}</span>
+                {title} <span className="text-hint">· {room}</span>
               </span>
-              <span className={state === 'On now' ? 'text-xs text-success' : 'text-xs text-[#7c7c7c]'}>{state}</span>
+              <span className={state === 'On now' ? 'text-xs text-success' : 'text-xs text-hint'}>{state}</span>
             </div>
           ))}
         </div>
@@ -156,7 +156,7 @@ function Features() {
     <section id="features" className="flex w-full max-w-[1440px] scroll-mt-24 flex-col items-center py-12">
       <div className="flex flex-col items-center gap-2.5 px-5 py-6 text-center">
         <h2 className="text-4xl font-medium tracking-[-0.02em] md:text-6xl md:leading-[72px]">Everything the day needs</h2>
-        <p className="text-lg text-[#7c7c7c]">From the first ticket to the last certificate.</p>
+        <p className="text-lg text-hint">From the first ticket to the last certificate.</p>
       </div>
 
       <FeatureRow
@@ -186,7 +186,7 @@ function Features() {
         text="Live captions translated into Hausa, Igbo, Yoruba, Nigerian Pidgin and French, beside questions from the floor, polls and moderated discussion."
         picture={<CaptionsPicture />}
         action={
-          <p className="flex items-center gap-2 text-sm text-[#525252]">
+          <p className="flex items-center gap-2 text-sm text-ink-soft">
             <LanguageIcon className="size-5 text-primary" aria-hidden />
             Five languages, live, on every delegate’s phone
           </p>
@@ -208,7 +208,7 @@ function FeatureRow({ title, text, picture, action, flip = false }: { title: str
     <div className="grid w-full lg:min-h-[450px] lg:grid-cols-2">
       <div className={`flex flex-col items-start justify-center gap-3 px-5 py-10 md:px-20 lg:py-12 ${flip ? 'lg:order-2' : ''}`}>
         <h3 className="max-w-[560px] text-3xl font-medium tracking-[-0.02em] text-balance md:text-5xl md:leading-[60px]">{title}</h3>
-        <p className="max-w-[560px] text-lg leading-7 text-[#525252]">{text}</p>
+        <p className="max-w-[560px] text-lg leading-7 text-ink-soft">{text}</p>
         {action && <div className="mt-2">{action}</div>}
       </div>
       <div className={`flex p-4 ${flip ? 'lg:order-1' : ''}`}>{picture}</div>
@@ -232,7 +232,7 @@ function Checklist({ items }: { items: string[] }) {
 /* ------------------------------------------------------------------ pictures, from the product's own parts */
 
 function Frame({ className = '', children }: { className?: string; children: ReactNode }) {
-  return <div className={`overflow-hidden rounded-xl bg-[#e8ebf1] ${className}`}>{children}</div>;
+  return <div className={`overflow-hidden rounded-xl bg-surface-sunken ${className}`}>{children}</div>;
 }
 
 function Phone({ className = '', children }: { className?: string; children: ReactNode }) {
@@ -259,10 +259,10 @@ function FakeQr({ size = 120 }: { size?: number }) {
 function TicketCard() {
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border border-border p-3 text-center">
-      <p className="text-xs text-[#7c7c7c]">GS-27 · Delegate</p>
+      <p className="text-xs text-hint">GS-27 · Delegate</p>
       <FakeQr size={116} />
       <p className="text-sm font-medium">Hauwa Bello</p>
-      <p className="text-xs text-[#7c7c7c]">7–8 Sep · Transcorp Hilton, Abuja</p>
+      <p className="text-xs text-hint">7–8 Sep · Transcorp Hilton, Abuja</p>
     </div>
   );
 }
@@ -280,7 +280,7 @@ function TicketPicture() {
           ['Voucher GS27-NGO', '−₦18,000'],
         ].map(([a, b]) => (
           <p key={a} className="flex justify-between text-sm">
-            <span className="text-[#525252]">{a}</span>
+            <span className="text-ink-soft">{a}</span>
             <span className="tabular-nums">{b}</span>
           </p>
         ))}
@@ -306,10 +306,10 @@ function CheckInPicture() {
         <div className="w-40 rounded-md border border-border p-3 text-left shadow-sm">
           <div className="h-2 w-12 rounded bg-primary" aria-hidden />
           <p className="mt-3 text-sm font-medium">Ibrahim Musa</p>
-          <p className="text-xs text-[#7c7c7c]">Kano State Ministry of Women Affairs</p>
-          <p className="mt-3 inline-block rounded-full bg-primary px-2 text-[10px] uppercase tracking-wide text-on-primary">Speaker</p>
+          <p className="text-xs text-hint">Kano State Ministry of Women Affairs</p>
+          <p className="mt-3 inline-block rounded-full bg-primary px-2 text-[0.625rem] uppercase tracking-wide text-on-primary">Speaker</p>
         </div>
-        <p className="text-xs text-[#7c7c7c]">Printing your badge…</p>
+        <p className="text-xs text-hint">Printing your badge…</p>
       </div>
     </Frame>
   );
@@ -324,11 +324,11 @@ function CaptionsPicture() {
   return (
     <Frame className="flex min-h-[340px] w-full items-center justify-center p-6 lg:h-[418px]">
       <Phone className="flex w-[260px]">
-        <p className="text-xs text-[#7c7c7c]">Main Hall · Live</p>
+        <p className="text-xs text-hint">Main Hall · Live</p>
         <p className="text-sm font-medium">Opening plenary</p>
-        <div className="flex gap-1 text-[10px]">
+        <div className="flex gap-1 text-[0.625rem]">
           {['EN', 'HA', 'IG', 'YO', 'PCM', 'FR'].map((l, i) => (
-            <span key={l} className={i === 1 ? 'rounded-full bg-primary px-1.5 py-0.5 text-on-primary' : 'rounded-full bg-surface-soft px-1.5 py-0.5 text-[#525252]'}>
+            <span key={l} className={i === 1 ? 'rounded-full bg-primary px-1.5 py-0.5 text-on-primary' : 'rounded-full bg-surface-soft px-1.5 py-0.5 text-ink-soft'}>
               {l}
             </span>
           ))}
@@ -336,12 +336,12 @@ function CaptionsPicture() {
         <div className="flex flex-col gap-2 rounded-lg bg-surface-soft p-2.5">
           {lines.map(([code, text]) => (
             <p key={code} className="text-xs leading-5">
-              <span className="mr-1 text-[#7c7c7c]">{code}</span>
+              <span className="mr-1 text-hint">{code}</span>
               {text}
             </p>
           ))}
         </div>
-        <p className="text-[10px] text-[#7c7c7c]">Live captions, generated automatically. Example translations.</p>
+        <p className="text-[0.625rem] text-hint">Live captions, generated automatically. Example translations.</p>
       </Phone>
     </Frame>
   );
@@ -353,7 +353,7 @@ function LeadsPicture() {
       <div className="w-full max-w-md rounded-lg border border-border bg-surface shadow-sm">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <p className="text-sm font-medium">Booth 14 · Leads</p>
-          <span className="text-xs text-[#7c7c7c] tabular-nums">48 today</span>
+          <span className="text-xs text-hint tabular-nums">48 today</span>
         </div>
         {[
           ['Ngozi Eze', 'Programme Lead, UN Women Nigeria'],
@@ -370,7 +370,7 @@ function LeadsPicture() {
             </span>
             <div className="min-w-0">
               <p className="text-sm">{name}</p>
-              <p className="truncate text-xs text-[#7c7c7c]">{role}</p>
+              <p className="truncate text-xs text-hint">{role}</p>
             </div>
           </div>
         ))}
@@ -392,14 +392,14 @@ function Plans() {
     <section id="plans" className="flex w-full max-w-[1440px] scroll-mt-24 flex-col gap-8 px-5 py-16 md:px-20">
       <div className="flex flex-col gap-2">
         <h2 className="text-3xl font-medium tracking-[-0.02em] md:text-5xl">Priced in naira, billed in naira</h2>
-        <p className="max-w-2xl text-lg text-[#525252]">No dollar card, no exchange-rate surprises. Tell us about your event and we will quote for it.</p>
+        <p className="max-w-2xl text-lg text-ink-soft">No dollar card, no exchange-rate surprises. Tell us about your event and we will quote for it.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {PLANS.map((plan) => (
           <div key={plan.name} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-6">
             <div>
               <p className="text-xl font-medium">{plan.name}</p>
-              <p className="text-sm text-[#7c7c7c]">{plan.who}</p>
+              <p className="text-sm text-hint">{plan.who}</p>
             </div>
             <Checklist items={plan.items} />
           </div>
@@ -425,14 +425,14 @@ function FooterSection() {
 function Newsletter() {
   return (
     <section aria-labelledby="newsletter-title" className="grid w-full max-w-[1440px] rounded-[20px] lg:min-h-[418px] lg:grid-cols-2">
-      <div className="flex flex-col items-start gap-5 rounded-2xl px-5 py-12 md:px-20">
+      <div className="flex flex-col items-start gap-5 rounded-xl px-5 py-12 md:px-20">
         <span className="flex size-20 items-center justify-center rounded-lg p-1">
           <Image src="/pic-logo.png" alt="" width={72} height={72} className="size-[72px] object-contain" />
         </span>
         <h2 id="newsletter-title" className="max-w-[420px] text-3xl font-medium leading-[44px] tracking-[-0.02em] text-balance md:text-4xl">
           Notes for people who run events
         </h2>
-        <p className="max-w-[420px] text-lg leading-[30px] text-[#525252] md:text-xl">What worked at PIC’s summits, and what is new in PIC Events. Monthly, at most.</p>
+        <p className="max-w-[420px] text-lg leading-[30px] text-ink-soft md:text-xl">What worked at PIC’s summits, and what is new in PIC Events. Monthly, at most.</p>
         <NewsletterForm />
       </div>
       <div className="flex p-4">
@@ -450,7 +450,7 @@ function DisplayBoardPicture() {
     ['Hall B', 'Nothing on', 'Free', '13:00 Women in trade finance'],
   ];
   return (
-    <div className="flex min-h-[320px] w-full items-center justify-center rounded-2xl bg-[#525252] p-6 lg:h-[386px]">
+    <div className="flex min-h-[320px] w-full items-center justify-center rounded-xl bg-ink-soft p-6 lg:h-[386px]">
       <div className="w-full max-w-lg rounded-lg bg-surface p-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -461,7 +461,7 @@ function DisplayBoardPicture() {
         </div>
         <div className="mt-3 grid grid-cols-[5rem_1fr_auto] gap-x-3 text-xs">
           {['Room', 'Now', 'Up next'].map((h) => (
-            <span key={h} className="pb-1.5 text-[#7c7c7c]">
+            <span key={h} className="pb-1.5 text-hint">
               {h}
             </span>
           ))}
@@ -470,9 +470,9 @@ function DisplayBoardPicture() {
               <span className="font-medium">{room}</span>
               <span className="min-w-0 truncate">
                 {now}{' '}
-                <span className={status === 'Free' ? 'ml-1 rounded-full border border-border px-1.5 text-[10px] text-[#7c7c7c]' : 'ml-1 rounded-full border border-success bg-success-soft px-1.5 text-[10px] text-success'}>{status}</span>
+                <span className={status === 'Free' ? 'ml-1 rounded-full border border-border px-1.5 text-[0.625rem] text-hint' : 'ml-1 rounded-full border border-success bg-success-soft px-1.5 text-[0.625rem] text-success'}>{status}</span>
               </span>
-              <span className="truncate text-[#525252]">{next}</span>
+              <span className="truncate text-ink-soft">{next}</span>
             </div>
           ))}
         </div>
@@ -518,11 +518,11 @@ function Footer() {
             <Image src="/pic-logo.png" alt="" width={32} height={32} className="size-8 object-contain" />
             <span className="text-base font-medium">PIC Events</span>
           </div>
-          <p className="text-xs leading-[18px] text-[#7c7c7c]">
+          <p className="text-xs leading-[18px] text-hint">
             Event software from the Policy Innovation Centre, built for conferences and summits in Nigeria: naira ticketing, check-in, live sessions in Nigerian languages and sponsor leads.
           </p>
-          {SALES_EMAIL && <p className="select-all text-sm text-[#525252]">{SALES_EMAIL}</p>}
-          <p className="text-xs text-[#7c7c7c]">© {new Date().getFullYear()} Policy Innovation Centre</p>
+          {SALES_EMAIL && <p className="select-all text-sm text-ink-soft">{SALES_EMAIL}</p>}
+          <p className="text-xs text-hint">© {new Date().getFullYear()} Policy Innovation Centre</p>
         </div>
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 md:gap-16">
           {FOOTER_COLUMNS.map((col) => (

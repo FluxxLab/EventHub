@@ -104,12 +104,12 @@ function Setup({ editions, onStart }: { editions: Edition[]; onStart: (c: KioskC
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-5 py-10">
-      <form onSubmit={(e) => void start(e)} className="flex w-full max-w-lg flex-col gap-5 rounded-2xl border border-border bg-surface p-7 shadow-sm">
+      <form onSubmit={(e) => void start(e)} className="flex w-full max-w-lg flex-col gap-5 rounded-xl border border-border bg-surface p-7 shadow-sm">
         <div className="flex items-center gap-3">
           <Image src="/pic-logo.png" alt="" width={44} height={44} priority />
           <div>
             <h1 className="text-xl font-medium text-ink">Self check-in</h1>
-            <p className="text-sm text-[#7c7c7c]">For a screen at the entrance, where attendees check themselves in.</p>
+            <p className="text-sm text-hint">For a screen at the entrance, where attendees check themselves in.</p>
           </div>
         </div>
 
@@ -125,7 +125,7 @@ function Setup({ editions, onStart }: { editions: Edition[]; onStart: (c: KioskC
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm text-ink">How attendees scan</legend>
           {(Object.keys(CAMERA_LABEL) as KioskCamera[]).map((c) => (
-            <label key={c} className={cn('flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm', camera === c ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-[#525252]')}>
+            <label key={c} className={cn('flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm', camera === c ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-ink-soft')}>
               <input type="radio" name="camera" checked={camera === c} onChange={() => setCamera(c)} className="accent-primary" />
               {CAMERA_LABEL[c]}
             </label>
@@ -137,7 +137,7 @@ function Setup({ editions, onStart }: { editions: Edition[]; onStart: (c: KioskC
             <p id="kiosk-print" className="text-sm text-ink">
               Print badges
             </p>
-            <p className="text-xs text-[#7c7c7c]">In this event’s badge design. Start Chrome with --kiosk-printing so no print window appears.</p>
+            <p className="text-xs text-hint">In this event’s badge design. Start Chrome with --kiosk-printing so no print window appears.</p>
           </div>
           <Switch checked={print} onChange={setPrint} labelledBy="kiosk-print" />
         </div>
@@ -152,7 +152,7 @@ function Setup({ editions, onStart }: { editions: Edition[]; onStart: (c: KioskC
             <PinInput name="kiosk-pin-again" value={again} onChange={setAgain} className={pinInput} />
           </label>
         </div>
-        <p className="-mt-2 text-xs text-[#7c7c7c]">To leave the kiosk, hold the top-right corner of the screen for three seconds, then enter this PIN.</p>
+        <p className="-mt-2 text-xs text-hint">To leave the kiosk, hold the top-right corner of the screen for three seconds, then enter this PIN.</p>
 
         {problem && (
           <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
@@ -260,7 +260,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
   };
 
   return (
-    <div className="relative flex min-h-dvh select-none flex-col bg-[#f4f6fb]" onContextMenu={(e) => e.preventDefault()}>
+    <div className="relative flex min-h-dvh select-none flex-col bg-surface-soft" onContextMenu={(e) => e.preventDefault()}>
       <ExitCorner onUnlock={() => setExiting(true)} />
       {exiting && <PinPad pinHash={config.pinHash} onCancel={() => setExiting(false)} onUnlock={onExit} />}
 
@@ -292,7 +292,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
           <div className="screen-in flex w-full flex-col items-center gap-8">
             <div>
               <h1 className="text-4xl font-medium text-ink">Check yourself in</h1>
-              <p className="mt-3 text-xl text-[#525252]">Hold up the QR on your ticket, in the PIC Events app or your ticket email.</p>
+              <p className="mt-3 text-xl text-ink-soft">Hold up the QR on your ticket, in the PIC Events app or your ticket email.</p>
             </div>
             {config.camera !== 'none' ? (
               <div className="relative w-full max-w-md">
@@ -304,7 +304,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
             ) : (
               <div className="flex size-64 flex-col items-center justify-center gap-4 rounded-3xl border-4 border-dashed border-primary/40 bg-white">
                 <QrCodeIcon className="size-24 text-primary" strokeWidth={1} />
-                <p className="text-lg text-[#525252]">{busy ? 'Checking your ticket…' : 'Scan below'}</p>
+                <p className="text-lg text-ink-soft">{busy ? 'Checking your ticket…' : 'Scan below'}</p>
               </div>
             )}
             <button type="button" disabled={busy} onClick={() => setScreen({ kind: 'code' })} className="text-lg text-primary underline underline-offset-4">
@@ -316,7 +316,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
         {screen.kind === 'code' && (
           <form onSubmit={onCode} className="screen-in flex w-full max-w-lg flex-col items-center gap-5">
             <h1 className="text-3xl font-medium text-ink">Type your ticket code</h1>
-            <p className="text-lg text-[#525252]">It is on your ticket, like PIC-VIP-3QX7.</p>
+            <p className="text-lg text-ink-soft">It is on your ticket, like PIC-VIP-3QX7.</p>
             <input
               autoFocus
               value={code}
@@ -326,7 +326,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
               spellCheck={false}
               aria-label="Ticket code"
               placeholder="PIC-…"
-              className="h-16 w-full rounded-2xl border-2 border-primary/40 bg-white px-5 text-center font-mono text-3xl tracking-widest text-ink outline-none focus:border-primary"
+              className="h-16 w-full rounded-xl border-2 border-primary/40 bg-white px-5 text-center font-mono text-3xl tracking-widest text-ink outline-none focus:border-primary"
             />
             <div className="flex w-full gap-3">
               <button type="button" onClick={() => setScreen({ kind: 'ready' })} className={buttonClass({ style: 'soft', color: 'gray', className: 'h-14 flex-1 text-lg' })}>
@@ -352,7 +352,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
             {screen.printed !== 'off' && (
               <div className="flex flex-col items-center gap-3">
                 <BadgeFrame person={badgeFor(screen.result)} design={design} eventShortName={edition.shortName} artworkUrl={artworkUrl} logo={logo} maxWidth={220} maxHeight={300} className="overflow-hidden rounded-md bg-white shadow-xl ring-1 ring-black/5" />
-                <p className="text-xl text-[#525252]">
+                <p className="text-xl text-ink-soft">
                   {screen.printed === 'failed' ? 'Your badge did not print. Please collect it from the help desk.' : screen.printed === 'printing' ? 'Printing your badge…' : 'Collect your badge from the printer.'}
                 </p>
               </div>
@@ -364,7 +364,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
           <div className="screen-in flex max-w-xl flex-col items-center gap-5">
             <ExclamationTriangleIcon className="size-20 text-gold" strokeWidth={1.25} />
             <h1 className="text-4xl font-medium text-ink">You’re already checked in</h1>
-            <p className="text-xl text-[#525252]">
+            <p className="text-xl text-ink-soft">
               This ticket was used {whenAdmitted(screen.result.lastAdmittedAt, new Date())}. If you need a new badge, please see the help desk.
             </p>
           </div>
@@ -374,7 +374,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
           <div className="screen-in flex max-w-xl flex-col items-center gap-5" role="alert">
             <XCircleIcon className="size-20 text-danger" strokeWidth={1.25} />
             <h1 className="text-4xl font-medium text-ink">Sorry, that didn’t work</h1>
-            <p className="text-xl text-[#525252]">{screen.message}</p>
+            <p className="text-xl text-ink-soft">{screen.message}</p>
             <button type="button" onClick={() => setScreen({ kind: 'ready' })} className={buttonClass({ className: 'h-14 px-8 text-lg' })}>
               Try again
             </button>
@@ -382,7 +382,7 @@ function Kiosk({ config, edition, onExit }: { config: KioskConfig; edition: Edit
         )}
       </main>
 
-      <footer className="pb-6 text-center text-sm text-[#7c7c7c]">Need help? Our team at the help desk will check you in.</footer>
+      <footer className="pb-6 text-center text-sm text-hint">Need help? Our team at the help desk will check you in.</footer>
     </div>
   );
 }

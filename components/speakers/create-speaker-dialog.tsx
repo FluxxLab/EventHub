@@ -153,7 +153,7 @@ export function CreateSpeakerDialog({ open, onClose, speaker = null }: { open: b
             <Avatar name={form.name || undefined} src={shownPhoto} size={80} />
             <div className="flex flex-col gap-2">
               <p className="text-sm text-ink">
-                Photo <span className="text-[#7c7c7c]">(optional)</span>
+                Photo <span className="text-hint">(optional)</span>
               </p>
               <div className="flex gap-2">
                 <button type="button" onClick={() => fileRef.current?.click()} className={buttonClass({ style: 'outline', color: 'gray' })}>
@@ -166,7 +166,7 @@ export function CreateSpeakerDialog({ open, onClose, speaker = null }: { open: b
                   </button>
                 )}
               </div>
-              <p className={errors.photo ? 'text-xs text-danger' : 'text-xs text-[#7c7c7c]'} role={errors.photo ? 'alert' : undefined}>
+              <p className={errors.photo ? 'text-xs text-danger' : 'text-xs text-hint'} role={errors.photo ? 'alert' : undefined}>
                 {errors.photo ?? 'Square works best. JPG, PNG, WebP or HEIC, up to 5 MB.'}
               </p>
             </div>

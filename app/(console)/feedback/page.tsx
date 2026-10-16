@@ -8,7 +8,9 @@ import { useMemo, useState } from 'react';
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { runsEvents, useSession } from '@/lib/auth/session';
 import { toCsv } from '@/lib/discussions/discussions';
 import { useWorkingEdition } from '@/lib/events/working-edition';
@@ -19,9 +21,9 @@ import { shares } from '@/lib/polls/polls';
 import type { Session } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
 import { useNow } from '@/lib/use-now';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
 const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 /** Five stars filled to the rating, for reading at a glance (the number beside it is the precise value). */
@@ -29,7 +31,7 @@ function StarRow({ value, size = 'sm' }: { value: number; size?: 'sm' | 'md' }) 
   const cls = size === 'md' ? 'size-5' : 'size-3.5';
   return (
     <span className="inline-flex" aria-hidden>
-      {[1, 2, 3, 4, 5].map((i) => (i <= Math.round(value) ? <StarIcon key={i} className={cn(cls, 'text-gold')} /> : <StarOutline key={i} className={cn(cls, 'text-[#bdbdbd]')} />))}
+      {[1, 2, 3, 4, 5].map((i) => (i <= Math.round(value) ? <StarIcon key={i} className={cn(cls, 'text-gold')} /> : <StarOutline key={i} className={cn(cls, 'text-placeholder')} />))}
     </span>
   );
 }
@@ -42,14 +44,14 @@ function SessionItem({ row, selected, onSelect }: { row: FeedbackRow; selected: 
         type="button"
         aria-pressed={selected}
         onClick={onSelect}
-        className={cn('flex w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-[#f6f6f6]')}
+        className={cn('flex w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm text-ink">{row.title}</span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-[#7c7c7c]">
+          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-hint">
             {row.average !== null ? <StarRow value={row.average} /> : null}
             {row.count ? `${count(row.count)} ${row.count === 1 ? 'rating' : 'ratings'}` : 'Not rated'}
-            {few && <span className="text-[#7a5d00]">· few</span>}
+            {few && <span className="text-warning">· few</span>}
           </span>
         </span>
         <span className="shrink-0 text-lg tabular-nums text-ink">{formatAverage(row.average)}</span>
@@ -68,35 +70,30 @@ function Detail({ row, session }: { row: FeedbackRow; session?: Session }) {
   const comments = (d?.comments ?? []).filter((c) => stars === 'all' || c.rating === stars);
 
   return (
-    <section aria-labelledby="fb-title" className={cn(cardClass, 'flex flex-col')}>
-      <header className="border-b border-border px-6 py-4">
-        <h2 id="fb-title" className="text-lg text-ink">
-          {row.title}
-        </h2>
-        {session && (
-          <p className="text-sm text-[#7c7c7c]">
+    <Panel
+      title={row.title}
+      description={
+        session && (
+          <>
             Day {session.day} · {hm(session.startsAt)}–{hm(session.endsAt)} · {session.room}
-          </p>
-        )}
-      </header>
-
+          </>
+        )
+      }
+      className="flex flex-col"
+    >
       {detail.isPending ? (
-        <div className="p-6">
-          <Skeleton className="h-40" />
-        </div>
+        <LoadingRows rows={3} />
       ) : detail.isError && !d ? (
-        <p role="alert" className="p-6 text-sm text-danger">
-          {detail.error.message}
-        </p>
+        <ErrorState title="This session’s feedback could not load" error={detail.error} onRetry={() => void detail.refetch()} />
       ) : !d || d.count === 0 ? (
-        <p className="px-6 py-12 text-center text-sm text-[#7c7c7c]">Nobody has rated this session yet. Delegates are asked when it ends.</p>
+        <EmptyState icon={StarOutline} title="No ratings yet" body="Delegates are asked to rate the session when it ends." />
       ) : (
         <>
           <div className="grid gap-6 border-b border-border px-6 py-5 sm:grid-cols-[10rem_minmax(0,1fr)]">
             <div>
               <p className="text-4xl font-medium tabular-nums text-ink">{formatAverage(d.average)}</p>
               <StarRow value={d.average} size="md" />
-              <p className="mt-1 text-xs text-[#7c7c7c]">
+              <p className="mt-1 text-xs text-hint">
                 {count(d.count)} {d.count === 1 ? 'rating' : 'ratings'}
                 {d.count < FEW_RATINGS && ' · too few to lean on'}
               </p>
@@ -111,11 +108,11 @@ function Detail({ row, session }: { row: FeedbackRow; session?: Session }) {
                     title={`Show ${s}-star comments`}
                     className={cn('flex w-full items-center gap-3 rounded px-1 text-sm', stars === s && 'bg-primary-soft/50')}
                   >
-                    <span className="w-6 shrink-0 text-right tabular-nums text-[#525252]">{s}★</span>
-                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-[#f1f1f1]">
+                    <span className="w-6 shrink-0 text-right tabular-nums text-ink-soft">{s}★</span>
+                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-soft">
                       <span className="block h-full rounded-full bg-gold" style={{ width: `${pct[i]}%` }} />
                     </span>
-                    <span className="w-16 shrink-0 text-right tabular-nums text-[#7c7c7c]">
+                    <span className="w-16 shrink-0 text-right tabular-nums text-hint">
                       {pct[i]}% · {count(counts[i]!)}
                     </span>
                   </button>
@@ -125,7 +122,7 @@ function Detail({ row, session }: { row: FeedbackRow; session?: Session }) {
           </div>
 
           <div className="flex items-center justify-between px-6 pt-4">
-            <p className="text-sm text-ink">Comments {stars !== 'all' && <span className="text-[#7c7c7c]">· {stars} stars</span>}</p>
+            <p className="text-sm text-ink">Comments {stars !== 'all' && <span className="text-hint">· {stars} stars</span>}</p>
             {stars !== 'all' && (
               <button type="button" onClick={() => setStars('all')} className="text-xs text-primary hover:underline">
                 Show all
@@ -133,22 +130,22 @@ function Detail({ row, session }: { row: FeedbackRow; session?: Session }) {
             )}
           </div>
           {comments.length === 0 ? (
-            <p className="px-6 pt-2 pb-6 text-sm text-[#7c7c7c]">{stars === 'all' ? 'Ratings only, no written comments.' : `No written comments with ${stars} stars.`}</p>
+            <p className="px-6 pt-2 pb-6 text-sm text-hint">{stars === 'all' ? 'Ratings only, no written comments.' : `No written comments with ${stars} stars.`}</p>
           ) : (
             <ul className="divide-y divide-border">
               {comments.map((c, i) => (
                 <li key={`${c.createdAt}-${i}`} className="px-6 py-3.5">
-                  <p className="flex items-center gap-2 text-xs text-[#7c7c7c]">
+                  <p className="flex items-center gap-2 text-xs text-hint">
                     <StarRow value={c.rating} /> {ago(c.createdAt, now).toLowerCase()}
                   </p>
-                  <p className="mt-1 text-[15px] leading-6 text-ink">{c.comment}</p>
+                  <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{c.comment}</p>
                 </li>
               ))}
             </ul>
           )}
         </>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -160,7 +157,7 @@ export default function FeedbackPage() {
   const edition = working.edition;
   const summary = useFeedbackSummary(edition?.id, isAdmin);
   const sessions = useSessions(edition?.id);
-  const [mode, setMode] = useState<SortMode>('best');
+  const [mode, setMode] = useUrlParam<SortMode>('order', 'best', Object.keys(SORT_LABEL) as SortMode[]);
   const [picked, setPicked] = useState<string | null>(null);
   const [showUnrated, setShowUnrated] = useState(false);
 
@@ -181,30 +178,17 @@ export default function FeedbackPage() {
   };
 
   if (!isAdmin) {
-    return (
-      <div className={cn(cardClass, 'mx-auto max-w-lg p-10 text-center')}>
-        <StarOutline className="mx-auto size-8 text-[#7c7c7c]" />
-        <p className="mt-2 font-medium text-ink">Session feedback is for organisers</p>
-      </div>
-    );
+    return <EmptyState framed icon={StarOutline} title="Session feedback is for organisers" className="mx-auto w-full max-w-lg" />;
   }
-  if (editions.isPending || summary.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
+  if (editions.isPending || summary.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
   if (summary.isError && !summary.data) {
-    return (
-      <div role="alert" className="mx-auto max-w-6xl rounded-2xl border border-border bg-surface p-10 text-center">
-        <p className="font-medium text-ink">Feedback could not load.</p>
-        <p className="mt-1 text-sm text-muted">{summary.error.message}</p>
-        <button type="button" onClick={() => void summary.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
+    return <ErrorState framed title="Feedback could not load" error={summary.error} onRetry={() => void summary.refetch()} className="mx-auto w-full max-w-6xl" />;
   }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       {promptOff && (
-        <p role="alert" className="flex flex-wrap items-center gap-2 rounded-lg bg-[#fdf6e0] px-4 py-3 text-sm text-[#7a5d00]">
+        <p role="alert" className="flex flex-wrap items-center gap-2 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning">
           <ExclamationTriangleIcon className="size-4 shrink-0" />
           The “How was it?” push is switched off, so delegates are not being asked to rate sessions.
           <Link href="/notifications" className="font-medium underline">
@@ -226,28 +210,39 @@ export default function FeedbackPage() {
       </div>
 
       {rows.length === 0 ? (
-        <div className={cn(cardClass, 'p-10 text-center text-sm text-[#7c7c7c]')}>No sessions in this event yet.</div>
+        <EmptyState
+          framed
+          icon={CalendarDaysIcon}
+          title="No sessions in this event yet"
+          body="Ratings appear here once the programme has sessions."
+          action={
+            <Link href="/programme" className={buttonClass()}>
+              Go to Programme
+            </Link>
+          }
+        />
       ) : (
         <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-          <section aria-label="Sessions by rating" className={cardClass}>
-            <div className="border-b border-border p-3">
-              <Select label="Order" value={mode} options={(Object.keys(SORT_LABEL) as SortMode[]).map((m) => ({ value: m, label: SORT_LABEL[m] }))} onChange={setMode} />
-            </div>
+          <Panel
+            title="Sessions"
+            count={rows.length}
+            toolbar={<Select label="Order" value={mode} options={(Object.keys(SORT_LABEL) as SortMode[]).map((m) => ({ value: m, label: SORT_LABEL[m] }))} onChange={setMode} />}
+            footer={
+              unrated.length > 0 && (
+                <button type="button" onClick={() => setShowUnrated((v) => !v)} className="text-xs text-ink-soft hover:text-ink">
+                  {showUnrated ? 'Hide' : 'Show'} {unrated.length} not rated
+                </button>
+              )
+            }
+          >
             <ul className="max-h-[calc(100dvh-22rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
               {rated.map((r) => (
                 <SessionItem key={r.sessionId} row={r} selected={r.sessionId === selected?.sessionId} onSelect={() => setPicked(r.sessionId)} />
               ))}
               {showUnrated && unrated.map((r) => <SessionItem key={r.sessionId} row={r} selected={r.sessionId === selected?.sessionId} onSelect={() => setPicked(r.sessionId)} />)}
-              {rated.length === 0 && !showUnrated && <li className="px-4 py-6 text-center text-sm text-[#7c7c7c]">No ratings yet.</li>}
+              {rated.length === 0 && !showUnrated && <li className="px-4 py-6 text-center text-sm text-hint">No ratings yet.</li>}
             </ul>
-            {unrated.length > 0 && (
-              <div className="border-t border-border px-4 py-2">
-                <button type="button" onClick={() => setShowUnrated((v) => !v)} className="text-xs text-[#525252] hover:text-ink">
-                  {showUnrated ? 'Hide' : 'Show'} {unrated.length} not rated
-                </button>
-              </div>
-            )}
-          </section>
+          </Panel>
 
           {selected && <Detail key={selected.sessionId} row={selected} session={sessions.data?.find((s) => s.id === selected.sessionId)} />}
         </div>

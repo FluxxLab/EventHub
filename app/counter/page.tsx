@@ -30,7 +30,7 @@ type Result = { kind: 'served'; data: ServeResult } | { kind: 'already'; message
 export default function CounterPage() {
   // null until the browser has read the link (the server never sees what follows `#`)
   const key = useSyncExternalStore(subscribeHash, () => counterKeyFromHash(window.location.hash) ?? '', () => null);
-  return <div className="min-h-dvh bg-[#f6f6f6]">{key === null ? null : key === '' ? <Invalid /> : <Counter key={key} counterKey={key} />}</div>;
+  return <div className="min-h-dvh bg-surface-soft">{key === null ? null : key === '' ? <Invalid /> : <Counter key={key} counterKey={key} />}</div>;
 }
 
 function Invalid({ message }: { message?: string }) {
@@ -38,7 +38,7 @@ function Invalid({ message }: { message?: string }) {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
       <Image src="/pic-logo.png" alt="Policy Innovation Centre" width={72} height={72} priority />
       <h1 className="text-xl font-medium text-ink">This counter link does not work</h1>
-      <p className="text-sm text-[#525252]">{message ?? 'It may have been copied only in part, or replaced by a newer link.'} Ask the event organisers for the counter’s current link.</p>
+      <p className="text-sm text-ink-soft">{message ?? 'It may have been copied only in part, or replaced by a newer link.'} Ask the event organisers for the counter’s current link.</p>
     </main>
   );
 }
@@ -67,7 +67,7 @@ function Counter({ counterKey }: { counterKey: string }) {
   if (view.isPending) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center">
-        <p className="text-sm text-[#7c7c7c]">Opening the counter…</p>
+        <p className="text-sm text-hint">Opening the counter…</p>
       </main>
     );
   }
@@ -76,7 +76,7 @@ function Counter({ counterKey }: { counterKey: string }) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-3 px-6 text-center">
         <p className="font-medium text-ink">The counter could not load.</p>
-        <p className="text-sm text-[#525252]">{view.error.message}</p>
+        <p className="text-sm text-ink-soft">{view.error.message}</p>
         <button type="button" onClick={() => void view.refetch()} className={buttonClass()}>
           Try again
         </button>
@@ -123,12 +123,12 @@ function Counter({ counterKey }: { counterKey: string }) {
         <Image src="/pic-logo.png" alt="" width={40} height={40} className="shrink-0" priority />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-medium text-ink">{counter.name}</h1>
-          <p className="truncate text-xs text-[#7c7c7c]">{edition.shortName} · food counter</p>
+          <p className="truncate text-xs text-hint">{edition.shortName} · food counter</p>
         </div>
         {meal && (
           <div className="text-right">
             <p className="text-2xl font-medium leading-none tabular-nums text-ink">{meal.served.toLocaleString('en-GB')}</p>
-            <p className="text-xs text-[#7c7c7c]">served</p>
+            <p className="text-xs text-hint">served</p>
           </div>
         )}
       </header>
@@ -143,15 +143,15 @@ function Counter({ counterKey }: { counterKey: string }) {
             onChange={(v) => setChosen(v || null)}
           />
         ) : (
-          <p className="text-sm text-[#7c7c7c]">The organisers have not added any meals yet.</p>
+          <p className="text-sm text-hint">The organisers have not added any meals yet.</p>
         )}
-        {meal && <p className="text-xs text-[#7c7c7c]">{mealWindow(meal)}{meal.open ? '' : ' · not being served now'}</p>}
+        {meal && <p className="text-xs text-hint">{mealWindow(meal)}{meal.open ? '' : ' · not being served now'}</p>}
       </div>
 
       {result ? (
         <ResultCard result={result} onNext={() => setResult(null)} />
       ) : !meal ? (
-        <p className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-[#525252]">No meal is being served right now. Choose one above when serving starts.</p>
+        <p className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-ink-soft">No meal is being served right now. Choose one above when serving starts.</p>
       ) : camera ? (
         <QrScanner onCode={(text) => submit({ qr: text })} onClose={() => setCamera(false)} />
       ) : (
@@ -160,7 +160,7 @@ function Counter({ counterKey }: { counterKey: string }) {
           Scan a ticket
         </button>
       )}
-      {!cameraOk && !result && meal && <p className="-mt-2 text-center text-xs text-[#7c7c7c]">This browser cannot use the camera. Open the link in Chrome or Safari, or type the ticket code below.</p>}
+      {!cameraOk && !result && meal && <p className="-mt-2 text-center text-xs text-hint">This browser cannot use the camera. Open the link in Chrome or Safari, or type the ticket code below.</p>}
 
       {meal && (
         <form onSubmit={onTyped} className="flex gap-2">
@@ -191,7 +191,7 @@ function ResultCard({ result, onNext }: { result: Result; onNext: () => void }) 
       role="status"
       aria-live="assertive"
       className={cn(
-        'screen-in flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center',
+        'screen-in flex flex-col items-center gap-3 rounded-xl border-2 p-6 text-center',
         served ? 'border-success bg-success-soft' : result.kind === 'already' ? 'border-danger bg-danger-soft' : 'border-gold bg-secondary-soft',
       )}
     >
@@ -200,7 +200,7 @@ function ResultCard({ result, onNext }: { result: Result; onNext: () => void }) 
         <>
           <p className="text-sm uppercase tracking-widest text-success">Serve</p>
           <p className="text-2xl font-medium text-ink">{result.data.holder}</p>
-          <p className="text-sm text-[#525252]">
+          <p className="text-sm text-ink-soft">
             {result.data.tier}
             {result.data.of > 1 ? ` · plate ${result.data.seat} of ${result.data.of} on this ticket` : ''}
           </p>

@@ -55,4 +55,4 @@ export const dropdownPanel =
   'rounded-lg border border-border bg-surface shadow-lg';
 
 /** One 36px row in a dropdown: 8px 10px padding, 8px corners, 14px #525252 text. */
-export const dropdownItem = 'flex h-9 w-full items-center gap-1.5 rounded-lg px-2.5 text-left text-sm text-[#525252]';
+export const dropdownItem = 'flex h-9 w-full items-center gap-1.5 rounded-lg px-2.5 text-left text-sm text-ink-soft';

@@ -10,10 +10,7 @@ export function ChangeBadge({ change, className }: { change: number | null; clas
   }
   const up = change >= 0;
   return (
-    <span
-      className={cn('inline-flex items-center gap-0.5 text-xs font-medium', up ? 'text-success' : 'text-danger', className)}
-      aria-label={`${up ? 'up' : 'down'} ${percentChange(change)}`}
-    >
+    <span className={cn('inline-flex items-center gap-0.5 text-xs font-medium', up ? 'text-success' : 'text-danger', className)} aria-label={`${up ? 'up' : 'down'} ${percentChange(change)}`}>
       {up ? <ArrowUpIcon className="size-3" /> : <ArrowDownIcon className="size-3" />}
       {percentChange(change)}
     </span>

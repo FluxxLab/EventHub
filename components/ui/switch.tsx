@@ -27,7 +27,7 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={cn(
         'relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-        checked ? (tone === 'gold' ? 'bg-gold' : 'bg-primary') : 'bg-[#d4d4d4]',
+        checked ? (tone === 'gold' ? 'bg-gold' : 'bg-primary') : 'bg-border-strong',
       )}
     >
       <span

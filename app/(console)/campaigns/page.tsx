@@ -7,9 +7,10 @@ import { DesignPanel } from '@/components/campaigns/design-panel';
 import { EventBar } from '@/components/events/event-bar';
 import { useSubPage } from '@/components/shell/breadcrumbs';
 import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fieldBox, TextInput } from '@/components/ui/field';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import {
   AUDIENCE_LABEL,
@@ -36,7 +37,7 @@ import { count } from '@/lib/format';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
+const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const people = (n: number) => `${count(n)} ${n === 1 ? 'person' : 'people'}`;
 
@@ -54,22 +55,18 @@ function CampaignsBoard({ edition }: { edition: Edition }) {
   const list = useCampaigns(edition.id);
   const [open, setOpen] = useState<{ id: string | null; key: string } | null>(null);
   const openCampaign = open?.id ? list.data?.find((c) => c.id === open.id) : null;
-  useSubPage(open ? (openCampaign?.subject.trim() || 'New campaign') : null, () => setOpen(null));
+  useSubPage(open ? openCampaign?.subject.trim() || 'New campaign' : null, () => setOpen(null));
   const tiers = useTicketTypes(edition.id);
   const tierNames = useMemo(() => new Map((tiers.data?.tiers ?? []).map((t) => [t.id, t.name])), [tiers.data]);
 
-  if (list.isPending) return <Skeleton className="h-96 w-full rounded-2xl" />;
-  if (list.isError) {
+  if (list.isPending) {
     return (
-      <div role="alert" className={cn(cardClass, 'p-10 text-center')}>
-        <p className="font-medium text-ink">Campaigns could not load.</p>
-        <p className="mt-1 text-sm text-muted">{list.error.message}</p>
-        <button type="button" onClick={() => void list.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
+      <Panel title="Email campaigns">
+        <LoadingRows />
+      </Panel>
     );
   }
+  if (list.isError) return <ErrorState framed title="Campaigns could not load" error={list.error} onRetry={() => void list.refetch()} />;
 
   const all = list.data;
   if (open) {
@@ -82,56 +79,49 @@ function CampaignsBoard({ edition }: { edition: Edition }) {
     return `${AUDIENCE_LABEL[c.audience.kind]} · ${tiersText}`;
   };
 
+  const newCampaign = (
+    <button type="button" onClick={() => setOpen({ id: null, key: `new-${Date.now()}` })} className={buttonClass()}>
+      <PlusIcon className="size-4" />
+      New campaign
+    </button>
+  );
+
   return (
-    <section aria-labelledby="campaigns-title" className={cardClass}>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-        <div>
-          <h2 id="campaigns-title" className="text-base font-medium text-ink">
-            Email campaigns
-          </h2>
-          <p className="text-sm text-[#7c7c7c]">Emails to {edition.shortName}’s ticket holders, in the PIC layout, with each person’s details filled in.</p>
-        </div>
-        <button type="button" onClick={() => setOpen({ id: null, key: `new-${Date.now()}` })} className={buttonClass()}>
-          <PlusIcon className="size-4" />
-          New campaign
-        </button>
-      </header>
+    <Panel title="Email campaigns" count={all.length} description={`Emails to ${edition.shortName}’s ticket holders, with each person’s details filled in.`} actions={newCampaign}>
       {all.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-            <EnvelopeIcon className="size-6" />
-          </span>
-          <p className="font-medium text-ink">No campaigns yet</p>
-          <p className="max-w-md text-sm text-[#7c7c7c]">Send joining instructions, programme updates or a thank-you after the event. Test it on yourself before it goes out.</p>
-        </div>
+        <EmptyState icon={EnvelopeIcon} title="No campaigns yet" body="Send joining instructions, programme updates or a thank-you; test it on yourself first." action={newCampaign} />
       ) : (
         <ul className="divide-y divide-border">
           {all.map((c) => {
             const done = c.recipients ? (c.sent + c.failed) / c.recipients : 0;
             return (
               <li key={c.id}>
-                <button type="button" onClick={() => setOpen({ id: c.id, key: c.id })} className="flex w-full flex-wrap items-center gap-x-6 gap-y-2 px-6 py-4 text-left transition-colors hover:bg-[#f6f6f6]">
+                <button
+                  type="button"
+                  onClick={() => setOpen({ id: c.id, key: c.id })}
+                  className="flex w-full flex-wrap items-center gap-x-6 gap-y-2 px-6 py-4 text-left transition-colors hover:bg-surface-soft"
+                >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-ink">{c.subject}</p>
-                    <p className="truncate text-xs text-[#7c7c7c]">{audienceText(c)}</p>
+                    <p className="truncate text-xs text-hint">{audienceText(c)}</p>
                   </div>
                   <div className="w-56">
-                    <p className={cn('text-sm', c.status === 'draft' ? 'text-[#7c7c7c]' : c.status === 'sending' ? 'text-primary' : 'text-ink')}>{statusLine(c, count)}</p>
-                    {engagementLine(c) && <p className="text-xs text-[#7c7c7c]">{engagementLine(c)}</p>}
+                    <p className={cn('text-sm', c.status === 'draft' ? 'text-hint' : c.status === 'sending' ? 'text-primary' : 'text-ink')}>{statusLine(c, count)}</p>
+                    {engagementLine(c) && <p className="text-xs text-hint">{engagementLine(c)}</p>}
                     {c.status === 'sending' && (
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#f1f1f1]">
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-soft">
                         <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.round(done * 100)}%` }} />
                       </div>
                     )}
                   </div>
-                  <p className="w-40 text-right text-xs text-[#7c7c7c]">{day(c.finishedAt ?? c.queuedAt ?? c.updatedAt)}</p>
+                  <p className="w-40 text-right text-xs text-hint">{day(c.finishedAt ?? c.queuedAt ?? c.updatedAt)}</p>
                 </button>
               </li>
             );
           })}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -152,7 +142,9 @@ function Composer({
 }) {
   const toast = useToast();
   const actions = useCampaignActions(edition.id);
-  const initial: CampaignDraft = campaign ? { subject: campaign.subject, body: campaign.body, buttonLabel: campaign.buttonLabel, buttonUrl: campaign.buttonUrl, audience: campaign.audience, design: campaign.design } : EMPTY_DRAFT;
+  const initial: CampaignDraft = campaign
+    ? { subject: campaign.subject, body: campaign.body, buttonLabel: campaign.buttonLabel, buttonUrl: campaign.buttonUrl, audience: campaign.audience, design: campaign.design }
+    : EMPTY_DRAFT;
   const [draft, setDraft] = useState<CampaignDraft>(initial);
   // what is on the server, and its id: known the moment a save returns, before the list refreshes
   const [savedDraft, setSavedDraft] = useState<CampaignDraft>(initial);
@@ -227,7 +219,12 @@ function Composer({
   };
   const sendTest = async () => {
     const id = await persist();
-    if (id) actions.test.mutate(id, { onSuccess: ({ to }) => toast.push({ title: 'Test sent', body: `Check ${to}. It is marked [Test], with sample details filled in.`, leading: { kind: 'icon', icon: EnvelopeIcon, tone: 'success' } }), onError: fail('Test not sent') });
+    if (id)
+      actions.test.mutate(id, {
+        onSuccess: ({ to }) =>
+          toast.push({ title: 'Test sent', body: `Check ${to}. It is marked [Test], with sample details filled in.`, leading: { kind: 'icon', icon: EnvelopeIcon, tone: 'success' } }),
+        onError: fail('Test not sent'),
+      });
   };
   const askSend = async () => {
     if (await persist()) setConfirming(true);
@@ -286,7 +283,10 @@ function Composer({
                     role="radio"
                     aria-checked={draft.audience.kind === kind}
                     onClick={() => set({ audience: { ...draft.audience, kind } })}
-                    className={cn('rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:cursor-default', draft.audience.kind === kind ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-[#525252] hover:border-[#bdbdbd]')}
+                    className={cn(
+                      'rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:cursor-default',
+                      draft.audience.kind === kind ? 'border-primary bg-primary-soft/40 text-ink' : 'border-border text-ink-soft hover:border-border-strong',
+                    )}
                   >
                     {AUDIENCE_LABEL[kind]}
                   </button>
@@ -294,12 +294,12 @@ function Composer({
               </div>
               {tierNames.size > 0 && (
                 <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Ticket tiers">
-                  <span className="text-xs text-[#7c7c7c]">Tiers:</span>
+                  <span className="text-xs text-hint">Tiers:</span>
                   <button
                     type="button"
                     aria-pressed={draft.audience.ticketTypeIds.length === 0}
                     onClick={() => set({ audience: { ...draft.audience, ticketTypeIds: [] } })}
-                    className={cn('rounded-full border px-3 py-1 text-xs', draft.audience.ticketTypeIds.length === 0 ? 'border-primary bg-primary text-white' : 'border-border text-[#525252]')}
+                    className={cn('rounded-full border px-3 py-1 text-xs', draft.audience.ticketTypeIds.length === 0 ? 'border-primary bg-primary text-on-primary' : 'border-border text-ink-soft')}
                   >
                     All tiers
                   </button>
@@ -309,7 +309,7 @@ function Composer({
                       type="button"
                       aria-pressed={draft.audience.ticketTypeIds.includes(id)}
                       onClick={() => toggleTier(id)}
-                      className={cn('rounded-full border px-3 py-1 text-xs', draft.audience.ticketTypeIds.includes(id) ? 'border-primary bg-primary text-white' : 'border-border text-[#525252]')}
+                      className={cn('rounded-full border px-3 py-1 text-xs', draft.audience.ticketTypeIds.includes(id) ? 'border-primary bg-primary text-on-primary' : 'border-border text-ink-soft')}
                     >
                       {name}
                     </button>
@@ -317,7 +317,7 @@ function Composer({
                 </div>
               )}
               {!readOnly && (
-                <p className={cn('text-sm', reach === 0 ? 'text-danger' : 'text-[#525252]')} aria-live="polite">
+                <p className={cn('text-sm', reach === 0 ? 'text-danger' : 'text-ink-soft')} aria-live="polite">
                   {reach === undefined ? 'Counting…' : reach === 0 ? 'Nobody matches this yet.' : `Reaches ${people(reach)} right now.`}
                   {size.data?.unsubscribed ? ` ${people(size.data.unsubscribed)} who unsubscribed ${size.data.unsubscribed === 1 ? 'is' : 'are'} left out.` : ''}
                 </p>
@@ -361,9 +361,15 @@ function Composer({
                   </label>
                   {!readOnly && (
                     <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Add a detail">
-                      <span className="text-xs text-[#7c7c7c]">Add:</span>
+                      <span className="text-xs text-hint">Add:</span>
                       {MERGE_FIELDS.map((f) => (
-                        <button key={f} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addDetail(f)} className="rounded-md bg-[#f1f1f1] px-2 py-0.5 text-xs text-[#525252] hover:bg-primary-soft hover:text-primary">
+                        <button
+                          key={f}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => addDetail(f)}
+                          className="rounded-md bg-surface-soft px-2 py-0.5 text-xs text-ink-soft hover:bg-primary-soft hover:text-primary"
+                        >
                           {MERGE_LABEL[f]}
                         </button>
                       ))}
@@ -378,15 +384,15 @@ function Composer({
                   onChange={(e) => set({ body: e.target.value })}
                   rows={12}
                   placeholder={'Dear {{first_name}},\n\nLeave a blank line between paragraphs. Web addresses become links.'}
-                  className="rounded-lg border border-border bg-white px-3 py-2.5 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary disabled:bg-[#f6f6f6]"
+                  className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary disabled:bg-surface-soft"
                 />
-                <p className="text-xs text-[#7c7c7c]">Details like {'{{first_name}}'} are filled in for each person.</p>
+                <p className="text-xs text-hint">Details like {'{{first_name}}'} are filled in for each person.</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-[14rem_minmax(0,1fr)]">
                 <div className="flex flex-col gap-1">
                   <label htmlFor="campaign-button" className="text-sm text-ink">
-                    Button <span className="text-[#7c7c7c]">(optional)</span>
+                    Button <span className="text-hint">(optional)</span>
                   </label>
                   <TextInput id="campaign-button" value={draft.buttonLabel ?? ''} maxLength={60} onChange={(e) => set({ buttonLabel: e.target.value })} placeholder="See the programme" />
                 </div>
@@ -409,12 +415,12 @@ function Composer({
 
         <section aria-label="Preview" className={cn(cardClass, 'flex flex-col lg:sticky lg:top-4')}>
           <div className="border-b border-border px-5 py-3 text-sm">
-            <p className="text-[#7c7c7c]">
+            <p className="text-hint">
               To: <span className="text-ink">{sample.name}</span> · sample details
             </p>
             <p className="mt-0.5 truncate font-medium text-ink">{preview.subject || <span className="font-normal text-placeholder">No subject yet</span>}</p>
           </div>
-          <iframe title="Email preview" srcDoc={preview.html} sandbox="" className="h-[36rem] w-full border-0 bg-[#f4f5f7]" />
+          <iframe title="Email preview" srcDoc={preview.html} sandbox="" className="h-[36rem] w-full border-0 bg-surface-soft" />
         </section>
       </div>
 
@@ -440,7 +446,8 @@ function Composer({
         }
       >
         “{draft.subject}” goes to {AUDIENCE_LABEL[draft.audience.kind].toLowerCase()}
-        {draft.audience.ticketTypeIds.length ? ` with ${draft.audience.ticketTypeIds.map((id) => tierNames.get(id)).join(' or ')} tickets` : ''} at {edition.shortName}. Once sent, emails cannot be recalled.
+        {draft.audience.ticketTypeIds.length ? ` with ${draft.audience.ticketTypeIds.map((id) => tierNames.get(id)).join(' or ')} tickets` : ''} at {edition.shortName}. Once sent, emails cannot be
+        recalled.
       </ConfirmDialog>
       <ConfirmDialog
         open={deleting}
@@ -465,7 +472,7 @@ function SentSummary({ campaign }: { campaign: Campaign }) {
     <section aria-label="Sending" className={cn(cardClass, 'flex flex-col gap-3 px-6 py-5')} aria-live="polite">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-[#7c7c7c]">{campaign.status === 'sending' ? 'Sending now' : `Sent ${campaign.finishedAt ? day(campaign.finishedAt) : ''}`}</p>
+          <p className="text-sm text-hint">{campaign.status === 'sending' ? 'Sending now' : `Sent ${campaign.finishedAt ? day(campaign.finishedAt) : ''}`}</p>
           <p className="text-2xl font-medium tabular-nums text-ink">{statusLine(campaign, count)}</p>
         </div>
         <dl className="flex gap-6 text-sm">
@@ -475,14 +482,14 @@ function SentSummary({ campaign }: { campaign: Campaign }) {
             ['Failed', campaign.failed],
           ].map(([label, n]) => (
             <div key={label as string}>
-              <dt className="text-xs text-[#7c7c7c]">{label}</dt>
+              <dt className="text-xs text-hint">{label}</dt>
               <dd className={cn('tabular-nums', label === 'Failed' && (n as number) > 0 ? 'text-danger' : 'text-ink')}>{count(n as number)}</dd>
             </div>
           ))}
         </dl>
       </div>
       {campaign.status === 'sending' && (
-        <div className="h-2 overflow-hidden rounded-full bg-[#f1f1f1]">
+        <div className="h-2 overflow-hidden rounded-full bg-surface-soft">
           <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.round(done * 100)}%` }} />
         </div>
       )}
@@ -493,20 +500,20 @@ function SentSummary({ campaign }: { campaign: Campaign }) {
               ['Opened', campaign.opened],
               ['Clicked a link', campaign.clicked],
             ].map(([label, n]) => (
-              <div key={label as string} className="rounded-lg bg-[#f6f6f6] px-3 py-2.5">
-                <dt className="text-xs text-[#7c7c7c]">{label}</dt>
+              <div key={label as string} className="rounded-lg bg-surface-soft px-3 py-2.5">
+                <dt className="text-xs text-hint">{label}</dt>
                 <dd className="text-xl font-medium tabular-nums text-ink">{rate(n as number, campaign.sent) ?? 0}%</dd>
-                <dd className="text-xs tabular-nums text-[#7c7c7c]">{people(n as number)}</dd>
+                <dd className="text-xs tabular-nums text-hint">{people(n as number)}</dd>
               </div>
             ))}
           </dl>
           <div className="min-w-0">
-            <p className="text-xs text-[#7c7c7c]">Links clicked</p>
+            <p className="text-xs text-hint">Links clicked</p>
             {links.data && links.data.length > 0 ? (
               <ul className="mt-1 flex flex-col gap-1.5">
                 {links.data.map((l) => (
                   <li key={l.url} className="flex items-center gap-3 text-sm">
-                    <span className="min-w-0 flex-1 truncate text-[#525252]" title={l.url}>
+                    <span className="min-w-0 flex-1 truncate text-ink-soft" title={l.url}>
                       {l.url.replace(/^https?:\/\//, '')}
                     </span>
                     <span className="shrink-0 tabular-nums text-ink">{count(l.clicks)}</span>
@@ -514,17 +521,15 @@ function SentSummary({ campaign }: { campaign: Campaign }) {
                 ))}
               </ul>
             ) : (
-              <p className="mt-1 text-sm text-[#7c7c7c]">No clicks yet.</p>
+              <p className="mt-1 text-sm text-hint">No clicks yet.</p>
             )}
           </div>
-          <p className="text-xs text-[#7c7c7c] sm:col-span-2">
-            Opens are an estimate: some mail apps (Apple Mail among them) load every image for privacy, which counts as an open; others block images, and a click then counts instead.
-          </p>
+          <p className="text-xs text-hint sm:col-span-2">Opens are an estimate: some mail apps load every image for privacy, others block images.</p>
         </div>
       ) : (
-        campaign.status !== 'sending' && <p className="text-xs text-[#7c7c7c]">This campaign went out without open and click tracking.</p>
+        campaign.status !== 'sending' && <p className="text-xs text-hint">This campaign went out without open and click tracking.</p>
       )}
-      <p className="text-xs text-[#7c7c7c]">A sent campaign cannot be changed. To follow up, start a new one.</p>
+      <p className="text-xs text-hint">A sent campaign cannot be changed. To follow up, start a new one.</p>
     </section>
   );
 }

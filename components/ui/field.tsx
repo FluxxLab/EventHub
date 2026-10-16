@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils';
  */
 export const fieldBox = (state: { invalid?: boolean; focused?: boolean } = {}) =>
   cn(
-    'flex h-10 w-full items-center gap-1.5 rounded-lg border bg-surface px-3 text-sm text-[#525252] shadow-xs transition-shadow',
-    state.invalid ? 'border-danger' : 'border-[#bdbdbd]',
+    'flex h-10 w-full items-center gap-1.5 rounded-lg border bg-surface px-3 text-sm text-ink-soft shadow-xs transition-shadow',
+    state.invalid ? 'border-danger' : 'border-border-strong',
     // The halo: grey normally, pale red when invalid. `focused` forces it for popover triggers.
     state.invalid
       ? cn('focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_var(--danger-soft)]', state.focused && 'shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_var(--danger-soft)]')
@@ -42,7 +42,7 @@ export function Field({
     <div className={cn('flex flex-col gap-1', className)}>
       <label htmlFor={id} className="text-sm text-ink">
         {label}
-        {optional && <span className="ml-1 text-[#7c7c7c]">(optional)</span>}
+        {optional && <span className="ml-1 text-hint">(optional)</span>}
       </label>
       {children}
       {error ? (
@@ -51,7 +51,7 @@ export function Field({
         </p>
       ) : (
         hint && (
-          <p id={`${id}-hint`} className="text-xs text-[#7c7c7c]">
+          <p id={`${id}-hint`} className="text-xs text-hint">
             {hint}
           </p>
         )
@@ -83,21 +83,21 @@ export function TextInput({
 }) {
   return (
     <div className={cn(fieldBox({ invalid }), className)}>
-      {Icon && <Icon className="size-5 shrink-0 text-[#525252]" />}
+      {Icon && <Icon className="size-5 shrink-0 text-ink-soft" />}
       {prefix && (
-        <span className="-ml-0.5 shrink-0 border-r border-border pr-2 text-sm text-[#7c7c7c]" aria-hidden>
+        <span className="-ml-0.5 shrink-0 border-r border-border pr-2 text-sm text-hint" aria-hidden>
           {prefix}
         </span>
       )}
       <input
         {...props}
         aria-invalid={invalid || undefined}
-        className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#525252] outline-none placeholder:text-placeholder"
+        className="h-full min-w-0 flex-1 bg-transparent text-sm text-ink-soft outline-none placeholder:text-placeholder"
       />
       {invalid ? (
         <ExclamationCircleIcon className="size-4 shrink-0 text-danger" />
       ) : (
-        help && <QuestionMarkCircleIcon className="size-4 shrink-0 text-[#7c7c7c]" title={help} />
+        help && <QuestionMarkCircleIcon className="size-4 shrink-0 text-hint" title={help} />
       )}
     </div>
   );

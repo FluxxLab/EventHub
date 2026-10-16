@@ -34,8 +34,8 @@ export function DemoForm() {
           <label htmlFor={id} className="text-sm text-ink">
             Book a walkthrough for your next event
           </label>
-          <div className="flex h-10 items-center gap-1.5 rounded-lg border border-[#bdbdbd] bg-surface px-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)] focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]">
-            <EnvelopeIcon className="size-5 shrink-0 text-[#525252]" aria-hidden />
+          <div className="flex h-10 items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)] focus-within:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1]">
+            <EnvelopeIcon className="size-5 shrink-0 text-ink-soft" aria-hidden />
             <input
               id={id}
               type="email"
@@ -47,7 +47,7 @@ export function DemoForm() {
               }}
               placeholder="you@organisation.org"
               aria-invalid={!!problem || undefined}
-              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-[#bdbdbd]"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-placeholder"
             />
           </div>
         </div>
@@ -56,7 +56,7 @@ export function DemoForm() {
           Request a demo
         </button>
       </div>
-      <p className={problem ? 'text-xs text-danger' : 'text-xs text-[#7c7c7c]'} role={problem ? 'alert' : undefined}>
+      <p className={problem ? 'text-xs text-danger' : 'text-xs text-hint'} role={problem ? 'alert' : undefined}>
         {problem ?? (sent ? `Your mail app should open. If it doesn’t, write to ${SALES_EMAIL}.` : SALES_EMAIL ? `Or write to ${SALES_EMAIL}.` : 'We reply within one working day.')}
       </p>
     </form>

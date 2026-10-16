@@ -8,6 +8,8 @@ import { PollDialog } from '@/components/polls/poll-dialog';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
 import { useWorkingEdition } from '@/lib/events/working-edition';
@@ -19,7 +21,7 @@ import { useSessions } from '@/lib/programme/use-sessions';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
+const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
 const votes = (n: number) => `${count(n)} ${n === 1 ? 'vote' : 'votes'}`;
 
 /** Each answer with its share: the leader in brand blue, the rest lighter. */
@@ -32,12 +34,12 @@ function ResultBars({ poll }: { poll: Poll }) {
       {poll.options.map((option, i) => (
         <li key={i}>
           <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className={cn('min-w-0', lead.has(i) ? 'font-medium text-ink' : 'text-[#525252]')}>{option}</span>
-            <span className="shrink-0 tabular-nums text-[#525252]">
-              {pct[i]}%<span className="ml-2 text-[#7c7c7c]">{count(counts[i] ?? 0)}</span>
+            <span className={cn('min-w-0', lead.has(i) ? 'font-medium text-ink' : 'text-ink-soft')}>{option}</span>
+            <span className="shrink-0 tabular-nums text-ink-soft">
+              {pct[i]}%<span className="ml-2 text-hint">{count(counts[i] ?? 0)}</span>
             </span>
           </div>
-          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-[#f1f1f1]">
+          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-surface-soft">
             <div className={cn('h-full rounded-full transition-[width] duration-500 ease-out', lead.has(i) ? 'bg-primary' : 'bg-primary/35')} style={{ width: `${pct[i]}%` }} />
           </div>
         </li>
@@ -80,8 +82,7 @@ function RunButton({ poll, busy, onStart, onStop, size = 'sm' }: { poll: Poll; b
 }
 
 function ListItem({ poll, selected, busy, onSelect, onStart, onStop }: { poll: Poll; selected: boolean; busy: boolean; onSelect: () => void; onStart: () => void; onStop: () => void }) {
-  const meta =
-    poll.status === 'open' ? `Live · ${votes(poll.total)}` : poll.status === 'closed' ? votes(poll.total) : `Draft · ${poll.options.length} answers`;
+  const meta = poll.status === 'open' ? `Live · ${votes(poll.total)}` : poll.status === 'closed' ? votes(poll.total) : `Draft · ${poll.options.length} answers`;
   return (
     <li>
       <div
@@ -90,15 +91,12 @@ function ListItem({ poll, selected, busy, onSelect, onStart, onStop }: { poll: P
         aria-pressed={selected}
         onClick={onSelect}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect())}
-        className={cn(
-          'flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors',
-          selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-[#f6f6f6]',
-        )}
+        className={cn('flex cursor-pointer items-center gap-3 border-l-2 px-4 py-3 transition-colors', selected ? 'border-primary bg-primary-soft/50' : 'border-transparent hover:bg-surface-soft')}
       >
         <RunButton poll={poll} busy={busy} onStart={onStart} onStop={onStop} />
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-sm text-ink">{poll.question}</p>
-          <p className={cn('mt-0.5 text-xs', poll.status === 'open' ? 'text-danger' : 'text-[#7c7c7c]')}>{meta}</p>
+          <p className={cn('mt-0.5 text-xs', poll.status === 'open' ? 'text-danger' : 'text-hint')}>{meta}</p>
         </div>
       </div>
     </li>
@@ -109,9 +107,12 @@ function ConnectionDot() {
   const connection = useRealtimeStatus();
   const label = { live: 'Updating live', connecting: 'Connecting…', offline: 'Offline', demo: 'Demo data' }[connection];
   return (
-    <span className="flex items-center gap-1.5 text-xs text-[#7c7c7c]">
+    <span className="flex items-center gap-1.5 text-xs text-hint">
       <span
-        className={cn('size-1.5 rounded-full', connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder')}
+        className={cn(
+          'size-1.5 rounded-full',
+          connection === 'live' ? 'bg-success' : connection === 'connecting' ? 'animate-pulse bg-gold' : connection === 'offline' ? 'bg-danger' : 'bg-placeholder',
+        )}
         aria-hidden
       />
       {label}
@@ -146,23 +147,23 @@ function Detail({
         Live · {elapsed(poll.openedAt, now)}
       </span>
     ) : (
-      <span className="text-xs text-[#7c7c7c]">{poll.status === 'closed' ? `Closed ${poll.closedAt ? ago(poll.closedAt, now).toLowerCase() : ''}` : 'Draft'}</span>
+      <span className="text-xs text-hint">{poll.status === 'closed' ? `Closed ${poll.closedAt ? ago(poll.closedAt, now).toLowerCase() : ''}` : 'Draft'}</span>
     );
   return (
     <section aria-labelledby="poll-question" className={cn(cardClass, 'flex flex-col')}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3">
         <div className="flex flex-wrap items-center gap-3">
           {status}
-          {session && <span className="text-xs text-[#7c7c7c]">{session.title}</span>}
+          {session && <span className="text-xs text-hint">{session.title}</span>}
           {!poll.showResults && poll.status !== 'closed' && (
-            <span className="inline-flex items-center gap-1 text-xs text-[#7a5d00]">
+            <span className="inline-flex items-center gap-1 text-xs text-warning">
               <EyeSlashIcon className="size-3.5" /> Hidden from delegates until stopped
             </span>
           )}
         </div>
         {poll.status !== 'draft' && (
           <p className="text-sm tabular-nums text-ink" aria-live="polite">
-            <span className="text-2xl font-medium">{count(poll.total)}</span> <span className="text-[#7c7c7c]">{poll.total === 1 ? 'vote' : 'votes'}</span>
+            <span className="text-2xl font-medium">{count(poll.total)}</span> <span className="text-hint">{poll.total === 1 ? 'vote' : 'votes'}</span>
           </p>
         )}
       </header>
@@ -176,7 +177,7 @@ function Detail({
             <ol className="flex flex-col gap-2">
               {poll.options.map((o, i) => (
                 <li key={i} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm text-ink">
-                  <span className="w-4 text-right tabular-nums text-[#7c7c7c]">{i + 1}</span>
+                  <span className="w-4 text-right tabular-nums text-hint">{i + 1}</span>
                   {o}
                 </li>
               ))}
@@ -187,7 +188,7 @@ function Detail({
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-[#f6f6f6] px-6 py-3">
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-soft px-6 py-3">
         <ConnectionDot />
         <div className="flex items-center gap-1">
           {poll.status === 'draft' && (
@@ -260,18 +261,8 @@ export default function PollsPage() {
       },
     );
 
-  if (editions.isPending || polls.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
-  if (polls.isError && !polls.data) {
-    return (
-      <div role="alert" className="mx-auto max-w-6xl rounded-2xl border border-border bg-surface p-10 text-center">
-        <p className="font-medium text-ink">Polls could not load.</p>
-        <p className="mt-1 text-sm text-muted">{polls.error.message}</p>
-        <button type="button" onClick={() => void polls.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
-  }
+  if (editions.isPending || polls.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
+  if (polls.isError && !polls.data) return <ErrorState framed className="mx-auto w-full max-w-6xl" title="Polls could not load" error={polls.error} onRetry={() => void polls.refetch()} />;
 
   const dialogs = (
     <>
@@ -324,51 +315,43 @@ export default function PollsPage() {
   if (all.length === 0) {
     return (
       <>
-      <div className={cn(cardClass, 'mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-6 py-16 text-center')}>
-        <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-          <ChartBarIcon className="size-6" />
-        </span>
-        <div>
-          <p className="font-medium text-ink">No polls yet</p>
-          <p className="mt-1 text-sm text-[#7c7c7c]">Write them before the session, then start each one from here when the stage is ready.</p>
-        </div>
-        <button type="button" onClick={() => setEditing({ poll: null })} className={buttonClass()}>
-          <PlusIcon className="size-4" />
-          Create poll
-        </button>
-      </div>
-      {/* Outside the centred card, so the dialog does not inherit its centring. */}
-      {dialogs}
+        <EmptyState
+          framed
+          className="mx-auto w-full max-w-6xl"
+          icon={ChartBarIcon}
+          title="No polls yet"
+          body="Write them before the session, then start each one from here."
+          action={
+            <button type="button" onClick={() => setEditing({ poll: null })} className={buttonClass()}>
+              <PlusIcon className="size-4" />
+              Create poll
+            </button>
+          }
+        />
+        {/* Outside the centred card, so the dialog does not inherit its centring. */}
+        {dialogs}
       </>
     );
   }
 
   return (
     <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-      <section aria-label="All polls" className={cardClass}>
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <p className="text-sm text-[#525252]">
-            {all.length} {all.length === 1 ? 'poll' : 'polls'}
-          </p>
+      <Panel
+        title="Polls"
+        count={all.length}
+        actions={
           <button type="button" onClick={() => setEditing({ poll: null })} className={buttonClass({ className: 'h-9' })}>
             <PlusIcon className="size-4" />
             New poll
           </button>
-        </header>
+        }
+      >
         <ul className="max-h-[calc(100dvh-16rem)] divide-y divide-border overflow-y-auto scrollbar-thin">
           {all.map((p) => (
-            <ListItem
-              key={p.id}
-              poll={p}
-              selected={p.id === selected?.id}
-              busy={busy}
-              onSelect={() => setPicked(p.id)}
-              onStart={() => requestStart(p)}
-              onStop={() => stop(p)}
-            />
+            <ListItem key={p.id} poll={p} selected={p.id === selected?.id} busy={busy} onSelect={() => setPicked(p.id)} onStart={() => requestStart(p)} onStop={() => stop(p)} />
           ))}
         </ul>
-      </section>
+      </Panel>
 
       {selected && (
         <Detail

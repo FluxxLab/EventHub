@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils';
  * on keyboard focus, and the described element names it through aria-describedby.
  */
 const TONES = {
-  gray: { fill: 'bg-ink text-[#fdfdfd]', soft: 'bg-[#f6f6f6] text-ink' },
-  blue: { fill: 'bg-[#51c0ff] text-[#fdfdfd]', soft: 'bg-[#edf9ff] text-ink' },
-  green: { fill: 'bg-[#10a957] text-[#fdfdfd]', soft: 'bg-[#effef5] text-ink' },
+  gray: { fill: 'bg-ink text-on-primary', soft: 'bg-surface-soft text-ink' },
+  blue: { fill: 'bg-[#51c0ff] text-on-primary', soft: 'bg-[#edf9ff] text-ink' },
+  green: { fill: 'bg-[#10a957] text-on-primary', soft: 'bg-[#effef5] text-ink' },
 } as const;
 
 /** Where the tooltip sits relative to its element, and which end its arrow is at. */

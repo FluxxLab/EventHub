@@ -14,13 +14,16 @@ import {
   SignalIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
-import { useMemo, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { describedBy, Field, TextInput } from '@/components/ui/field';
+import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
+import { tabPanelId, tabId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { RoomDialog } from '@/components/venue/room-dialog';
@@ -30,28 +33,13 @@ import type { Edition } from '@/lib/events/events';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { INPUT_LABEL, SOURCE_LABEL, streamStatus, type IngestRoom, type StreamCredentials } from '@/lib/ingest/ingest';
 import { useIngestActions, useIngestRooms } from '@/lib/ingest/use-ingest';
+import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 import { mapEmbedUrl, parsePin, venueFormOf, venuePatch, venueSchema, type Room, type VenueForm } from '@/lib/venue/venue';
 import { useRoomMutations, useRooms, useSaveVenue } from '@/lib/venue/use-venue';
 
-const cardClass =
-  'overflow-hidden rounded-2xl border border-border bg-surface shadow-lg';
-const th = 'h-15 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
+const th = 'h-15 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
-
-function CardHeader({ id, title, description, action }: { id: string; title: string; description: string; action?: ReactNode }) {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-6">
-      <div>
-        <h2 id={id} className="text-xl font-medium text-ink">
-          {title}
-        </h2>
-        <p className="mt-0.5 text-sm text-[#7c7c7c]">{description}</p>
-      </div>
-      {action}
-    </header>
-  );
-}
 
 /** One settings row: what it is and why on the left, the fields on the right. */
 function SettingsRow({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -59,7 +47,7 @@ function SettingsRow({ title, description, children }: { title: string; descript
     <div className="grid gap-4 border-b border-border px-6 py-6 last:border-b-0 md:grid-cols-[15rem_minmax(0,1fr)] md:gap-10">
       <div>
         <h3 className="text-sm font-medium text-ink">{title}</h3>
-        <p className="mt-1 text-xs leading-5 text-[#7c7c7c]">{description}</p>
+        <p className="mt-1 text-xs leading-5 text-hint">{description}</p>
       </div>
       <div className="flex max-w-xl flex-col gap-4">{children}</div>
     </div>
@@ -105,16 +93,14 @@ function VenueCard({ edition }: { edition: Edition }) {
     const patch = venuePatch(initial, parsed.data);
     if (Object.keys(patch).length === 0) return;
     save.mutate(patch, {
-      onSuccess: () =>
-        toast.push({ title: 'Venue saved', leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' }, body: 'Delegates see the new details on the venue page.' }),
+      onSuccess: () => toast.push({ title: 'Venue saved', leading: { kind: 'icon', icon: CheckCircleIcon, tone: 'success' }, body: 'Delegates see the new details on the venue page.' }),
     });
   };
 
   return (
-    <section aria-labelledby="venue-title" className={cardClass}>
-      <CardHeader id="venue-title" title="Venue" description="Where the event happens, as the app's venue page shows it." />
+    <Panel title="Venue" description="Where the event happens, as the app's venue page shows it.">
       <form onSubmit={onSubmit} noValidate>
-        <SettingsRow title="Location" description="The name delegates look for on arrival, and the address their maps app is given.">
+        <SettingsRow title="Location" description="The name delegates look for, and the address their maps app is given.">
           <Field id="venue-name" label="Venue name" error={errors.venue}>
             <TextInput id="venue-name" icon={BuildingOffice2Icon} value={form.venue} onChange={(e) => set('venue', e.target.value)} placeholder="Transcorp Hilton" invalid={!!errors.venue} />
           </Field>
@@ -133,7 +119,7 @@ function VenueCard({ edition }: { edition: Edition }) {
           </Field>
         </SettingsRow>
 
-        <SettingsRow title="Map pin" description="In Google Maps, right-click the entrance and click the numbers at the top to copy them, then paste here.">
+        <SettingsRow title="Map pin" description="In Google Maps, right-click the entrance, click the numbers to copy them, then paste here.">
           <Field id="venue-pin" label="Coordinates" optional error={errors.pin}>
             <TextInput
               id="venue-pin"
@@ -153,14 +139,14 @@ function VenueCard({ edition }: { edition: Edition }) {
                 href={`https://www.google.com/maps?q=${pin.lat},${pin.lng}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-between gap-2 border-t border-border bg-[#f6f6f6] px-3 py-2 text-xs text-[#525252] hover:text-primary"
+                className="flex items-center justify-between gap-2 border-t border-border bg-surface-soft px-3 py-2 text-xs text-ink-soft hover:text-primary"
               >
                 Check the pin sits on the entrance
                 <ArrowTopRightOnSquareIcon className="size-4" />
               </a>
             </div>
           ) : (
-            <div className="flex h-24 items-center justify-center gap-2 rounded-lg border border-dashed border-border text-xs text-[#7c7c7c]">
+            <div className="flex h-24 items-center justify-center gap-2 rounded-lg border border-dashed border-border text-xs text-hint">
               <MapIcon className="size-5" />
               {pin === 'invalid' ? 'Those numbers are not a place on the map yet.' : 'Paste coordinates to preview the pin.'}
             </div>
@@ -174,8 +160,8 @@ function VenueCard({ edition }: { edition: Edition }) {
         )}
 
         {/* The save bar says what state the form is in, so "Save" is never a guess. */}
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-[#f6f6f6] px-6 py-4">
-          <p className="flex items-center gap-2 text-xs text-[#7c7c7c]" aria-live="polite">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-soft px-6 py-4">
+          <p className="flex items-center gap-2 text-xs text-hint" aria-live="polite">
             {dirty ? (
               <>
                 <span className="size-2 rounded-full bg-secondary" aria-hidden />
@@ -195,7 +181,7 @@ function VenueCard({ edition }: { edition: Edition }) {
           </div>
         </footer>
       </form>
-    </section>
+    </Panel>
   );
 }
 
@@ -218,46 +204,35 @@ function RoomsCard({ edition }: { edition: Edition }) {
   };
 
   return (
-    <section aria-labelledby="rooms-title" className={cardClass}>
-      <CardHeader
-        id="rooms-title"
-        title="Rooms"
-        description="Rooms delegates are sent to, with the sessions each one hosts."
-        action={
-          <button type="button" onClick={() => setEditing({ room: null })} className={buttonClass()}>
-            <PlusIcon className="size-4" />
-            Add room
-          </button>
-        }
-      />
-
+    <Panel
+      title="Rooms"
+      count={rooms.data?.length}
+      description="Rooms delegates are sent to, with the sessions each one hosts."
+      actions={
+        <button type="button" onClick={() => setEditing({ room: null })} className={buttonClass()}>
+          <PlusIcon className="size-4" />
+          Add room
+        </button>
+      }
+    >
       {rooms.hiddenWhileDraft ? (
-        <p className="p-10 text-center text-sm text-muted">
-          Rooms are listed once the event is announced. You can still add them now; they will appear here when it goes live.
-        </p>
+        <EmptyState icon={BuildingOffice2Icon} title="Rooms are listed once the event is announced" body="You can add them now; they appear here when it goes live." />
       ) : rooms.isError && !rooms.data ? (
-        <div role="alert" className="p-10 text-center">
-          <p className="font-medium text-ink">Rooms could not load.</p>
-          <p className="mt-1 text-sm text-muted">{rooms.error.message}</p>
-          <button type="button" onClick={() => void rooms.refetch()} className={buttonClass({ className: 'mt-4' })}>
-            Try again
-          </button>
-        </div>
-      ) : (rooms.data ?? []).length === 0 && !rooms.isPending ? (
-        // An empty table is just a header; a real empty state says what rooms are for.
-        <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-            <BuildingOffice2Icon className="size-6" />
-          </span>
-          <div>
-            <p className="text-sm font-medium text-ink">No rooms yet</p>
-            <p className="mt-1 max-w-sm text-sm text-[#7c7c7c]">Add the halls and breakout rooms so sessions, live captions and the app&apos;s venue page can point delegates to them.</p>
-          </div>
-          <button type="button" onClick={() => setEditing({ room: null })} className={buttonClass({ style: 'outline', color: 'gray' })}>
-            <PlusIcon className="size-4" />
-            Add the first room
-          </button>
-        </div>
+        <ErrorState title="Rooms could not load" error={rooms.error} onRetry={() => void rooms.refetch()} />
+      ) : rooms.isPending ? (
+        <LoadingRows rows={3} />
+      ) : rooms.data!.length === 0 ? (
+        <EmptyState
+          icon={BuildingOffice2Icon}
+          title="No rooms yet"
+          body="Add the halls and breakout rooms so sessions, captions and the venue page can point delegates to them."
+          action={
+            <button type="button" onClick={() => setEditing({ room: null })} className={buttonClass()}>
+              <PlusIcon className="size-4" />
+              Add room
+            </button>
+          }
+        />
       ) : (
         <div className="relative overflow-x-auto">
           <table className="w-full min-w-[40rem] border-collapse">
@@ -277,59 +252,49 @@ function RoomsCard({ edition }: { edition: Edition }) {
                 </th>
               </tr>
             </thead>
-            <tbody aria-busy={rooms.isPending}>
-              {rooms.isPending
-                ? [0, 1, 2].map((i) => (
-                    <tr key={i} className="even:bg-[#f6f6f6]">
-                      <td colSpan={4} className={td}>
-                        <Skeleton className="h-8" />
-                      </td>
-                    </tr>
-                  ))
-                : rooms.data!.map((room) => (
-                    <tr key={room.id ?? `named-${room.name}`} className="even:bg-[#f6f6f6] last:[&>td]:border-b-0">
-                      <td className={td}>
-                        <p className="text-[#525252]">{room.name}</p>
-                        <p className="text-xs text-placeholder">{room.floor ?? (room.id ? 'No floor set' : 'Named by the programme only')}</p>
-                      </td>
-                      <td className={cn(td, 'max-w-md')}>
-                        {room.notes ? <p className="line-clamp-2 text-[#525252]">{room.notes}</p> : <span className="text-placeholder">No notes</span>}
-                      </td>
-                      <td className={td}>
-                        <Tag tone={room.sessionCount > 0 ? 'primary' : 'gray'}>
-                          {room.sessionCount} {room.sessionCount === 1 ? 'session' : 'sessions'}
-                        </Tag>
-                      </td>
-                      <td className={cn(td, 'text-right')}>
-                        {room.id ? (
-                          <div className="flex justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setEditing({ room })}
-                              className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true })}
-                              aria-label={`Edit ${room.name}`}
-                              title="Edit"
-                            >
-                              <PencilSquareIcon className="size-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleting(room)}
-                              className={buttonClass({ style: 'borderless', color: 'danger', iconOnly: true })}
-                              aria-label={`Remove ${room.name}`}
-                              title="Remove"
-                            >
-                              <TrashIcon className="size-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={() => setEditing({ room })} className={buttonClass({ style: 'soft', color: 'primary' })}>
-                            Describe
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+            <tbody>
+              {rooms.data!.map((room) => (
+                <tr key={room.id ?? `named-${room.name}`} className="even:bg-surface-soft last:[&>td]:border-b-0">
+                  <td className={td}>
+                    <p className="text-ink-soft">{room.name}</p>
+                    <p className="text-xs text-placeholder">{room.floor ?? (room.id ? 'No floor set' : 'Named by the programme only')}</p>
+                  </td>
+                  <td className={cn(td, 'max-w-md')}>{room.notes ? <p className="line-clamp-2 text-ink-soft">{room.notes}</p> : <span className="text-placeholder">No notes</span>}</td>
+                  <td className={td}>
+                    <Tag tone={room.sessionCount > 0 ? 'primary' : 'gray'}>
+                      {room.sessionCount} {room.sessionCount === 1 ? 'session' : 'sessions'}
+                    </Tag>
+                  </td>
+                  <td className={cn(td, 'text-right')}>
+                    {room.id ? (
+                      <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditing({ room })}
+                          className={buttonClass({ style: 'borderless', color: 'gray', iconOnly: true })}
+                          aria-label={`Edit ${room.name}`}
+                          title="Edit"
+                        >
+                          <PencilSquareIcon className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleting(room)}
+                          className={buttonClass({ style: 'borderless', color: 'danger', iconOnly: true })}
+                          aria-label={`Remove ${room.name}`}
+                          title="Remove"
+                        >
+                          <TrashIcon className="size-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setEditing({ room })} className={buttonClass({ style: 'soft', color: 'primary' })}>
+                        Describe
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -348,7 +313,7 @@ function RoomsCard({ edition }: { edition: Edition }) {
       >
         Its floor and notes are deleted. Sessions that name this room keep it, and it stays listed from the programme.
       </ConfirmDialog>
-    </section>
+    </Panel>
   );
 }
 
@@ -356,8 +321,10 @@ function RoomsCard({ edition }: { edition: Edition }) {
  * Each room's venue stream: the venue mixer sends the room to LiveKit, and the API captions it
  * with nobody at a desk. Organisers create a stream per room and hand the AV team its settings.
  */
-function AudioStreamsCard({ edition }: { edition: Edition }) {
+function AudioStreamsCard({ edition, onAddRooms }: { edition: Edition; onAddRooms: () => void }) {
   const streams = useIngestRooms();
+  const working = useWorkingEdition();
+  const currentEdition = working.editions.data?.find((e) => e.isCurrent);
   const { rotate, remove } = useIngestActions();
   const toast = useToast();
   const session = useSession();
@@ -394,40 +361,53 @@ function AudioStreamsCard({ edition }: { edition: Edition }) {
   };
 
   return (
-    <section aria-labelledby="streams-title" className={cardClass}>
-      <CardHeader
-        id="streams-title"
-        title="Audio streams"
-        description="Captions straight from the venue mixer, one stream per room, with nobody at a desk."
-        action={
-          <Link href="/captions" className={buttonClass({ style: 'outline', color: 'gray' })}>
-            Open captions
-          </Link>
-        }
-      />
-
+    <Panel
+      title="Audio streams"
+      description="Captions straight from the venue mixer, one stream per room."
+      actions={
+        <Link href="/captions" className={buttonClass({ style: 'outline', color: 'gray' })}>
+          Open captions
+        </Link>
+      }
+    >
       {!edition.isCurrent ? (
-        <p className="p-10 text-center text-sm text-muted">Streams belong to the current event. Switch to it to set them up.</p>
+        <EmptyState
+          icon={SignalIcon}
+          title="Streams belong to the current event"
+          body="Switch to it to set them up."
+          action={
+            currentEdition && (
+              <button type="button" onClick={() => working.setEditionId(currentEdition.id)} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                Switch to {currentEdition.shortName}
+              </button>
+            )
+          }
+        />
       ) : streams.disabled ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-            <SignalIcon className="size-6" />
-          </span>
-          <div>
-            <p className="text-sm font-medium text-ink">Venue streams are switched off</p>
-            <p className="mt-1 max-w-md text-sm text-[#7c7c7c]">
+        <EmptyState
+          icon={SignalIcon}
+          title="Venue streams are switched off"
+          body={
+            <>
               The server needs <code className="font-mono text-xs">INGEST_ENABLED=true</code> and the LiveKit keys. Until then, caption rooms from the Sound desk.
-            </p>
-          </div>
-        </div>
+            </>
+          }
+        />
       ) : streams.isError && !streams.data ? (
-        <div role="alert" className="p-10 text-center">
-          <p className="font-medium text-ink">Streams could not load.</p>
-          <p className="mt-1 text-sm text-muted">{streams.error.message}</p>
-          <button type="button" onClick={() => void streams.refetch()} className={buttonClass({ className: 'mt-4' })}>
-            Try again
-          </button>
-        </div>
+        <ErrorState title="Streams could not load" error={streams.error} onRetry={() => void streams.refetch()} />
+      ) : streams.isPending ? (
+        <LoadingRows rows={3} />
+      ) : streams.data!.length === 0 ? (
+        <EmptyState
+          icon={SignalIcon}
+          title="No rooms to stream yet"
+          body="Each room gets its own stream. Add the rooms first."
+          action={
+            <button type="button" onClick={onAddRooms} className={buttonClass({ style: 'outline', color: 'gray' })}>
+              Go to Rooms
+            </button>
+          }
+        />
       ) : (
         <div className="relative overflow-x-auto">
           <table className="w-full min-w-176 border-collapse">
@@ -447,60 +427,52 @@ function AudioStreamsCard({ edition }: { edition: Edition }) {
                 </th>
               </tr>
             </thead>
-            <tbody aria-busy={streams.isPending}>
-              {streams.isPending
-                ? [0, 1, 2].map((i) => (
-                    <tr key={i}>
-                      <td colSpan={4} className={td}>
-                        <Skeleton className="h-8" />
-                      </td>
-                    </tr>
-                  ))
-                : streams.data!.map((r) => {
-                    const status = streamStatus(r);
-                    return (
-                      <tr key={r.room} className="even:bg-[#f6f6f6] last:[&>td]:border-b-0">
-                        <td className={td}>
-                          <p className="text-[#525252]">{r.room}</p>
-                          {r.stream && (
-                            <p className="text-xs text-placeholder">
-                              {INPUT_LABEL[r.stream.input]} · {r.stream.diarise ? 'labels speakers' : 'no speaker labels'}
-                            </p>
-                          )}
-                        </td>
-                        <td className={td}>
-                          <Tag tone={status.tone} dot={status.dot}>
-                            {status.label}
-                          </Tag>
-                        </td>
-                        <td className={cn(td, 'text-[#525252]')}>{r.captioning ? SOURCE_LABEL[r.captioning] : <span className="text-placeholder">Off</span>}</td>
-                        <td className={cn(td, 'text-right')}>
-                          {!isAdmin ? null : r.stream ? (
-                            <div className="flex justify-end gap-1">
-                              <button type="button" onClick={() => setConfirm({ kind: 'rotate', room: r })} className={buttonClass({ style: 'borderless', color: 'gray' })}>
-                                <KeyIcon className="size-4" />
-                                New key
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirm({ kind: 'remove', room: r })}
-                                className={buttonClass({ style: 'borderless', color: 'danger', iconOnly: true })}
-                                aria-label={`Remove the stream for ${r.room}`}
-                                title="Remove stream"
-                              >
-                                <TrashIcon className="size-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button type="button" onClick={() => setCreating(r.room)} className={buttonClass({ style: 'soft', color: 'primary' })}>
-                              <PlusIcon className="size-4" />
-                              Create stream
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+            <tbody>
+              {streams.data!.map((r) => {
+                const status = streamStatus(r);
+                return (
+                  <tr key={r.room} className="even:bg-surface-soft last:[&>td]:border-b-0">
+                    <td className={td}>
+                      <p className="text-ink-soft">{r.room}</p>
+                      {r.stream && (
+                        <p className="text-xs text-placeholder">
+                          {INPUT_LABEL[r.stream.input]} · {r.stream.diarise ? 'labels speakers' : 'no speaker labels'}
+                        </p>
+                      )}
+                    </td>
+                    <td className={td}>
+                      <Tag tone={status.tone} dot={status.dot}>
+                        {status.label}
+                      </Tag>
+                    </td>
+                    <td className={cn(td, 'text-ink-soft')}>{r.captioning ? SOURCE_LABEL[r.captioning] : <span className="text-placeholder">Off</span>}</td>
+                    <td className={cn(td, 'text-right')}>
+                      {!isAdmin ? null : r.stream ? (
+                        <div className="flex justify-end gap-1">
+                          <button type="button" onClick={() => setConfirm({ kind: 'rotate', room: r })} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                            <KeyIcon className="size-4" />
+                            New key
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirm({ kind: 'remove', room: r })}
+                            className={buttonClass({ style: 'borderless', color: 'danger', iconOnly: true })}
+                            aria-label={`Remove the stream for ${r.room}`}
+                            title="Remove stream"
+                          >
+                            <TrashIcon className="size-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setCreating(r.room)} className={buttonClass({ style: 'soft', color: 'primary' })}>
+                          <PlusIcon className="size-4" />
+                          Create stream
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -524,79 +496,43 @@ function AudioStreamsCard({ edition }: { edition: Edition }) {
         onConfirm={confirmNow}
         onCancel={() => setConfirm(null)}
       >
-        {confirm?.room.stream?.state === 'publishing'
-          ? 'Its encoder is streaming now and is cut off at once; captions for the room stop until the encoder is given the new settings. '
-          : ''}
+        {confirm?.room.stream?.state === 'publishing' ? 'Its encoder is streaming now and is cut off at once; captions for the room stop until the encoder is given the new settings. ' : ''}
         {confirm?.kind === 'rotate' ? 'The old key stops working, and the new settings are shown once.' : 'The room can still be captioned from the Sound desk.'}
         {(rotate.error ?? remove.error) && <span className="mt-2 block text-xs text-danger">{(rotate.error ?? remove.error)!.message}</span>}
       </ConfirmDialog>
-    </section>
+    </Panel>
   );
 }
 
-const TABS = [
-  { key: 'venue', label: 'Venue details', icon: MapPinIcon },
-  { key: 'rooms', label: 'Rooms', icon: BuildingOffice2Icon },
-  { key: 'streams', label: 'Audio streams', icon: SignalIcon },
-] as const;
-type Tab = (typeof TABS)[number]['key'];
-
-/** Underline tabs: arrow keys move between them, as a tablist should. */
-function Tabs({ tab, onChange, roomCount }: { tab: Tab; onChange: (tab: Tab) => void; roomCount: number | undefined }) {
-  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    const next = TABS[(TABS.findIndex((t) => t.key === tab) + 1) % TABS.length]!.key;
-    onChange(next);
-    document.getElementById(`venue-tab-${next}`)?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Venue sections" onKeyDown={onKey} className="flex gap-6 border-b border-border">
-      {TABS.map((t) => {
-        const selected = tab === t.key;
-        return (
-          <button
-            key={t.key}
-            id={`venue-tab-${t.key}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls={`venue-panel-${t.key}`}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(t.key)}
-            className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm transition-colors',
-              selected ? 'border-primary font-medium text-primary' : 'border-transparent text-[#525252] hover:text-ink',
-            )}
-          >
-            <t.icon className="size-4" />
-            {t.label}
-            {t.key === 'rooms' && roomCount !== undefined && <Tag tone={selected ? 'primary' : 'gray'}>{roomCount}</Tag>}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const TABS = ['venue', 'rooms', 'streams'] as const;
+type Tab = (typeof TABS)[number];
 
 export default function VenuePage() {
   const working = useWorkingEdition();
   const editions = working.editions;
   // picking an event here switches every page to it
   const setPicked = working.setEditionId;
-  const [tab, setTab] = useState<Tab>('venue');
+  const [tab, setTab] = useUrlParam<Tab>('tab', 'venue', TABS);
   const edition = working.edition;
   // Shares the Rooms card's query (same key), so the tab count costs no extra request.
   const rooms = useRooms(edition);
 
-  if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-5xl rounded-2xl" />;
+  if (editions.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-5xl rounded-xl" />;
   if (!edition) {
     return (
-      <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-border bg-surface p-10 text-center">
-        <h1 className="text-xl font-medium text-ink">No events yet</h1>
-        <p className="mt-2 text-sm text-muted">A venue belongs to an event. Create the event first.</p>
-        <Link href="/events" className={buttonClass({ className: 'mt-6' })}>
-          Go to Events
-        </Link>
+      <div className="mx-auto mt-10 w-full max-w-lg">
+        <h1 className="sr-only">Venue</h1>
+        <EmptyState
+          framed
+          icon={MapPinIcon}
+          title="No events yet"
+          body="A venue belongs to an event. Create the event first."
+          action={
+            <Link href="/events" className={buttonClass()}>
+              Go to Events
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -607,20 +543,25 @@ export default function VenuePage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="truncate text-lg font-medium text-ink">{edition.name}</h1>
-          <p className="mt-0.5 text-sm text-[#7c7c7c]">Venue details, rooms and their audio streams for this event.</p>
+          <p className="mt-0.5 text-sm text-hint">Venue details, rooms and their audio streams for this event.</p>
         </div>
         <div className="w-80 max-w-full">
-          <Select
-            label="Event"
-            value={edition.id}
-            options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))}
-            onChange={setPicked}
-          />
+          <Select label="Event" value={edition.id} options={(editions.data ?? []).map((e) => ({ value: e.id, label: `${e.shortName} · ${e.name}` }))} onChange={setPicked} />
         </div>
       </header>
-      <Tabs tab={tab} onChange={setTab} roomCount={rooms.data?.length} />
-      <div id={`venue-panel-${tab}`} role="tabpanel" aria-labelledby={`venue-tab-${tab}`}>
-        {tab === 'venue' ? <VenueCard edition={edition} /> : tab === 'rooms' ? <RoomsCard edition={edition} /> : <AudioStreamsCard edition={edition} />}
+      <UnderlineTabs
+        label="Venue sections"
+        idBase="venue"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'venue', label: 'Venue details', icon: MapPinIcon },
+          { value: 'rooms', label: 'Rooms', icon: BuildingOffice2Icon, count: rooms.data?.length },
+          { value: 'streams', label: 'Audio streams', icon: SignalIcon },
+        ]}
+      />
+      <div id={tabPanelId('venue', tab)} role="tabpanel" aria-labelledby={tabId('venue', tab)}>
+        {tab === 'venue' ? <VenueCard edition={edition} /> : tab === 'rooms' ? <RoomsCard edition={edition} /> : <AudioStreamsCard edition={edition} onAddRooms={() => setTab('rooms')} />}
       </div>
     </div>
   );

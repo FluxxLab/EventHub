@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TransitionScreen } from '@/components/ui/transition-screen';
 import { session, type StaffUser, TIER_LABEL } from '@/lib/auth/session';
 import { PROFILE_HREF } from '@/lib/nav';
+import { setTheme, THEMES, useTheme } from '@/lib/theme';
 import { dropdownItem, dropdownPanel } from '@/components/ui/use-anchored';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +23,7 @@ const item = cn(dropdownItem, 'outline-none');
 export function AccountMenu({ user }: { user: StaffUser }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const theme = useTheme();
   const [signingOut, setSigningOut] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -107,6 +109,27 @@ export function AccountMenu({ user }: { user: StaffUser }) {
             <UserCircleIcon className="size-5" />
             Profile
           </Link>
+          <div className="px-2.5 pt-1">
+            <p className="pb-1.5 text-xs text-hint">Appearance</p>
+            <div role="group" aria-label="Appearance" className="flex gap-1 rounded-lg bg-surface-soft p-1">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={theme === t.value}
+                  onClick={() => setTheme(t.value)}
+                  className={cn(
+                    'flex-1 rounded-md px-2 py-1.5 text-xs transition-colors',
+                    theme === t.value ? 'bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-ink-soft hover:text-ink',
+                  )}
+                >
+                  {t.value === 'system' ? 'System' : t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-px bg-border" role="separator" />
           <button
             type="button"
             role="menuitem"

@@ -116,11 +116,11 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Search (${shortcut})`}
-        className="mr-1.5 hidden h-10 w-56 items-center gap-2 rounded-lg border border-[#bdbdbd] bg-surface pl-3 pr-2 text-left text-sm text-placeholder shadow-xs transition-shadow hover:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1] lg:flex"
+        className="mr-1.5 hidden h-10 w-56 items-center gap-2 rounded-lg border border-border-strong bg-surface pl-3 pr-2 text-left text-sm text-placeholder shadow-xs transition-shadow hover:shadow-[0_1px_2px_rgba(36,36,36,0.05),0_0_0_4px_#f1f1f1] lg:flex"
       >
         <MagnifyingGlassIcon className="size-5 shrink-0 text-muted" />
         <span className="flex-1 truncate">Search</span>
-        <kbd className="rounded border border-border bg-surface-soft px-1.5 py-0.5 font-sans text-[11px] text-muted">{shortcut}</kbd>
+        <kbd className="rounded border border-border bg-surface-soft px-1.5 py-0.5 font-sans text-[0.6875rem] text-muted">{shortcut}</kbd>
       </button>
       <button type="button" onClick={() => setOpen(true)} aria-label="Search" className="flex size-9 items-center justify-center rounded text-ink hover:bg-surface-soft lg:hidden">
         <MagnifyingGlassIcon className="size-5" />
@@ -134,7 +134,7 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
           close();
         }}
         onClick={(event) => event.target === event.currentTarget && close()}
-        className="mx-auto mt-[12vh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-[#dcdcdc] bg-[#fdfdfd] p-0 text-ink shadow-xxl backdrop:bg-ink/40"
+        className="mx-auto mt-[12vh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-border bg-surface p-0 text-ink shadow-xxl backdrop:bg-ink/40"
       >
         <div className="flex items-center gap-3 border-b border-border px-4">
           <MagnifyingGlassIcon className="size-5 shrink-0 text-muted" />
@@ -155,18 +155,18 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
             className="h-14 min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-placeholder"
           />
           {searching && <span className="text-xs text-muted">Searching…</span>}
-          <kbd className="rounded border border-border bg-surface-soft px-1.5 py-0.5 font-sans text-[11px] text-muted">Esc</kbd>
+          <kbd className="rounded border border-border bg-surface-soft px-1.5 py-0.5 font-sans text-[0.6875rem] text-muted">Esc</kbd>
         </div>
 
         <div id={`${id}-list`} role="listbox" aria-label="Results" className="max-h-[min(60vh,28rem)] overflow-y-auto p-2 scrollbar-thin">
           {groups.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-[#7c7c7c]">
+            <p className="px-3 py-8 text-center text-sm text-hint">
               {q.length < MIN_QUERY ? 'Type at least two letters.' : api.isFetching ? 'Searching…' : `Nothing matches “${q}”.`}
             </p>
           ) : (
             groups.map((group) => (
               <div key={group.kind} role="group" aria-label={group.label} className="pb-1">
-                <p className="px-3 pb-1 pt-2 text-xs text-[#7c7c7c]">{group.label}</p>
+                <p className="px-3 pb-1 pt-2 text-xs text-hint">{group.label}</p>
                 {group.results.map((r) => {
                   const i = flat.indexOf(r);
                   const Icon = r.icon ?? ICON[r.kind];
@@ -185,7 +185,7 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className={cn('block truncate text-sm', i === active ? 'text-primary' : 'text-ink')}>{r.title}</span>
-                        {r.detail && <span className="block truncate text-xs text-[#7c7c7c]">{r.detail}</span>}
+                        {r.detail && <span className="block truncate text-xs text-hint">{r.detail}</span>}
                       </span>
                       {i === active && <span className="shrink-0 text-xs text-primary">Open ↵</span>}
                     </div>
@@ -196,7 +196,7 @@ export function GlobalSearch({ user }: { user: StaffUser }) {
           )}
         </div>
 
-        <p className="flex items-center gap-4 border-t border-border bg-surface-soft/60 px-4 py-2 text-xs text-[#7c7c7c]">
+        <p className="flex items-center gap-4 border-t border-border bg-surface-soft/60 px-4 py-2 text-xs text-hint">
           <span>↑ ↓ to move</span>
           <span>↵ to open</span>
           <span className="ml-auto">

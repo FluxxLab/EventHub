@@ -25,6 +25,8 @@ import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/field';
+import { Panel } from '@/components/ui/panel';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toaster';
 import { runsEvents, useSession } from '@/lib/auth/session';
@@ -36,8 +38,7 @@ import { downloadCsv, leadsCsv } from '@/lib/leads/leads';
 import { useLeadLinkActions, useLeadSummary } from '@/lib/leads/use-leads';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-2xl border border-border bg-surface';
-const th = 'h-12 border-b border-border bg-[#f6f6f6] px-4 text-left text-sm font-normal text-[#525252]';
+const th = 'h-12 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
 const td = 'border-b border-border px-4 py-3 text-sm align-middle';
 
 /** Opens the print dialog with one A4 sign per stand (QR the app scans, and the code in large type). */
@@ -58,7 +59,7 @@ function CopyCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <span className="inline-flex items-center gap-1">
-      <code className="rounded bg-[#f1f1f1] px-1.5 py-0.5 font-mono text-sm tracking-wider text-ink">{code}</code>
+      <code className="rounded bg-surface-soft px-1.5 py-0.5 font-mono text-sm tracking-wider text-ink">{code}</code>
       <button
         type="button"
         onClick={() =>
@@ -68,7 +69,7 @@ function CopyCode({ code }: { code: string }) {
           })
         }
         aria-label={`Copy code ${code}`}
-        className="rounded p-1 text-[#7c7c7c] hover:text-ink"
+        className="rounded p-1 text-hint hover:text-ink"
       >
         {copied ? <CheckIcon className="size-4 text-success" /> : <ClipboardDocumentIcon className="size-4" />}
       </button>
@@ -90,14 +91,15 @@ function PrizeDraw({ activeStands, onDraw, drawing, winners, error }: { activeSt
     });
 
   return (
-    <section aria-labelledby={`${id}-t`} className={cardClass}>
-      <header className="border-b border-border px-5 py-4">
-        <h2 id={`${id}-t`} className="flex items-center gap-2 text-base font-medium text-ink">
+    <Panel
+      title={
+        <>
           <GiftIcon className="size-5 text-primary" /> Prize draw
-        </h2>
-        <p className="text-xs text-[#7c7c7c]">Random delegates who stamped all {activeStands} active stands.</p>
-      </header>
-      <div className="flex items-end gap-2 px-5 py-4">
+        </>
+      }
+      description={`Random delegates who stamped all ${activeStands} active stands.`}
+    >
+      <div className="flex items-end gap-2 px-6 py-4">
         <div className="w-24">
           <label htmlFor={`${id}-n`} className="mb-1 block text-sm text-ink">
             Winners
@@ -108,32 +110,36 @@ function PrizeDraw({ activeStands, onDraw, drawing, winners, error }: { activeSt
           {drawing ? 'Drawing…' : winners ? 'Draw again' : 'Draw'}
         </button>
       </div>
-      {error && <p className="px-5 pb-4 text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="px-6 pb-4 text-sm text-danger">
+          {error}
+        </p>
+      )}
       {winners &&
         (winners.length === 0 ? (
-          <p className="border-t border-border px-5 py-4 text-sm text-[#7c7c7c]">Nobody has a full passport yet.</p>
+          <p className="border-t border-border px-6 py-4 text-sm text-hint">Nobody has a full passport yet.</p>
         ) : (
           <>
             <ol className="divide-y divide-border border-t border-border">
               {winners.map((w, i) => (
-                <li key={w.id} className="flex gap-3 px-5 py-3">
-                  <span className="w-4 shrink-0 text-right text-sm tabular-nums text-[#7c7c7c]">{i + 1}</span>
+                <li key={w.id} className="flex gap-3 px-6 py-3">
+                  <span className="w-4 shrink-0 text-right text-sm tabular-nums text-hint">{i + 1}</span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-ink">{w.name}</p>
-                    <p className="truncate text-xs text-[#7c7c7c]">{[w.organisation, w.email].filter(Boolean).join(' · ')}</p>
+                    <p className="truncate text-xs text-hint">{[w.organisation, w.email].filter(Boolean).join(' · ')}</p>
                   </div>
                 </li>
               ))}
             </ol>
-            <div className="border-t border-border px-5 py-2.5">
-              <button type="button" onClick={copy} className="flex items-center gap-1.5 text-xs text-[#525252] hover:text-ink">
+            <div className="border-t border-border px-6 py-3">
+              <button type="button" onClick={copy} className="flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink">
                 {copied ? <CheckIcon className="size-4 text-success" /> : <ClipboardDocumentIcon className="size-4" />}
                 {copied ? 'Copied' : 'Copy the list'}
               </button>
             </div>
           </>
         ))}
-    </section>
+    </Panel>
   );
 }
 
@@ -171,25 +177,19 @@ export default function PassportPage() {
       toast.push({ title: 'Printing blocked', body: 'Allow pop-ups for the console, then try again.', leading: { kind: 'icon', icon: PrinterIcon, tone: 'danger' } });
   };
 
+  const addStand = (
+    <button type="button" onClick={() => setEditing({ booth: null })} className={buttonClass({ className: 'h-9' })}>
+      <PlusIcon className="size-4" />
+      Add stand
+    </button>
+  );
+
   if (!isAdmin) {
-    return (
-      <div className={cn(cardClass, 'mx-auto max-w-lg p-10 text-center')}>
-        <QrCodeIcon className="mx-auto size-8 text-[#7c7c7c]" />
-        <p className="mt-2 font-medium text-ink">The passport is managed by organisers</p>
-      </div>
-    );
+    return <EmptyState framed icon={QrCodeIcon} title="The passport is managed by organisers" className="mx-auto w-full max-w-lg" />;
   }
-  if (editions.isPending || booths.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-2xl" />;
+  if (editions.isPending || booths.isPending) return <Skeleton className="mx-auto h-96 w-full max-w-6xl rounded-xl" />;
   if (booths.isError && !booths.data) {
-    return (
-      <div role="alert" className="mx-auto max-w-6xl rounded-2xl border border-border bg-surface p-10 text-center">
-        <p className="font-medium text-ink">Stands could not load.</p>
-        <p className="mt-1 text-sm text-muted">{booths.error.message}</p>
-        <button type="button" onClick={() => void booths.refetch()} className={buttonClass({ className: 'mt-4' })}>
-          Try again
-        </button>
-      </div>
-    );
+    return <ErrorState framed title="Stands could not load" error={booths.error} onRetry={() => void booths.refetch()} className="mx-auto w-full max-w-6xl" />;
   }
 
   return (
@@ -201,12 +201,12 @@ export default function PassportPage() {
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <section aria-labelledby="stands-title" className={cardClass}>
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-            <h2 id="stands-title" className="text-base font-medium text-ink">
-              Stands
-            </h2>
-            <div className="flex gap-2">
+        <Panel
+          title="Stands"
+          count={all.length}
+          footer={all.some((b) => !b.isActive) && <p className="text-xs">A stand switched off keeps its stamps but no longer counts towards a full passport.</p>}
+          actions={
+            <>
               {totalLeads > 0 && (
                 <button type="button" onClick={exportLeads} disabled={leadLinks.exportAll.isPending} className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9' })}>
                   <ArrowDownTrayIcon className="size-4" />
@@ -219,18 +219,12 @@ export default function PassportPage() {
                   Print all signs
                 </button>
               )}
-              <button type="button" onClick={() => setEditing({ booth: null })} className={buttonClass({ className: 'h-9' })}>
-                <PlusIcon className="size-4" />
-                Add stand
-              </button>
-            </div>
-          </header>
-
+              {addStand}
+            </>
+          }
+        >
           {all.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-              <QrCodeIcon className="size-8 text-[#7c7c7c]" />
-              <p className="max-w-sm text-sm text-[#7c7c7c]">Add each exhibition stand. Each gets a code; print its sign, and delegates scan it to stamp their passport.</p>
-            </div>
+            <EmptyState icon={QrCodeIcon} title="No stands yet" body="Each stand gets a code and a sign delegates scan to stamp their passport." action={addStand} />
           ) : (
             <div className="relative overflow-x-auto">
               <table className="w-full min-w-[46rem] border-collapse">
@@ -258,10 +252,10 @@ export default function PassportPage() {
                 </thead>
                 <tbody>
                   {all.map((b) => (
-                    <tr key={b.id} className={cn('even:bg-[#f6f6f6] last:[&>td]:border-b-0', !b.isActive && 'text-[#7c7c7c]')}>
+                    <tr key={b.id} className={cn('even:bg-surface-soft last:[&>td]:border-b-0', !b.isActive && 'text-hint')}>
                       <td className={td}>
-                        <p className={b.isActive ? 'text-ink' : 'text-[#7c7c7c]'}>{b.name}</p>
-                        {b.location && <p className="text-xs text-[#7c7c7c]">{b.location}</p>}
+                        <p className={b.isActive ? 'text-ink' : 'text-hint'}>{b.name}</p>
+                        {b.location && <p className="text-xs text-hint">{b.location}</p>}
                       </td>
                       <td className={td}>
                         <CopyCode code={b.code} />
@@ -269,7 +263,7 @@ export default function PassportPage() {
                       <td className={cn(td, 'text-right tabular-nums')}>{count(b.stamps)}</td>
                       <td className={cn(td, 'text-right tabular-nums')}>
                         {count(leadsFor(b.id)?.leads ?? 0)}
-                        {!leadsFor(b.id)?.linkCreatedAt && <span className="block text-[11px] text-[#7c7c7c]">no scanner</span>}
+                        {!leadsFor(b.id)?.linkCreatedAt && <span className="block text-[0.6875rem] text-hint">no scanner</span>}
                       </td>
                       <td className={td}>
                         <Switch
@@ -325,10 +319,7 @@ export default function PassportPage() {
               </table>
             </div>
           )}
-          {all.some((b) => !b.isActive) && (
-            <p className="border-t border-border px-5 py-2.5 text-xs text-[#7c7c7c]">A stand switched off keeps its stamps but no longer counts towards a full passport.</p>
-          )}
-        </section>
+        </Panel>
 
         <PrizeDraw activeStands={totals.active} drawing={draw.isPending} winners={draw.data ?? null} error={draw.error?.message ?? null} onDraw={(n) => draw.mutate(n)} />
       </div>

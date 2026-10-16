@@ -6,7 +6,7 @@ export type TagTone = 'gray' | 'primary' | 'green' | 'danger' | 'gold';
 
 /** The design system's tag: 18px pill, 1px border, pale fill, 12px text, optional 6px dot. */
 const TONES: Record<TagTone, { pill: string; dot: string }> = {
-  gray: { pill: 'border-border bg-[#f6f6f6] text-muted', dot: 'bg-muted' },
+  gray: { pill: 'border-border bg-surface-soft text-muted', dot: 'bg-muted' },
   primary: { pill: 'border-primary bg-primary-soft text-primary', dot: 'bg-primary' },
   green: { pill: 'border-success bg-success-soft text-success', dot: 'bg-success' },
   danger: { pill: 'border-danger bg-danger-soft text-danger', dot: 'bg-danger' },

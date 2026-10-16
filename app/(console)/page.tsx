@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { BanknotesIcon, ShoppingBagIcon, TicketIcon, UsersIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon, SignalIcon, ShoppingBagIcon, TicketIcon, UsersIcon } from '@heroicons/react/24/outline';
 
 import { buttonClass } from '@/components/ui/button';
 import { ActivityCard, NewDelegatesCard } from '@/components/dashboard/activity-card';
@@ -11,6 +11,7 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { TiersCard } from '@/components/dashboard/tiers-card';
 import { TrendsCard } from '@/components/dashboard/trends-card';
 import { Skeleton } from '@/components/ui/card';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { runsEvents, useSession } from '@/lib/auth/session';
 import { useDashboard } from '@/lib/dashboard/use-dashboard';
 import { useEditions } from '@/lib/events/use-editions';
@@ -28,12 +29,19 @@ export default function DashboardPage() {
   if (!isAdmin) {
     // Session operators land here after sign-in; the dashboard is organiser-only.
     return (
-      <div className="mx-auto mt-6 max-w-lg rounded-lg border border-border bg-surface p-8 text-center">
-        <h1 className="text-xl font-medium text-ink">Welcome</h1>
-        <p className="mt-1 text-sm text-muted">Your account runs live sessions. Open Live ops to start.</p>
-        <Link href="/live" className={buttonClass({ className: 'mt-5' })}>
-          Open Live ops
-        </Link>
+      <div className="mx-auto mt-6 w-full max-w-lg">
+        <h1 className="sr-only">Welcome</h1>
+        <EmptyState
+          framed
+          icon={SignalIcon}
+          title="Welcome"
+          body="Your account runs live sessions. Open Live ops to start."
+          action={
+            <Link href="/live" className={buttonClass()}>
+              Open Live ops
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -41,17 +49,10 @@ export default function DashboardPage() {
   const data = dashboard.data;
   if (dashboard.isError && !data) {
     return (
-      <div role="alert" className="rounded-lg border border-border bg-surface p-8 text-center">
-        <p className="font-medium text-ink">The dashboard could not load.</p>
-        <p className="mt-1 text-sm text-muted">{dashboard.error.message}</p>
-        <button
-          type="button"
-          onClick={() => void dashboard.refetch()}
-          className={buttonClass({ className: 'mt-4' })}
-        >
-          Try again
-        </button>
-      </div>
+      <>
+        <h1 className="sr-only">Dashboard</h1>
+        <ErrorState framed title="The dashboard could not load" error={dashboard.error} onRetry={() => void dashboard.refetch()} />
+      </>
     );
   }
   if (!data) return <DashboardSkeleton />;
@@ -114,8 +115,8 @@ function DashboardSkeleton() {
         ))}
       </div>
       <div className="grid gap-5 xl:grid-cols-[1fr_18.75rem] xl:gap-10">
-        <Skeleton className="h-[434px]" />
-        <Skeleton className="h-[434px]" />
+        <Skeleton className="h-[434px] rounded-xl" />
+        <Skeleton className="h-[434px] rounded-xl" />
       </div>
     </div>
   );

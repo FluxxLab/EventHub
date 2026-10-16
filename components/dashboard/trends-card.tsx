@@ -6,7 +6,7 @@ import { useState, type KeyboardEvent } from 'react';
 import { changeOf } from '@/components/dashboard/change-badge';
 import { ENGAGEMENT_SERIES, EngagementBars } from '@/components/dashboard/engagement-bars';
 import { LineChart } from '@/components/dashboard/line-chart';
-import { Card } from '@/components/ui/card';
+import { Panel } from '@/components/ui/panel';
 import { halves } from '@/lib/dashboard/chart';
 import type { DashboardView } from '@/lib/dashboard/types';
 import { count, moneyCompact, percentChange } from '@/lib/format';
@@ -42,7 +42,7 @@ export function TrendsCard({ data }: { data: DashboardView }) {
   };
 
   return (
-    <Card title="Overview" className="min-w-0">
+    <Panel title="Overview" className="flex min-w-0 flex-col" bodyClassName="flex flex-1 flex-col px-6 py-5">
       <div role="tablist" aria-label="Trend" onKeyDown={onKey} className="flex flex-wrap gap-x-20 gap-y-4">
         {metrics.map((metric) => {
           const split = halves(metric.series);
@@ -101,6 +101,6 @@ export function TrendsCard({ data }: { data: DashboardView }) {
           <EngagementBars days={engagement.daily} />
         )}
       </div>
-    </Card>
+    </Panel>
   );
 }
