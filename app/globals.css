@@ -547,14 +547,18 @@ dialog[open]::backdrop {
 }
 
 /*
- * Every card and panel carries PIC's swoosh, faint in its top-right corner
- * (public/brand/card-arcs.svg): a gold arc and a dotted navy ring over the white.
+ * Every card, panel, modal and dropdown carries PIC's swoosh, faint in its top-right corner
+ * (public/brand/card-arcs.svg): a gold arc and a dotted navy ring over the white. Menus and
+ * toasts take the smaller size (`card-art-sm`).
  */
 .card-art {
   background-image: url('/brand/card-arcs.svg');
   background-repeat: no-repeat;
   background-position: right top;
   background-size: 15rem auto;
+}
+.card-art-sm {
+  background-size: 11rem auto;
 }
 :root[data-theme='dark'] .card-art {
   background-image: url('/brand/card-arcs-dark.svg');

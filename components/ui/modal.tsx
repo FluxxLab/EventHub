@@ -12,16 +12,25 @@ import { cn } from '@/lib/utils';
 export const MODAL_WIDTH = { sm: 'max-w-[22rem]', md: 'max-w-lg', lg: 'max-w-3xl' } as const;
 
 export function modalClass(width: keyof typeof MODAL_WIDTH = 'md', className?: string) {
-  return cn(
-    'm-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-xl border border-border bg-surface p-0 text-left text-ink',
-    'shadow-lg backdrop:bg-ink/40',
-    MODAL_WIDTH[width],
-    className,
-  );
+  return cn('card-art m-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-xl border border-border bg-surface p-0 text-left text-ink', 'shadow-lg backdrop:bg-ink/40', MODAL_WIDTH[width], className);
 }
 
 /** Icon and title on one row, the explanation under them. */
-export function ModalHeader({ icon: Icon, iconClassName, title, titleId, subtitle, subtitleId }: { icon: HeroIcon; iconClassName?: string; title: ReactNode; titleId: string; subtitle?: ReactNode; subtitleId?: string }) {
+export function ModalHeader({
+  icon: Icon,
+  iconClassName,
+  title,
+  titleId,
+  subtitle,
+  subtitleId,
+}: {
+  icon: HeroIcon;
+  iconClassName?: string;
+  title: ReactNode;
+  titleId: string;
+  subtitle?: ReactNode;
+  subtitleId?: string;
+}) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">

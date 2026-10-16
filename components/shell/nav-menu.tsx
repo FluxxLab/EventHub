@@ -27,7 +27,7 @@ export function NavMenu({ groups, open, onClose }: { groups: NavGroup[]; open: b
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="All pages">
       <button type="button" aria-label="Close menu" className="absolute inset-0 bg-ink/30" onClick={onClose} />
-      <nav className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col overflow-y-auto bg-surface p-5 shadow-xl">
+      <nav className="card-art absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col overflow-y-auto bg-surface p-5 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm font-medium uppercase tracking-wide text-muted">All pages</p>
           <button type="button" onClick={onClose} aria-label="Close menu" className="rounded-full p-2 text-muted hover:bg-surface-soft">
@@ -44,10 +44,7 @@ export function NavMenu({ groups, open, onClose }: { groups: NavGroup[]; open: b
                     href={page.href}
                     onClick={onClose}
                     aria-current={current === page.href ? 'page' : undefined}
-                    className={cn(
-                      'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-ink hover:bg-surface-soft',
-                      current === page.href && 'bg-primary-soft text-primary',
-                    )}
+                    className={cn('flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-ink hover:bg-surface-soft', current === page.href && 'bg-primary-soft text-primary')}
                   >
                     <page.icon className="size-4.5" />
                     {page.label}
