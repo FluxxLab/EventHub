@@ -11,16 +11,19 @@ import {
   PresentationChartBarIcon,
   SparklesIcon,
   Squares2X2Icon,
+  TableCellsIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useMemo, useState } from 'react';
 
 import { CallDialog } from '@/components/calls-to-action/call-dialog';
+import { AnalyseManyDialog } from '@/components/calls-to-action/analyse-many-dialog';
 import { DeckDialog } from '@/components/calls-to-action/deck-dialog';
 import { ReportDialog } from '@/components/calls-to-action/report-dialog';
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
+import { MenuButton } from '@/components/ui/menu-button';
 import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
@@ -28,6 +31,8 @@ import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { callsCsv, countByStatus, filterCalls, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
+import { useAnalyseQueue } from '@/lib/calls-to-action/analyse-queue';
+import type { BuildLayout } from '@/lib/calls-to-action/build-deck';
 import { useCallActions, useCallsToAction, useCallTargets } from '@/lib/calls-to-action/use-calls-to-action';
 import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
@@ -65,7 +70,16 @@ function Board({ edition }: { edition: Edition }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
+  const [deckLayout, setDeckLayout] = useState<BuildLayout>('cards');
+  const openDeck = (layout: BuildLayout) => {
+    setDeckLayout(layout);
+    setDeckOpen(true);
+  };
   const [reportOpen, setReportOpen] = useState(false);
+  const [manyOpen, setManyOpen] = useState(false);
+  const queue = useAnalyseQueue(edition.id);
+  const queued = Object.values(queue.runs);
+  const queueDone = queued.filter((r) => r.status === 'done' || r.status === 'failed').length;
   const [fromStart, setFromStart] = useState(false);
   const listRef = useListMotion<HTMLUListElement>();
 
@@ -150,11 +164,25 @@ function Board({ edition }: { edition: Edition }) {
               </label>
             )}
           </div>
-          <button type="button" onClick={analyse} disabled={!aiReady || analysing || !(sessionToAnalyse || sessionList.some((s) => s.status === 'live'))} className={buttonClass()}>
-            <SparklesIcon className="size-4" />
-            {analysing ? 'Analysing… a minute or two' : 'Analyse'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setManyOpen(true)} disabled={!aiReady || sessionList.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
+              Analyse several
+            </button>
+            <button type="button" onClick={analyse} disabled={!aiReady || analysing || !(sessionToAnalyse || sessionList.some((s) => s.status === 'live'))} className={buttonClass()}>
+              <SparklesIcon className="size-4" />
+              {analysing ? 'Analysing… a minute or two' : 'Analyse'}
+            </button>
+          </div>
         </div>
+        {/* several sessions being read while their dialog is hidden */}
+        {queued.length > 0 && !manyOpen && (
+          <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border bg-primary-soft px-6 py-2.5 text-sm text-primary">
+            {queue.running ? `Analysing several sessions: ${queueDone} of ${queued.length} done.` : `Several sessions analysed: all ${queued.length} done.`}
+            <button type="button" onClick={() => setManyOpen(true)} className="font-medium underline underline-offset-2">
+              {queue.running ? 'Show progress' : 'Show results'}
+            </button>
+          </p>
+        )}
         {!aiReady && (
           <p className="border-t border-border bg-warning-soft px-6 py-2.5 text-sm text-warning">
             AI analysis isn’t set up yet. Ask your administrator. You can still add, review and export calls to action.
@@ -173,10 +201,23 @@ function Board({ edition }: { edition: Edition }) {
               <ArrowDownTrayIcon className="size-4" />
               Export approved
             </button>
-            <button type="button" onClick={() => setDeckOpen(true)} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
-              <PresentationChartBarIcon className="size-4" />
-              Make a deck
-            </button>
+            {edition.deckTemplate === 'build' ? (
+              // the Build template comes as cards or a table: choose before the dialog opens
+              <MenuButton
+                label="Make a deck"
+                icon={PresentationChartBarIcon}
+                disabled={counts.approved === 0}
+                choices={[
+                  { label: 'Cards', hint: 'Template #1: eight to a slide', icon: Squares2X2Icon, onSelect: () => openDeck('cards') },
+                  { label: 'Table', hint: 'Template #2: up to twelve rows to a slide', icon: TableCellsIcon, onSelect: () => openDeck('table') },
+                ]}
+              />
+            ) : (
+              <button type="button" onClick={() => openDeck('cards')} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <PresentationChartBarIcon className="size-4" />
+                Make a deck
+              </button>
+            )}
             <button type="button" onClick={() => setReportOpen(true)} disabled={sessionList.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
               <DocumentTextIcon className="size-4" />
               Rapporteur report
@@ -335,8 +376,21 @@ function Board({ edition }: { edition: Edition }) {
         )}
       </Panel>
 
+      {(manyOpen || queued.length > 0) && (
+        <AnalyseManyDialog open={manyOpen} sessions={sessionList} analysedTimes={(id) => runsOf(id)?.runs ?? 0} queue={queue} onReview={() => setTab('suggested')} onClose={() => setManyOpen(false)} />
+      )}
       {reportOpen && <ReportDialog open edition={edition} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setReportOpen(false)} />}
-      {deckOpen && <DeckDialog open edition={edition} items={items} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setDeckOpen(false)} />}
+      {deckOpen && (
+        <DeckDialog
+          open
+          edition={edition}
+          items={items}
+          sessions={sessionList}
+          initialSessionId={sessionFilter === 'all' ? null : sessionFilter}
+          initialLayout={deckLayout}
+          onClose={() => setDeckOpen(false)}
+        />
+      )}
 
       {editing && (
         <CallDialog

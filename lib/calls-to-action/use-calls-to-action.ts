@@ -6,15 +6,21 @@ import { api } from '@/lib/api/client';
 import type { AnalyseResult, CallToAction, CallsToActionBoard, toBody } from '@/lib/calls-to-action/calls-to-action';
 import { DEMO_MODE } from '@/lib/demo';
 
-const boardKey = (editionId: string) => ['admin', 'calls-to-action', editionId] as const;
+export const boardKey = (editionId: string) => ['admin', 'calls-to-action', editionId] as const;
 
 const DEMO: CallsToActionBoard = { aiReady: false, items: [], analyses: [] };
+
+/**
+ * The board's one fetch: every query on `boardKey` uses it (this page and the sidebar's count), as
+ * a shared cache entry refetches with whichever observer's function it holds.
+ */
+export const fetchBoard = (editionId: string, signal?: AbortSignal) => (DEMO_MODE ? Promise.resolve(DEMO) : api.get<CallsToActionBoard>(`/editions/${editionId}/calls-to-action`, undefined, signal));
 
 /** The event's calls to action, where each session's analysis has got to, and whether Analyse is on. */
 export function useCallsToAction(editionId: string) {
   return useQuery({
     queryKey: boardKey(editionId),
-    queryFn: ({ signal }) => (DEMO_MODE ? Promise.resolve(DEMO) : api.get<CallsToActionBoard>(`/editions/${editionId}/calls-to-action`, undefined, signal)),
+    queryFn: ({ signal }) => fetchBoard(editionId, signal),
   });
 }
 

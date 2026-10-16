@@ -42,6 +42,7 @@ export function DeckDialog({
   items,
   sessions,
   initialSessionId,
+  initialLayout = 'cards',
   onClose,
 }: {
   open: boolean;
@@ -50,6 +51,8 @@ export function DeckDialog({
   sessions: Session[];
   /** The session to offer first: the one being filtered on, if any. */
   initialSessionId: string | null;
+  /** The Build template's layout picked from the Make a deck menu. */
+  initialLayout?: BuildLayout;
   onClose: () => void;
 }) {
   const id = useId();
@@ -64,7 +67,7 @@ export function DeckDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const build = edition.deckTemplate === 'build';
-  const [layout, setLayout] = useState<BuildLayout>('cards');
+  const [layout, setLayout] = useState<BuildLayout>(initialLayout);
 
   const count = (kind === 'session' ? approved.filter((c) => c.sessionId === sessionId) : approved.filter((c) => withCalls.some((s) => s.id === c.sessionId && String(s.day) === day))).length;
 
