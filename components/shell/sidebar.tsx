@@ -76,14 +76,11 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
   };
 
   return (
-    <aside data-rail aria-label="Sections" className="flex h-full w-full flex-col overflow-hidden bg-rail bg-[url(/brand/rail-arcs.svg)] bg-[length:18.75rem_auto] bg-left-bottom bg-no-repeat text-rail-ink">
-      <div className="flex h-22 shrink-0 items-center gap-3 border-b border-rail-border px-4.5">
+    <aside aria-label="Sections" className="flex h-full w-full flex-col overflow-hidden border-r border-border bg-surface">
+      <div className="flex h-22 shrink-0 items-center gap-3 border-b border-border px-4.5">
         <Link href="/" className="flex min-w-0 flex-1 items-center gap-3" aria-label="PIC Events dashboard">
-          {/* the logo is drawn for a light ground, so it sits on a white tile */}
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white">
-            <Image src="/pic-logo.png" alt="" width={30} height={30} className="size-7.5 object-contain" priority />
-          </span>
-          <span className={cn(label(expanded), 'text-xl font-medium text-rail-ink')}>PIC Events</span>
+          <Image src="/pic-logo.png" alt="" width={36} height={36} className="logo-plate size-9 shrink-0 object-contain" priority />
+          <span className={cn(label(expanded), 'text-xl font-medium text-primary')}>PIC Events</span>
           {DEMO_MODE && expanded && <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[0.625rem] font-medium uppercase text-ink">Demo</span>}
         </Link>
         {expanded && (
@@ -92,103 +89,109 @@ export function Sidebar({ user, groups, pinned, onTogglePin }: { user: StaffUser
             onClick={onTogglePin}
             aria-label="Collapse sidebar"
             title="Collapse sidebar"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-rail-muted hover:bg-rail-hover hover:text-rail-ink"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted hover:bg-surface-soft hover:text-ink"
           >
             <ChevronDoubleLeftIcon className="size-5" />
           </button>
         )}
       </div>
 
-      {expanded ? (
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
-          {pinnedPages.length > 0 && (
-            <div className="mb-2 flex flex-col gap-0.5 border-b border-rail-border pb-3">
-              <p className="px-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wider text-rail-muted">Pinned</p>
-              {pinnedPages.map((page) => {
-                const active = current?.page.href === page.href;
+      {/* the navigation: PIC navy, the logo's arcs at its foot, between the white logo and user rows */}
+      <div data-rail className="flex min-h-0 flex-1 flex-col bg-rail bg-[url(/brand/rail-arcs.svg)] bg-[length:18.75rem_auto] bg-left-bottom bg-no-repeat text-rail-ink">
+        {expanded ? (
+          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3.5 py-6 scrollbar-none">
+            {pinnedPages.length > 0 && (
+              <div className="mb-2 flex flex-col gap-0.5 border-b border-rail-border pb-3">
+                <p className="px-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wider text-rail-muted">Pinned</p>
+                {pinnedPages.map((page) => {
+                  const active = current?.page.href === page.href;
+                  return (
+                    <Link key={page.href} href={page.href} aria-current={active ? 'page' : undefined} className={cn(row, active && activeRow)}>
+                      <page.icon className="size-5 shrink-0" />
+                      <span className="flex-1 truncate">{page.label}</span>
+                      <Count n={counts[page.href] ?? 0} />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+            {groups.map((group) => {
+              const holdsCurrent = current?.group.label === group.label;
+              if (group.pages.length === 1) {
+                const page = group.pages[0]!;
                 return (
-                  <Link key={page.href} href={page.href} aria-current={active ? 'page' : undefined} className={cn(row, active && activeRow)}>
+                  <Link key={group.label} href={page.href} aria-current={holdsCurrent ? 'page' : undefined} className={cn(row, holdsCurrent && activeRow)}>
                     <page.icon className="size-5 shrink-0" />
                     <span className="flex-1 truncate">{page.label}</span>
                     <Count n={counts[page.href] ?? 0} />
                   </Link>
                 );
-              })}
-            </div>
-          )}
-          {groups.map((group) => {
-            const holdsCurrent = current?.group.label === group.label;
-            if (group.pages.length === 1) {
-              const page = group.pages[0]!;
+              }
+              const waiting = group.pages.reduce((sum, p) => sum + (counts[p.href] ?? 0), 0);
+              const groupOpen = open.has(group.label);
               return (
-                <Link key={group.label} href={page.href} aria-current={holdsCurrent ? 'page' : undefined} className={cn(row, holdsCurrent && activeRow)}>
-                  <page.icon className="size-5 shrink-0" />
-                  <span className="flex-1 truncate">{page.label}</span>
-                  <Count n={counts[page.href] ?? 0} />
-                </Link>
-              );
-            }
-            const waiting = group.pages.reduce((sum, p) => sum + (counts[p.href] ?? 0), 0);
-            const groupOpen = open.has(group.label);
-            return (
-              <div key={group.label}>
-                <button type="button" onClick={() => toggle(group.label)} aria-expanded={groupOpen} className={cn(row, holdsCurrent && !groupOpen && activeRow)}>
-                  <span className="relative shrink-0">
-                    <group.icon className="size-5" />
-                    {waiting > 0 && !groupOpen && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-rail bg-danger" aria-hidden />}
-                  </span>
-                  <span className="flex-1 truncate">{group.label}</span>
-                  <ChevronDownIcon className={cn('size-4 shrink-0 text-rail-muted transition-transform', groupOpen && 'rotate-180')} />
-                </button>
-                {/* eases open and shut; a closed group's links are out of the Tab order */}
-                <div className="group-collapse" data-open={groupOpen}>
-                  <ul className="flex flex-col gap-0.5 py-1" inert={!groupOpen}>
-                    {group.pages.map((page) => {
-                      const active = current?.page.href === page.href;
-                      const isPinned = pinnedHrefs.includes(page.href);
-                      return (
-                        <li key={page.href} className="group/item relative">
-                          <Link
-                            href={page.href}
-                            aria-current={active ? 'page' : undefined}
-                            className={cn('flex items-center gap-2.5 whitespace-nowrap rounded-lg py-2 pl-8 pr-3 text-sm text-rail-muted hover:bg-rail-hover hover:text-rail-ink', active && activeRow)}
-                          >
-                            <page.icon className="size-4.5 shrink-0" />
-                            <span className="truncate">{page.label}</span>
-                            <Count n={counts[page.href] ?? 0} />
-                            <span className="w-6 shrink-0" aria-hidden />
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => togglePinned(page.href)}
-                            aria-label={isPinned ? `Unpin ${page.label}` : `Pin ${page.label} to the top`}
-                            aria-pressed={isPinned}
-                            className={cn(
-                              'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-rail-muted hover:text-rail-ink',
-                              isPinned ? 'text-secondary' : 'opacity-0 focus-visible:opacity-100 group-hover/item:opacity-100',
-                            )}
-                          >
-                            {isPinned ? <StarSolid className="size-4" /> : <StarIcon className="size-4" />}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                <div key={group.label}>
+                  <button type="button" onClick={() => toggle(group.label)} aria-expanded={groupOpen} className={cn(row, holdsCurrent && !groupOpen && activeRow)}>
+                    <span className="relative shrink-0">
+                      <group.icon className="size-5" />
+                      {waiting > 0 && !groupOpen && <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-rail bg-danger" aria-hidden />}
+                    </span>
+                    <span className="flex-1 truncate">{group.label}</span>
+                    <ChevronDownIcon className={cn('size-4 shrink-0 text-rail-muted transition-transform', groupOpen && 'rotate-180')} />
+                  </button>
+                  {/* eases open and shut; a closed group's links are out of the Tab order */}
+                  <div className="group-collapse" data-open={groupOpen}>
+                    <ul className="flex flex-col gap-0.5 py-1" inert={!groupOpen}>
+                      {group.pages.map((page) => {
+                        const active = current?.page.href === page.href;
+                        const isPinned = pinnedHrefs.includes(page.href);
+                        return (
+                          <li key={page.href} className="group/item relative">
+                            <Link
+                              href={page.href}
+                              aria-current={active ? 'page' : undefined}
+                              className={cn(
+                                'flex items-center gap-2.5 whitespace-nowrap rounded-lg py-2 pl-8 pr-3 text-sm text-rail-muted hover:bg-rail-hover hover:text-rail-ink',
+                                active && activeRow,
+                              )}
+                            >
+                              <page.icon className="size-4.5 shrink-0" />
+                              <span className="truncate">{page.label}</span>
+                              <Count n={counts[page.href] ?? 0} />
+                              <span className="w-6 shrink-0" aria-hidden />
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => togglePinned(page.href)}
+                              aria-label={isPinned ? `Unpin ${page.label}` : `Pin ${page.label} to the top`}
+                              aria-pressed={isPinned}
+                              className={cn(
+                                'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-rail-muted hover:text-rail-ink',
+                                isPinned ? 'text-secondary' : 'opacity-0 focus-visible:opacity-100 group-hover/item:opacity-100',
+                              )}
+                            >
+                              {isPinned ? <StarSolid className="size-4" /> : <StarIcon className="size-4" />}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </nav>
-      ) : (
-        <Rail groups={groups} pinnedPages={pinnedPages} counts={counts} currentHref={current?.page.href} currentGroup={here} onExpand={onTogglePin} />
-      )}
+              );
+            })}
+          </nav>
+        ) : (
+          <Rail groups={groups} pinnedPages={pinnedPages} counts={counts} currentHref={current?.page.href} currentGroup={here} onExpand={onTogglePin} />
+        )}
+      </div>
 
       {/* Same height as the page footer, so their top borders line up across the window. */}
-      <div className="flex h-17 shrink-0 items-center gap-3 border-t border-rail-border px-4.5">
+      <div className="flex h-17 shrink-0 items-center gap-3 border-t border-border px-4.5">
         <Avatar name={user.name} src={user.avatarUrl} size={40} online />
         <div className={cn(label(expanded), 'min-w-0 leading-tight')}>
-          <p className="truncate text-sm font-medium text-rail-ink">{user.name}</p>
-          <p className="truncate text-xs text-rail-muted">{TIER_LABEL[user.tier]}</p>
+          <p className="truncate text-sm font-medium text-ink">{user.name}</p>
+          <p className="truncate text-xs text-muted">{TIER_LABEL[user.tier]}</p>
         </div>
       </div>
     </aside>

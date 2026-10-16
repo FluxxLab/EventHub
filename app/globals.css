@@ -510,6 +510,16 @@ dialog[open]::backdrop {
   animation-delay: calc(var(--stagger, 0) * 40ms);
 }
 
+/*
+ * The page's ground: a PIC event photo (public/BackGround.png) fixed in place while the page
+ * scrolls, under a wash of the page colour so it is felt, not read. Dark mode washes it dark.
+ */
+.page-photo {
+  background:
+    linear-gradient(color-mix(in srgb, var(--canvas) 86%, transparent), color-mix(in srgb, var(--canvas) 86%, transparent)),
+    url('/BackGround.png') center / cover no-repeat fixed;
+}
+
 /* On the navy sidebar the keyboard ring is gold, since navy would vanish into it. */
 [data-rail] :focus-visible {
   outline-color: var(--secondary);
