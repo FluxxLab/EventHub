@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" fill="none">
+  <!-- PIC's swoosh, faint behind the page's top corner -->
+  <circle cx="560" cy="40" r="190" fill="#002d74" fill-opacity="0.025"/>
+  <path d="M330 -20 A260 260 0 0 1 620 300" stroke="#fccc00" stroke-opacity="0.16" stroke-width="14" stroke-linecap="round"/>
+</svg>
