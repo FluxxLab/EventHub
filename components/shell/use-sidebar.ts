@@ -4,9 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useSyncExternalStore } from 'react';
 
 import { useOpsProblems } from '@/components/shell/ops-alerts';
-import { api } from '@/lib/api/client';
 import { runsEvents, type StaffTier } from '@/lib/auth/session';
-import type { CallsToActionBoard } from '@/lib/calls-to-action/calls-to-action';
+import { boardKey, fetchBoard } from '@/lib/calls-to-action/use-calls-to-action';
 import { DEMO_MODE } from '@/lib/demo';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 
@@ -92,8 +91,8 @@ export function useSidebarCounts(tier: StaffTier): Record<string, number> {
   const organiser = runsEvents(tier);
   const { edition } = useWorkingEdition();
   const calls = useQuery({
-    queryKey: ['admin', 'calls-to-action', edition?.id ?? 'none'],
-    queryFn: () => api.get<CallsToActionBoard>(`/editions/${edition!.id}/calls-to-action`),
+    queryKey: boardKey(edition?.id ?? 'none'),
+    queryFn: ({ signal }) => fetchBoard(edition!.id, signal),
     enabled: organiser && !!edition && !DEMO_MODE,
     staleTime: 60_000,
   });
