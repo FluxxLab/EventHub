@@ -38,7 +38,7 @@ import { count } from '@/lib/format';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
+const cardClass = 'card-art overflow-hidden rounded-xl border border-border bg-surface';
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const people = (n: number) => `${count(n)} ${n === 1 ? 'person' : 'people'}`;
 

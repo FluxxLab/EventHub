@@ -54,7 +54,7 @@ export function Panel({
       data-panel
       aria-labelledby={title !== undefined ? `${id}-title` : undefined}
       aria-label={title === undefined ? label : undefined}
-      className={cn('overflow-hidden rounded-xl border border-border bg-surface', className)}
+      className={cn('card-art overflow-hidden rounded-xl border border-border bg-surface', className)}
     >
       {hasHeader && (
         <header className={cn('flex flex-wrap items-center justify-between gap-x-6 gap-y-3', pad, size === 'compact' ? 'py-4' : 'py-5', hasBelow && 'border-b border-border')}>

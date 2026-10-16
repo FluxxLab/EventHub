@@ -128,7 +128,7 @@ function Report({ edition }: { edition: Edition }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-surface p-5 lg:grid-cols-4">
+      <div className="card-art grid grid-cols-2 gap-4 rounded-xl border border-border bg-surface p-5 lg:grid-cols-4">
         <Stat label="Leads scanned" value={count(t.leads)} changeLabel={`across ${t.stands} stands`} />
         <Stat label="Delegates reached" value={`${reach}%`} changeLabel={`${count(r.delegatesScanned)} of ${count(r.ticketHolders)} scanned at a stand`} />
         <Stat label="Passport visits" value={count(t.stamps)} changeLabel="delegates who scanned a stand" />

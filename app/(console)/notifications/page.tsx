@@ -489,7 +489,7 @@ function NotificationsBoard({ edition, organiser }: { edition: Edition; organise
  */
 function WhatsAppOption({ on, onChange, reach, loading }: { on: boolean; onChange: (on: boolean) => void; reach: { recipients: number; live: boolean } | undefined; loading: boolean }) {
   return (
-    <section aria-labelledby="wa-title" className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-border bg-surface px-6 py-4">
+    <section aria-labelledby="wa-title" className="card-art mt-5 flex items-start justify-between gap-4 rounded-xl border border-border bg-surface px-6 py-4">
       <div className="min-w-0">
         <h2 id="wa-title" className="text-sm font-medium text-ink">
           Also send on WhatsApp
