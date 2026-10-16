@@ -430,7 +430,7 @@ export function CertificateDesigner({ editions }: { editions: Edition[] }) {
   );
 
   return (
-    <section aria-labelledby={`${id}-t`} className="overflow-hidden rounded-xl border border-border bg-surface lg:col-span-2">
+    <section aria-labelledby={`${id}-t`} className="card-art overflow-hidden rounded-xl border border-border bg-surface lg:col-span-2">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
         <div className="min-w-0">
           <h2 id={`${id}-t`} className="flex items-center gap-2 text-base font-medium text-ink">

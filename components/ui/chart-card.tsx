@@ -27,7 +27,7 @@ export function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <section aria-label={title} className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface', className)}>
+    <section aria-label={title} className={cn('card-art flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface', className)}>
       <header className="flex items-start justify-between gap-3 border-b border-border px-6 py-5">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-lg font-medium text-ink">{title}</h2>

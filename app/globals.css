@@ -546,6 +546,25 @@ dialog[open]::backdrop {
     url('/BackGround.png') center / cover no-repeat fixed;
 }
 
+/*
+ * Every card and panel carries PIC's swoosh, faint in its top-right corner
+ * (public/brand/card-arcs.svg): a gold arc and a dotted navy ring over the white.
+ */
+.card-art {
+  background-image: url('/brand/card-arcs.svg');
+  background-repeat: no-repeat;
+  background-position: right top;
+  background-size: 15rem auto;
+}
+:root[data-theme='dark'] .card-art {
+  background-image: url('/brand/card-arcs-dark.svg');
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] .card-art {
+    background-image: url('/brand/card-arcs-dark.svg');
+  }
+}
+
 /* Collapsing groups (the sidebar's): height eases open and shut. */
 .group-collapse {
   display: grid;

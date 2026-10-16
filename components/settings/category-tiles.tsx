@@ -143,7 +143,7 @@ export function CategoryTiles() {
       ) : (
         <ol ref={listRef} className={cn('grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4', reorder.isPending && 'opacity-70')}>
           {list.map((c, i) => (
-            <li key={c.slug} className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface">
+            <li key={c.slug} className="card-art flex flex-col overflow-hidden rounded-xl border border-border bg-surface">
               <button type="button" onClick={() => setEditing(c)} className="group relative aspect-[4/3] overflow-hidden bg-surface-soft text-left" aria-label={`Edit ${c.label}`}>
                 {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- signed tile artwork

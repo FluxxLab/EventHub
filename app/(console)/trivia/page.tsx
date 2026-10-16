@@ -21,7 +21,7 @@ import { useTrivia, useTriviaActions } from '@/lib/trivia/use-trivia';
 import { useListMotion } from '@/lib/use-list-motion';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
+const cardClass = 'card-art overflow-hidden rounded-xl border border-border bg-surface';
 const answers = (n: number) => `${count(n)} ${n === 1 ? 'answer' : 'answers'}`;
 
 /** Start (green play) or stop (red stop), the same control as Polls. */

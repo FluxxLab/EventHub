@@ -28,7 +28,7 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col items-center gap-2 px-6 py-14 text-center', framed && 'rounded-xl border border-border bg-surface', className)}>
+    <div className={cn('flex flex-col items-center gap-2 px-6 py-14 text-center', framed && 'card-art rounded-xl border border-border bg-surface', className)}>
       {Icon && (
         <span className="mb-1 flex size-11 items-center justify-center rounded-full bg-surface-soft text-hint">
           <Icon className="size-5" aria-hidden />
@@ -57,7 +57,7 @@ export function ErrorState({
 }) {
   const message = typeof error === 'string' ? error : error?.message;
   return (
-    <div role="alert" className={cn('flex flex-col items-center gap-2 px-6 py-14 text-center', framed && 'rounded-xl border border-border bg-surface', className)}>
+    <div role="alert" className={cn('flex flex-col items-center gap-2 px-6 py-14 text-center', framed && 'card-art rounded-xl border border-border bg-surface', className)}>
       <span className="mb-1 flex size-11 items-center justify-center rounded-full bg-danger-soft text-danger">
         <ExclamationTriangleIcon className="size-5" aria-hidden />
       </span>

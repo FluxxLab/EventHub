@@ -22,7 +22,7 @@ import { useListMotion } from '@/lib/use-list-motion';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 
-const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
+const cardClass = 'card-art overflow-hidden rounded-xl border border-border bg-surface';
 const votes = (n: number) => `${count(n)} ${n === 1 ? 'vote' : 'votes'}`;
 
 /** Each answer with its share: the leader in brand blue, the rest lighter. */

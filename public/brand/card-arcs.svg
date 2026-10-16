@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" fill="none">
+  <!-- PIC's swoosh tucked into a card's top-right corner -->
+  <circle cx="240" cy="0" r="90" fill="#002d74" fill-opacity="0.025"/>
+  <path d="M120 -10 A130 130 0 0 0 250 120" stroke="#fccc00" stroke-opacity="0.28" stroke-width="5" stroke-linecap="round"/>
+  <path d="M90 -10 A160 160 0 0 0 250 150" stroke="#002d74" stroke-opacity="0.1" stroke-width="1.25" stroke-dasharray="2.5 6" stroke-linecap="round"/>
+</svg>

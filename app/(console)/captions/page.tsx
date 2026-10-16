@@ -398,7 +398,7 @@ function DeskSetup({
   onConnect: () => void;
 }) {
   return (
-    <section aria-labelledby="desk-setup" className="rounded-xl border border-border bg-surface p-6 md:p-8">
+    <section aria-labelledby="desk-setup" className="card-art rounded-xl border border-border bg-surface p-6 md:p-8">
       {streamed.length > 0 && (
         <p className="mb-6 flex items-start gap-2 rounded-lg bg-surface-soft px-4 py-3 text-sm text-ink">
           <SignalIcon className="mt-0.5 size-4 shrink-0 text-hint" />
