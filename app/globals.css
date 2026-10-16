@@ -488,15 +488,15 @@ dialog[open]::backdrop {
 }
 
 /* Collapsing groups (the sidebar's): height eases open and shut. */
-.collapse {
+.group-collapse {
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows var(--motion-moderate) var(--ease-standard);
 }
-.collapse[data-open='true'] {
+.group-collapse[data-open='true'] {
   grid-template-rows: 1fr;
 }
-.collapse > * {
+.group-collapse > * {
   min-height: 0;
   overflow: hidden;
 }
@@ -552,7 +552,7 @@ dialog[open]::backdrop {
   .deck-step {
     animation-name: page-in;
   }
-  .collapse {
+  .group-collapse {
     transition: none;
   }
   .skeleton-delay {

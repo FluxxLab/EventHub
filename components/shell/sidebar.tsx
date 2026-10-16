@@ -186,7 +186,7 @@ export function Sidebar({
               </button>
               {expanded && (
                 // eases open and shut; a closed group's links are out of the Tab order
-                <div className="collapse" data-open={groupOpen}>
+                <div className="group-collapse" data-open={groupOpen}>
                   <ul className="flex flex-col gap-0.5 py-1" inert={!groupOpen}>
                     {group.pages.map((page) => {
                       const active = current?.page.href === page.href;
