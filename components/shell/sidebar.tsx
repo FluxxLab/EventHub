@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, ChevronDownIcon, StarIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
-import { useEffect, useRef, type FocusEvent, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type FocusEvent, type MouseEvent } from 'react';
 
 import { Avatar } from '@/components/shell/avatar';
 import { useOpenGroups, usePinnedPages, useSidebarCounts } from '@/components/shell/use-sidebar';
@@ -61,7 +61,10 @@ export function Sidebar({
   const current = pageFor(pathname);
   // the groups left open are remembered; the one holding the current page is always open
   const [stored, setStored] = useOpenGroups();
-  const open = new Set([...stored, ...(current ? [current.group.label] : [])]);
+  // the group holding the current page opens by itself, unless it was closed on purpose since
+  const [closedByHand, setClosedByHand] = useState<Set<string>>(() => new Set());
+  const here = current?.group.label;
+  const open = new Set([...stored, ...(here && !closedByHand.has(here) ? [here] : [])]);
   const { pinned: pinnedHrefs, toggle: togglePinned } = usePinnedPages();
   const counts = useSidebarCounts(user.tier);
   const allPages = groups.flatMap((g) => g.pages);
@@ -101,7 +104,16 @@ export function Sidebar({
     if (event.target instanceof Element && event.target.closest('a')) closeNow();
   };
 
-  const toggle = (group: string) => setStored(open.has(group) ? [...open].filter((g) => g !== group) : [...open, group]);
+  const toggle = (group: string) => {
+    const closing = open.has(group);
+    setStored(closing ? stored.filter((g) => g !== group) : [...stored.filter((g) => g !== group), group]);
+    setClosedByHand((was) => {
+      const next = new Set(was);
+      if (closing) next.add(group);
+      else next.delete(group);
+      return next;
+    });
+  };
 
   return (
     <aside
