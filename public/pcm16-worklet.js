@@ -1,7 +1,10 @@
 /**
- * The sound desk's multi-mic capture: N channels of float audio in, 16 kHz 16-bit PCM out, the
- * channels interleaved (mic 1, mic 2, … per sample), posted in 250 ms chunks. Each output sample
- * averages the input samples since the last one, a simple low-pass that is plenty for speech.
+ * The sound desk's multi-mic capture: N channels of float audio in, 16 kHz audio out, the channels
+ * interleaved (mic 1, mic 2, … per sample), posted in 250 ms chunks. Each output sample averages
+ * the input samples since the last one, a simple low-pass that is plenty for speech.
+ *
+ * Samples go out as 8-bit G.711 μ-law (`encoding: 'mulaw'`, 128 kbps a mic, half the uplink) or as
+ * 16-bit PCM (`encoding: 'linear16'`, 256 kbps a mic). μ-law keeps speech clear at half the size.
  *
  * An automixer gate keeps one voice on one mic: a mic passes sound only while it is within
  * `gateDb` (10 dB) of the loudest mic and above the noise floor, held open briefly so words are
@@ -13,11 +16,26 @@ const HOLD_S = 0.3; // stays open this long after its speaker pauses
 const RELEASE_S = 0.15; // how fast a mic's level falls away
 const FADE = 0.01; // per-sample step towards open or shut: a few ms, so gating never clicks
 
+const BIAS = 0x84;
+const CLIP = 32635;
+
+/** One 16-bit sample as an 8-bit G.711 μ-law byte (the standard encoder: bias, segment, mantissa, inverted). */
+function mulaw(sample) {
+  const sign = (sample >> 8) & 0x80;
+  let s = sign ? -sample : sample;
+  if (s > CLIP) s = CLIP;
+  s += BIAS;
+  const exponent = 31 - Math.clz32(s >> 7); // the segment: s >> 7 is 1 to 255
+  const mantissa = (s >> (exponent + 3)) & 0x0f;
+  return ~(sign | (exponent << 4) | mantissa) & 0xff;
+}
+
 class Pcm16 extends AudioWorkletProcessor {
   constructor(options) {
     super();
     const opts = options.processorOptions;
     this.channels = opts.channels;
+    this.packed = opts.encoding === 'mulaw'; // 8-bit μ-law rather than 16-bit PCM
     this.ratio = Math.pow(10, -(opts.gateDb ?? 10) / 20);
     this.step = sampleRate / 16000; // input samples per output sample
     this.pos = 0;
@@ -30,9 +48,13 @@ class Pcm16 extends AudioWorkletProcessor {
     this.release = Math.exp(-1 / (RELEASE_S * 16000));
     this.holdSamples = Math.round(HOLD_S * 16000);
     this.chunk = 4000 * this.channels; // 250 ms at 16 kHz
-    this.out = new Int16Array(this.chunk);
+    this.out = this.fresh();
     this.o = 0;
     this.sample = new Float64Array(this.channels);
+  }
+
+  fresh() {
+    return this.packed ? new Uint8Array(this.chunk) : new Int16Array(this.chunk);
   }
 
   process(inputs) {
@@ -64,11 +86,12 @@ class Pcm16 extends AudioWorkletProcessor {
         const target = this.hold[c] > 0 ? 1 : 0;
         this.gain[c] += (target - this.gain[c]) * FADE;
         const v = Math.max(-1, Math.min(1, this.sample[c] * this.gain[c]));
-        this.out[this.o++] = v < 0 ? v * 0x8000 : v * 0x7fff;
+        const pcm = (v < 0 ? v * 0x8000 : v * 0x7fff) | 0;
+        this.out[this.o++] = this.packed ? mulaw(pcm) : pcm;
       }
       if (this.o === this.chunk) {
         this.port.postMessage(this.out.buffer, [this.out.buffer]);
-        this.out = new Int16Array(this.chunk);
+        this.out = this.fresh();
         this.o = 0;
       }
     }

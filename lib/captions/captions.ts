@@ -6,8 +6,10 @@ export type Caption = {
   speaker?: number | null;
   /** The mic it was said into (1-based), when the room sends one mic per channel. */
   mic?: number | null;
-  /** Who is on that mic (Captions > Mics); null while nobody named it. */
+  /** Who is on that mic (Captions > Mics) or who the voice was heard to be; null while nobody named it. */
   name?: string | null;
+  /** Their organisation, when the name came with one. */
+  organisation?: string | null;
   at: string;
   seq: number;
   /** Filled in after the fact (a gap the live stream missed). */
@@ -15,7 +17,7 @@ export type Caption = {
 };
 
 /** `GET /captions/:id/captions`: recent final lines, oldest first. */
-export type RecentCaption = { text: string; speaker: number | null; mic?: number | null; name?: string | null; at: string; seq: number };
+export type RecentCaption = { text: string; speaker: number | null; mic?: number | null; name?: string | null; organisation?: string | null; at: string; seq: number };
 
 export type Feed = { finals: Caption[]; interim: Caption | null };
 export const EMPTY_FEED: Feed = { finals: [], interim: null };
@@ -48,14 +50,15 @@ export const whoSaid = (line: Pick<Caption, 'name' | 'mic' | 'speaker'>): string
 
 /**
  * Consecutive lines by the same person, grouped into paragraphs for reading: a new paragraph
- * when who is speaking changes or after a pause of more than `gapMs`.
+ * when who is speaking changes or after a pause of more than `gapMs`. `by` decides who said a
+ * line (by default the name or mic or speaker number on it).
  */
-export function paragraphs(lines: Caption[], gapMs = 8000): { who: string | null; at: string; lines: Caption[] }[] {
+export function paragraphs(lines: Caption[], gapMs = 8000, by: (line: Caption) => string | null = whoSaid): { who: string | null; at: string; lines: Caption[] }[] {
   const out: { who: string | null; at: string; lines: Caption[] }[] = [];
   for (const line of lines) {
     const last = out.at(-1);
     const prev = last?.lines.at(-1);
-    const who = whoSaid(line);
+    const who = by(line);
     if (last && last.who === who && prev && Date.parse(line.at) - Date.parse(prev.at) <= gapMs) last.lines.push(line);
     else out.push({ who, at: line.at, lines: [line] });
   }
@@ -106,7 +109,7 @@ export function peakDb(samples: Uint8Array): number {
 export const meterFraction = (db: number) => Math.max(0, Math.min(1, (db - FLOOR_DB) / -FLOOR_DB));
 
 /** The broadcast zones: green below -12 dBFS, amber to -3, red above (about to clip). */
-export const meterZone = (db: number): "ok" | "hot" | "clip" => (db > -3 ? "clip" : db > -12 ? "hot" : "ok");
+export const meterZone = (db: number): 'ok' | 'hot' | 'clip' => (db > -3 ? 'clip' : db > -12 ? 'hot' : 'ok');
 
 /** Live sessions whose room this desk is not captioning, the one thing an operator must catch. */
 export function uncaptioned<T extends { room: string }>(live: T[], captioning: string[]): T[] {

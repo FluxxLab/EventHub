@@ -37,7 +37,8 @@ import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
 import { runsEvents, useSession } from '@/lib/auth/session';
-import { deskRooms, FLOOR_DB, meterFraction, meterZone, paragraphs, parseSourceKey, readPatch, sameRoom, sourceKey, sourceOptions, uncaptioned, type DeskPatch } from '@/lib/captions/captions';
+import { deskRooms, FLOOR_DB, meterFraction, meterZone, parseSourceKey, readPatch, sameRoom, sourceKey, sourceOptions, uncaptioned, type DeskPatch } from '@/lib/captions/captions';
+import { micLabelsOf, namedParagraphs, useSpeakerNames } from '@/lib/captions/speaker-names';
 import type { RoomState } from '@/lib/captions/room-capture';
 import { SOURCE_LABEL, type CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
@@ -49,7 +50,9 @@ import type { Session } from '@/lib/programme/programme';
 import { useRooms } from '@/lib/venue/use-venue';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
+import { BackupPanel } from '@/components/captions/backup-panel';
 import { MicsPanel } from '@/components/captions/mics-panel';
+import { HeardTag, RecheckNamesButton, SuggestionsStrip } from '@/components/captions/speaker-names';
 import { VocabularyPanel } from '@/components/captions/vocabulary-panel';
 
 const TABS = [
@@ -121,6 +124,7 @@ function subscribeSize(listener: () => void) {
 /** One live session's captions: its room's state under the title, the room switcher (`toolbar`) above the stream. */
 function CaptionStream({ session, toolbar }: { session: Session; toolbar?: ReactNode }) {
   const feed = useCaptionFeed(session.id);
+  const names = useSpeakerNames(session.id);
   const { clear, exportTranscript } = useCaptionActions(session.id);
   const toast = useToast();
   const [confirmClear, setConfirmClear] = useState(false);
@@ -130,7 +134,9 @@ function CaptionStream({ session, toolbar }: { session: Session; toolbar?: React
   const [paused, setPaused] = useState(false);
   const size = useSyncExternalStore(subscribeSize, readSize, () => 'normal' as Size);
   const sizeClass = SIZES.find((s) => s.value === size)!.className;
-  const blocks = useMemo(() => paragraphs(feed.finals), [feed.finals]);
+  // voices named as they are heard: a name arriving mid-session relabels every earlier line by that voice
+  const micLabels = useMemo(() => micLabelsOf(session), [session]);
+  const blocks = useMemo(() => namedParagraphs(feed.finals, names.bindings, micLabels), [feed.finals, names.bindings, micLabels]);
 
   // Stay pinned to the newest line unless the operator has scrolled up to read.
   useLayoutEffect(() => {
@@ -172,6 +178,7 @@ function CaptionStream({ session, toolbar }: { session: Session; toolbar?: React
         <>
           <Select label="Caption text size" value={size} options={SIZES.map((s) => ({ value: s.value, label: s.label }))} onChange={setCaptionSize} className="w-44" />
           <span className="hidden text-xs text-hint lg:inline">Watching here counts as one caption listener on Live ops.</span>
+          {session.status === 'completed' && <RecheckNamesButton sessionId={session.id} className="h-8" />}
           {following && !paused ? (
             <button type="button" onClick={() => setPaused(true)} className={buttonClass({ style: 'borderless', color: 'gray', className: 'ml-auto h-8' })}>
               <PauseIcon className="size-4" />
@@ -193,6 +200,8 @@ function CaptionStream({ session, toolbar }: { session: Session; toolbar?: React
         </>
       }
     >
+      {/* someone introduced themselves and is not on the programme: name them, or not */}
+      <SuggestionsStrip sessions={[session]} className="px-5 pt-4" />
       {/*
        * Sized to the window, less the navbar, tabs, panel header, room switcher, panel footer and the
        * page footer, so the text-size and pause controls stay in view and a big screen shows more.
@@ -213,7 +222,15 @@ function CaptionStream({ session, toolbar }: { session: Session; toolbar?: React
               <div key={p.lines[0]!.seq} className="flex gap-4">
                 <p className="w-16 shrink-0 pt-1.5 text-xs tabular-nums text-hint">{hms(p.at)}</p>
                 <div className="min-w-0">
-                  {p.who && <p className="mb-0.5 text-xs font-medium text-primary">{p.who}</p>}
+                  {p.voice.label && (
+                    <p className="mb-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-primary">
+                      <span>
+                        {p.voice.label}
+                        {p.voice.named?.organisation && <span className="font-normal text-hint"> · {p.voice.named.organisation}</span>}
+                      </span>
+                      {p.voice.binding && <HeardTag binding={p.voice.binding} />}
+                    </p>
+                  )}
                   <p className={cn('max-w-[70ch] text-ink', sizeClass)}>{p.lines.map((l) => l.text).join(' ')}</p>
                 </div>
               </div>
@@ -549,7 +566,14 @@ function SoundDesk({ live }: { live: Session[] }) {
   };
 
   if (!desk.inputs) {
-    return <DeskSetup permission={desk.permission} connecting={desk.connecting} error={desk.error} streamed={streamed} onConnect={() => void desk.connect()} />;
+    return (
+      <div className="flex flex-col gap-5">
+        <SuggestionsStrip sessions={live} />
+        <DeskSetup permission={desk.permission} connecting={desk.connecting} error={desk.error} streamed={streamed} onConnect={() => void desk.connect()} />
+        {/* recordings kept from earlier, still uploading or to download */}
+        <BackupPanel hideWhenEmpty />
+      </div>
+    );
   }
   const inputs = desk.inputs;
   const channelCount = channels.length;
@@ -592,6 +616,9 @@ function SoundDesk({ live }: { live: Session[] }) {
           </div>
         </FigureCard>
       </div>
+
+      {/* voices heard introducing themselves in a live room, for the desk to name or not */}
+      <SuggestionsStrip sessions={live} />
 
       <Panel
         title="Patch"
@@ -806,6 +833,8 @@ function SoundDesk({ live }: { live: Session[] }) {
           </div>
         )}
       </Panel>
+
+      <BackupPanel />
 
       <ConfirmDialog
         open={!!confirm}

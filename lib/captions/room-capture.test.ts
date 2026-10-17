@@ -171,4 +171,14 @@ describe('RoomCapture', () => {
     expect(sent.at(-1)).toEqual({ event: 'capture:audio', payload: chunk });
     expect(last().status).toBe('capturing');
   });
+
+  it('says when the mics come as 8-bit μ-law', async () => {
+    const { socket, up, sent } = fakeSocket();
+    const port = { onmessage: null } as unknown as MessagePort;
+    const capture = new RoomCapture('Hall A', false, { port, channels: 2, encoding: 'mulaw' }, socket as never, (s) => states.push(s));
+    await capture.start();
+    up();
+    await flush();
+    expect(sent[0]).toEqual({ event: 'capture:start', payload: { room: 'Hall A', diarise: false, audio: { encoding: 'mulaw', sampleRate: 16_000, channels: 2 } } });
+  });
 });

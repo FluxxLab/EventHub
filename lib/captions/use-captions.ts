@@ -5,19 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '@/lib/api/client';
 import { openCaptureSocket, useRealtimeEvents, useRealtimeSocket } from '@/lib/api/realtime';
-import {
-  EMPTY_FEED,
-  peakDb,
-  mergeCaption,
-  parseSourceKey,
-  seedFeed,
-  sourceKey,
-  type Caption,
-  type DeskInput,
-  type Feed,
-  type RecentCaption,
-} from '@/lib/captions/captions';
-import { RoomCapture, type RoomState } from '@/lib/captions/room-capture';
+import { EMPTY_FEED, peakDb, mergeCaption, parseSourceKey, seedFeed, sourceKey, type Caption, type DeskInput, type Feed, type RecentCaption } from '@/lib/captions/captions';
+import { deskBackup } from '@/lib/captions/desk-recorder';
+import { RoomCapture, type PcmEncoding, type RoomState } from '@/lib/captions/room-capture';
 import { DEMO_MODE } from '@/lib/demo';
 import type { Session } from '@/lib/programme/programme';
 
@@ -119,7 +109,6 @@ export function useCaptionActions(sessionId: string) {
   return { clear, exportTranscript };
 }
 
-
 /* -------------------------------------------------------------- sound desk */
 
 type OpenInput = { input: DeskInput; stream: MediaStream; splitter: ChannelSplitterNode; analysers: AnalyserNode[] };
@@ -150,6 +139,9 @@ function useMicPermission(): [MicPermission, (p: MicPermission) => void] {
   return [state, setState];
 }
 
+/** Multi-mic rooms go as 8-bit μ-law (128 kbps a mic); 'linear16' doubles that for 16-bit PCM. */
+const MULTI_MIC_ENCODING: PcmEncoding = 'mulaw';
+
 /** Browser aliases for another device; opening them would list the same channels twice. */
 const ALIASES = new Set(['default', 'communications']);
 
@@ -174,6 +166,8 @@ export function useSoundDesk() {
   const worklet = useRef(false);
 
   const setRoom = useCallback((room: string, state: RoomState | null) => {
+    // the backup counts time spent reconnecting as time offline
+    if (state) deskBackup()?.setRoomStatus(room, state.status);
     setRooms((all) => {
       const next = { ...all };
       if (state) next[room] = state;
@@ -283,11 +277,7 @@ export function useSoundDesk() {
         setPermission('denied');
         return;
       }
-      setError(
-        e instanceof Error
-            ? e.message
-            : 'The audio inputs could not be opened.',
-      );
+      setError(e instanceof Error ? e.message : 'The audio inputs could not be opened.');
     } finally {
       setConnecting(false);
     }
@@ -308,7 +298,16 @@ export function useSoundDesk() {
       const capture = new RoomCapture(room, diarise, out.stream, DEMO_MODE ? null : openCaptureSocket(), (state) => {
         if (running.current.get(room)?.capture === capture) setRoom(room, state);
       });
-      running.current.set(room, { capture, release: () => tap.disconnect() });
+      // the same mono stream, also recorded on this computer whatever the link does
+      const backup = deskBackup();
+      backup?.startRoom(room, out.stream);
+      running.current.set(room, {
+        capture,
+        release: () => {
+          backup?.stopRoom(room);
+          tap.disconnect();
+        },
+      });
       await capture.start();
     },
     [setRoom],
@@ -326,7 +325,8 @@ export function useSoundDesk() {
       });
       if (picked.some((p) => !p)) return;
       if (!worklet.current) {
-        await audio.audioWorklet.addModule('/pcm16-worklet.js');
+        // versioned, so a cached older worklet (16-bit only) is never paired with a μ-law announcement
+        await audio.audioWorklet.addModule('/pcm16-worklet.js?v=mulaw');
         worklet.current = true;
       }
       const merger = audio.createChannelMerger(sources.length);
@@ -338,7 +338,7 @@ export function useSoundDesk() {
         channelCount: sources.length,
         channelCountMode: 'explicit',
         channelInterpretation: 'discrete',
-        processorOptions: { channels: sources.length },
+        processorOptions: { channels: sources.length, encoding: MULTI_MIC_ENCODING },
       });
       // the worklet only runs while it reaches the speakers; through silence, so nothing is heard
       const mute = audio.createGain();
@@ -346,12 +346,26 @@ export function useSoundDesk() {
       merger.connect(node);
       node.connect(mute);
       mute.connect(audio.destination);
-      const capture = new RoomCapture(room, false, { port: node.port, channels: sources.length }, DEMO_MODE ? null : openCaptureSocket(), (state) => {
+      // The backup: the room's mics summed to one mono stream, recorded on this computer. Scaled
+      // down a little with more mics, so several open at once do not clip.
+      const mix = audio.createGain();
+      mix.channelCount = 1;
+      mix.channelCountMode = 'explicit';
+      mix.gain.value = 1 / Math.sqrt(sources.length);
+      const mono = audio.createMediaStreamDestination();
+      mono.channelCount = 1;
+      mono.channelCountMode = 'explicit';
+      picked.forEach((p) => p!.splitter.connect(mix, p!.channel));
+      mix.connect(mono);
+      const backup = deskBackup();
+      backup?.startRoom(room, mono.stream);
+      const capture = new RoomCapture(room, false, { port: node.port, channels: sources.length, encoding: MULTI_MIC_ENCODING }, DEMO_MODE ? null : openCaptureSocket(), (state) => {
         if (running.current.get(room)?.capture === capture) setRoom(room, state);
       });
       const release = () => {
         // stop sending first, so nothing more goes out whatever happens below
         node.port.onmessage = null;
+        backup?.stopRoom(room);
         // Each interface once: disconnect(merger) drops every one of its channels into the merger,
         // and a second call for another mic on the same interface would throw "not connected".
         for (const splitter of new Set(picked.map((p) => p!.splitter))) {
@@ -360,8 +374,14 @@ export function useSoundDesk() {
           } catch {
             // already disconnected
           }
+          try {
+            splitter.disconnect(mix);
+          } catch {
+            // already disconnected
+          }
         }
         merger.disconnect();
+        mix.disconnect();
         node.disconnect();
         mute.disconnect();
       };
