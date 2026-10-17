@@ -12,7 +12,9 @@ import { SaveLabel, useJustSaved } from '@/components/ui/reveal';
 import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toaster';
+import { MicHeard, NamingSetting, RecheckNamesButton, VoicesPanel } from '@/components/captions/speaker-names';
 import { AUDIENCE, MAX_MICS, nextMic, useSetSessionMics, type SessionMic } from '@/lib/captions/mics';
+import { heardOnMic, useSpeakerNames, type SpeakerName } from '@/lib/captions/speaker-names';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { timeRange, type Session } from '@/lib/programme/programme';
 import { useSessions } from '@/lib/programme/use-sessions';
@@ -60,45 +62,57 @@ export function MicsPanel() {
   if (editions.isPending || (editionId && sessions.isPending)) return <Skeleton className="h-96 rounded-xl" />;
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-      <Panel title="Sessions" count={list.length} description="Pick one to name its mics.">
-        {list.length === 0 ? (
-          <EmptyState
-            icon={MicrophoneIcon}
-            title="No sessions yet"
-            action={
-              <Link href="/programme" className={buttonClass()}>
-                Add sessions
-              </Link>
-            }
-          />
-        ) : (
-          <ul className="max-h-[36rem] divide-y divide-border overflow-y-auto">
-            {list.map((s) => {
-              const named = s.mics?.length ?? 0;
-              return (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    aria-current={open?.id === s.id ? 'true' : undefined}
-                    onClick={() => setOpenId(s.id)}
-                    className={cn('flex w-full flex-col gap-0.5 px-5 py-3 text-left', open?.id === s.id ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
-                  >
-                    <span className="w-full truncate text-sm text-ink">{s.title}</span>
-                    <span className="flex flex-wrap items-center gap-x-2 text-xs text-hint">
-                      Day {s.day} · {timeRange(s.startsAt, s.endsAt)} · {s.room}
-                      {s.status === 'live' && <span className="font-medium text-danger">Live</span>}
-                      <span className={named ? 'text-primary' : ''}>{named ? `${named} ${named === 1 ? 'mic' : 'mics'} named` : 'Mics not named'}</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Panel>
+    <div className="flex flex-col gap-5">
+      {/* the event's rule for names heard in introductions */}
+      <NamingSetting />
+      <div className="grid items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <Panel title="Sessions" count={list.length} description="Pick one to name its mics.">
+          {list.length === 0 ? (
+            <EmptyState
+              icon={MicrophoneIcon}
+              title="No sessions yet"
+              action={
+                <Link href="/programme" className={buttonClass()}>
+                  Add sessions
+                </Link>
+              }
+            />
+          ) : (
+            <ul className="max-h-[36rem] divide-y divide-border overflow-y-auto">
+              {list.map((s) => {
+                const named = s.mics?.length ?? 0;
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      aria-current={open?.id === s.id ? 'true' : undefined}
+                      onClick={() => setOpenId(s.id)}
+                      className={cn('flex w-full flex-col gap-0.5 px-5 py-3 text-left', open?.id === s.id ? 'bg-primary-soft' : 'hover:bg-surface-soft')}
+                    >
+                      <span className="w-full truncate text-sm text-ink">{s.title}</span>
+                      <span className="flex flex-wrap items-center gap-x-2 text-xs text-hint">
+                        Day {s.day} · {timeRange(s.startsAt, s.endsAt)} · {s.room}
+                        {s.status === 'live' && <span className="font-medium text-danger">Live</span>}
+                        <span className={named ? 'text-primary' : ''}>{named ? `${named} ${named === 1 ? 'mic' : 'mics'} named` : 'Mics not named'}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
 
-      {open ? <MicsEditor key={`${open.id}:${JSON.stringify(open.mics ?? [])}`} session={open} save={save} justSaved={justSaved && save.variables?.sessionId === open.id} /> : <div />}
+        {open ? (
+          <div className="flex flex-col gap-5">
+            <MicsEditor key={`${open.id}:${JSON.stringify(open.mics ?? [])}`} session={open} save={save} justSaved={justSaved && save.variables?.sessionId === open.id} />
+            {/* a room on one channel tells voices apart by number: name those here */}
+            {(open.mics?.length ?? 0) <= 1 && <VoicesPanel key={open.id} session={open} />}
+          </div>
+        ) : (
+          <div />
+        )}
+      </div>
     </div>
   );
 }
@@ -106,6 +120,7 @@ export function MicsPanel() {
 function MicsEditor({ session, save, justSaved }: { session: Session; save: ReturnType<typeof useSetSessionMics>; justSaved: boolean }) {
   const toast = useToast();
   const rowsRef = useListMotion<HTMLUListElement>();
+  const names = useSpeakerNames(session.id);
   const [rows, setRows] = useState<Row[]>(() => (session.mics?.length ? toRows(session.mics) : [{ key: rowKey(), mic: 1, who: NOBODY, other: '' }]));
   const dirty = JSON.stringify(toMics(rows)) !== JSON.stringify(toMics(toRows(session.mics)));
 
@@ -117,6 +132,9 @@ function MicsEditor({ session, save, justSaved }: { session: Session; save: Retu
   ];
   const usedMics = new Set(rows.map((r) => r.mic));
   const set = (i: number, next: Partial<Row>) => setRows((all) => all.map((r, j) => (j === i ? { ...r, ...next } : r)));
+  // the name heard on a mic becomes its label: the programmed speaker when it is one, else typed in
+  const use = (i: number, heard: SpeakerName) =>
+    set(i, heard.speakerId && session.speakers.some((s) => s.id === heard.speakerId) ? { who: heard.speakerId, other: '' } : { who: OTHER, other: heard.name });
   const add = () => {
     const mic = nextMic(rows);
     if (mic) setRows((all) => [...all, { key: rowKey(), mic, who: NOBODY, other: '' }]);
@@ -137,12 +155,15 @@ function MicsEditor({ session, save, justSaved }: { session: Session; save: Retu
       title={<span className="truncate">{session.title}</span>}
       description={`Day ${session.day} · ${timeRange(session.startsAt, session.endsAt)} · ${session.room}`}
       actions={
-        <button type="button" disabled={!dirty || save.isPending} onClick={submit} className={buttonClass()}>
-          {!justSaved && <CheckIcon className="size-4" />}
-          <SaveLabel pending={save.isPending} saved={justSaved}>
-            Save mics
-          </SaveLabel>
-        </button>
+        <>
+          {session.status === 'completed' && <RecheckNamesButton sessionId={session.id} />}
+          <button type="button" disabled={!dirty || save.isPending} onClick={submit} className={buttonClass()}>
+            {!justSaved && <CheckIcon className="size-4" />}
+            <SaveLabel pending={save.isPending} saved={justSaved}>
+              Save mics
+            </SaveLabel>
+          </button>
+        </>
       }
     >
       <div className="flex flex-col gap-4 px-6 py-5">
@@ -160,18 +181,21 @@ function MicsEditor({ session, save, justSaved }: { session: Session; save: Retu
                   .map((n) => ({ value: String(n), label: `Mic ${n}` }))}
                 onChange={(v) => set(i, { mic: Number(v) })}
               />
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
-                <Select label={`Who is on mic ${r.mic}`} value={r.who} options={who} onChange={(v) => set(i, { who: v })} className="min-w-0 flex-1" />
-                {r.who === OTHER && (
-                  <TextInput
-                    value={r.other}
-                    maxLength={60}
-                    onChange={(e) => set(i, { other: e.target.value })}
-                    placeholder="Name and organisation"
-                    aria-label={`Name on mic ${r.mic}`}
-                    className="sm:w-64"
-                  />
-                )}
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+                  <Select label={`Who is on mic ${r.mic}`} value={r.who} options={who} onChange={(v) => set(i, { who: v })} className="min-w-0 flex-1" />
+                  {r.who === OTHER && (
+                    <TextInput
+                      value={r.other}
+                      maxLength={60}
+                      onChange={(e) => set(i, { other: e.target.value })}
+                      placeholder="Name and organisation"
+                      aria-label={`Name on mic ${r.mic}`}
+                      className="sm:w-64"
+                    />
+                  )}
+                </div>
+                <MicHeard heard={heardOnMic(names.bindings, r.mic)} named={r.who !== NOBODY} onUse={(heard) => use(i, heard)} />
               </div>
               <button
                 type="button"

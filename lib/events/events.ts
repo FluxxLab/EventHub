@@ -42,6 +42,8 @@ export type Edition = {
   brandColor?: string | null;
   /** How its call-to-action decks look: designed from its brand each time, or the Build commitment template. */
   deckTemplate?: DeckTemplate;
+  /** Who captions may name from an introduction (see lib/captions/speaker-names): programmed speakers, everyone as suggestions, or nobody. */
+  speakerNaming?: 'off' | 'programme' | 'everyone';
   createdAt: string;
 };
 

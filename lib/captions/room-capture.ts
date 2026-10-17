@@ -7,8 +7,11 @@ export type RoomState = { status: RoomStatus; message: string | null };
 
 type Ack = { capturing?: string; diarise?: boolean; error?: string; message?: string };
 
-/** A multi-mic room's audio: interleaved 16 kHz PCM chunks from the pcm16 worklet, one channel per mic. */
-export type PcmSource = { port: MessagePort; channels: number };
+/** How the pcm16 worklet packs samples: 8-bit μ-law (128 kbps a mic, the default) or 16-bit PCM (256 kbps). */
+export type PcmEncoding = 'mulaw' | 'linear16';
+
+/** A multi-mic room's audio: interleaved 16 kHz chunks from the pcm16 worklet, one channel per mic. */
+export type PcmSource = { port: MessagePort; channels: number; encoding?: PcmEncoding };
 
 /** Multi-mic audio rather than a stream to record (no `instanceof MediaStream`: it is not defined everywhere). */
 const isPcm = (audio: MediaStream | PcmSource): audio is PcmSource => 'port' in audio;
@@ -71,7 +74,11 @@ export class RoomCapture {
     s.off('capture:lost', this.onLost);
     s.off('connect', this.onConnect);
     s.off('disconnect', this.onDisconnect);
-    if (s.connected) await s.timeout(5_000).emitWithAck('caption:stop').catch(() => undefined);
+    if (s.connected)
+      await s
+        .timeout(5_000)
+        .emitWithAck('caption:stop')
+        .catch(() => undefined);
     s.disconnect();
   }
 
@@ -107,7 +114,7 @@ export class RoomCapture {
       ack = (await s.timeout(10_000).emitWithAck('capture:start', {
         room: this.room,
         diarise: this.diarise,
-        ...(pcm ? { audio: { encoding: 'linear16', sampleRate: 16_000, channels: pcm.channels } } : {}),
+        ...(pcm ? { audio: { encoding: pcm.encoding ?? 'linear16', sampleRate: 16_000, channels: pcm.channels } } : {}),
       })) as Ack;
     } catch {
       if (!this.stopped) this.onChange({ status: 'reconnecting', message: 'The server did not answer. Retrying.' });
@@ -142,7 +149,7 @@ export class RoomCapture {
     if (!s || this.stopped) return;
     this.stopRecorder();
     if (isPcm(this.audio)) {
-      // raw PCM: no recorder and no header, just pass the worklet's chunks on
+      // raw samples: no recorder and no header, just pass the worklet's chunks on
       this.sending = true;
       this.audio.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
         if (this.sending && s.connected) s.emit('capture:audio', event.data);
