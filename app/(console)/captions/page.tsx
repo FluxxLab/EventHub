@@ -36,7 +36,7 @@ import { SegmentedTabs, tabId, tabPanelId, UnderlineTabs } from '@/components/ui
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
-import { runsEvents, useSession } from '@/lib/auth/session';
+import { canControlLive, useSession } from '@/lib/auth/session';
 import { deskRooms, FLOOR_DB, meterFraction, meterZone, parseSourceKey, readPatch, sameRoom, sourceKey, sourceOptions, uncaptioned, type DeskPatch } from '@/lib/captions/captions';
 import { micLabelsOf, namedParagraphs, useSpeakerNames } from '@/lib/captions/speaker-names';
 import type { RoomState } from '@/lib/captions/room-capture';
@@ -275,7 +275,7 @@ function CaptionStream({ session, toolbar }: { session: Session; toolbar?: React
  */
 function RoomContext({ session }: { session: Session }) {
   const auth = useSession();
-  const overview = useLiveOverview(auth.status === 'signed-in' && runsEvents(auth.user.tier));
+  const overview = useLiveOverview(auth.status === 'signed-in' && canControlLive(auth.user.tier));
   const streams = useIngestRooms();
   // the live session by id, or by room when the two lists name it differently
   const metrics = overview.data?.find((m) => m.id === session.id) ?? overview.data?.find((m) => sameRoom(m.room, session.room));

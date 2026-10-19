@@ -20,6 +20,9 @@ export const TIER_LABEL: Record<StaffTier, string> = { admin: 'Organiser', event
 /** Organisers and event organisers: the event-running pages (the API keeps event organisers to their events). */
 export const runsEvents = (tier: StaffTier) => tier === 'admin' || tier === 'event_admin';
 
+/** Organisers, event organisers and session operators: live session controls (start, end, broadcast switches). */
+export const canControlLive = (tier: StaffTier) => tier === 'admin' || tier === 'event_admin' || tier === 'session_admin';
+
 export type StaffUser = {
   id: string;
   name: string;

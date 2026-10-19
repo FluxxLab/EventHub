@@ -28,7 +28,7 @@ import { Switch } from '@/components/ui/switch';
 import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
-import { runsEvents, useSession } from '@/lib/auth/session';
+import { canControlLive, runsEvents, useSession } from '@/lib/auth/session';
 import { count } from '@/lib/format';
 import { currentDay, roomStates, totals, type BoardSession, type RoomState } from '@/lib/live/live';
 import { useRealtimeStatus } from '@/lib/api/realtime';
@@ -308,9 +308,10 @@ function ConnectionIndicator({ refreshing }: { refreshing: boolean }) {
 export default function LiveOpsPage() {
   useLiveRealtime();
   const state = useSession();
-  const isAdmin = state.status === 'signed-in' && runsEvents(state.user.tier);
+  const canControl = state.status === 'signed-in' && canControlLive(state.user.tier);
+  const canManageProgramme = state.status === 'signed-in' && runsEvents(state.user.tier);
   const board = useBoard();
-  const overview = useLiveOverview(isAdmin);
+  const overview = useLiveOverview(canControl);
   const { switchSession } = useLiveActions();
   const streams = useIngestRooms();
   const streamOf = (room: string) => (streams.disabled ? null : (streams.data?.find((r) => r.room.trim().toLowerCase() === room.trim().toLowerCase()) ?? null));
@@ -385,9 +386,9 @@ export default function LiveOpsPage() {
         <ConnectionIndicator refreshing={overview.isFetching || board.isFetching} />
       </div>
 
-      {!isAdmin && <p className="rounded-lg bg-primary-soft px-4 py-3 text-sm text-primary">Starting sessions and the broadcast switches are for organisers; run captions from the Captions page.</p>}
+      {!canControl && <p className="rounded-lg bg-primary-soft px-4 py-3 text-sm text-primary">Starting sessions and the broadcast switches are for organisers and session operators; run captions from the Captions page.</p>}
 
-      {isAdmin && (
+      {canControl && (
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
           <FigureCard label="Live rooms" icon={BuildingOffice2Icon} value={`${sum.liveRooms} of ${sum.rooms}`} note={sum.onBreak ? `${sum.onBreak} on break` : undefined} />
           <FigureCard label="Watching now" icon={EyeIcon} value={count(sum.viewers)} hint="Delegates with a live session open in the app, across all rooms" />
@@ -410,7 +411,7 @@ export default function LiveOpsPage() {
           icon={PauseCircleIcon}
           title={`No sessions on Day ${day}`}
           action={
-            isAdmin && (
+            canManageProgramme && (
               <Link href="/programme" className={buttonClass()}>
                 Add sessions
               </Link>
@@ -423,7 +424,7 @@ export default function LiveOpsPage() {
             <RoomCard
               key={r.room}
               state={r}
-              canControl={isAdmin}
+              canControl={canControl}
               stream={streamOf(r.room)}
               onStart={(start) => setPending({ kind: 'start', room: r.room, start, end: r.live })}
               onEnd={(end) => setPending({ kind: 'end', room: r.room, end })}
