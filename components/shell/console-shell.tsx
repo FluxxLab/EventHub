@@ -77,7 +77,7 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
            * the sidebar; h-17 matches the sidebar's user row so the two top borders form one line.
            */}
           <footer className="flex h-17 shrink-0 items-center justify-center border-t border-border bg-surface bg-[url(/brand/bar-arcs.svg)] bg-[length:auto_100%] bg-right bg-no-repeat px-4 text-xs text-muted sm:px-7 md:sticky md:bottom-0 md:z-20">
-            Designed and maintained by Flux Eco
+            Designed and maintained by Fluxx Eco
           </footer>
         </div>
         <NavMenu groups={groups} open={menuOpen} onClose={closeMenu} />
