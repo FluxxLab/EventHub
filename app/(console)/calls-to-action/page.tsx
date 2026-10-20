@@ -20,6 +20,7 @@ import { CallDialog } from '@/components/calls-to-action/call-dialog';
 import { AnalyseManyDialog } from '@/components/calls-to-action/analyse-many-dialog';
 import { DeckDialog, type DeckStyle } from '@/components/calls-to-action/deck-dialog';
 import { ReportDialog } from '@/components/calls-to-action/report-dialog';
+import { StakeholdersPanel } from '@/components/calls-to-action/stakeholders-panel';
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
@@ -30,9 +31,9 @@ import { EmptyState, ErrorState } from '@/components/ui/states';
 import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
-import { callsCsv, countByStatus, filterCalls, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
+import { callsCsv, countByStatus, filterCalls, hereFor, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
 import { useAnalyseQueue } from '@/lib/calls-to-action/analyse-queue';
-import { useCallActions, useCallsToAction, useCallTargets } from '@/lib/calls-to-action/use-calls-to-action';
+import { useCallActions, useCallsToAction, useCallTargets, useStakeholders } from '@/lib/calls-to-action/use-calls-to-action';
 import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
 import { timeRange } from '@/lib/programme/programme';
@@ -60,6 +61,7 @@ function Board({ edition }: { edition: Edition }) {
   const targets = useCallTargets(edition.id);
   const sessions = useSessions(edition.id);
   const actions = useCallActions(edition.id);
+  const stakeholders = useStakeholders(edition.id);
 
   const [sessionToAnalyse, setSessionToAnalyse] = useState('');
   const [tab, setTab] = useUrlParam<StatusTab>('status', 'suggested', STATUS_TABS);
@@ -327,6 +329,17 @@ function Board({ edition }: { edition: Edition }) {
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 text-xs text-hint">
                     <Tag tone="primary">To {c.directedAt}</Tag>
+                    {(() => {
+                      const here = hereFor(stakeholders.data, c.id);
+                      return (
+                        here &&
+                        here.delegates > 0 && (
+                          <span title={here.orgs.join(', ')}>
+                            {here.delegates} {here.delegates === 1 ? 'delegate' : 'delegates'} here · {here.orgs.length === 1 ? here.orgs[0] : `${here.orgs.length} organisations`}
+                          </span>
+                        )
+                      );
+                    })()}
                     <Tag tone={c.type === 'pledge' ? 'green' : 'gray'}>{TYPE_LABEL[c.type]}</Tag>
                     {c.needsDetail && <Tag tone="gold">Needs detail</Tag>}
                     {c.status !== 'suggested' && <Tag tone={c.status === 'approved' ? 'green' : 'gray'}>{STATUS_LABEL[c.status]}</Tag>}
@@ -373,6 +386,9 @@ function Board({ edition }: { edition: Edition }) {
           </ul>
         )}
       </Panel>
+
+      {/* 3. Who the calls are aimed at, and who from there is here */}
+      <StakeholdersPanel editionId={edition.id} items={items} aiReady={aiReady} />
 
       {(manyOpen || queued.length > 0) && (
         <AnalyseManyDialog open={manyOpen} sessions={sessionList} analysedTimes={(id) => runsOf(id)?.runs ?? 0} queue={queue} onReview={() => setTab('suggested')} onClose={() => setManyOpen(false)} />

@@ -459,7 +459,12 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
   const kindFill = (call: CallToAction) => (call.type === 'pledge' ? p.secondary : p.primary);
   const kindInk = (call: CallToAction) => (call.type === 'pledge' ? onSecondary : onPrimary);
   const meta = (call: CallToAction) =>
-    [byline(call), input.sessionTitle(call.sessionId), [call.deadline && `By ${call.deadline}`, call.amount].filter(Boolean).join(' · ') || null].filter((m): m is string => !!m);
+    [
+      byline(call),
+      input.sessionTitle(call.sessionId),
+      [call.deadline && `By ${call.deadline}`, call.amount].filter(Boolean).join(' · ') || null,
+      call.present ? `Stakeholders here: ${call.present}` : null,
+    ].filter((m): m is string => !!m);
   const metaRuns = (call: CallToAction) => meta(call).map((m, j, all) => ({ text: m, options: { breakLine: j < all.length - 1, bold: j === 0 && !!byline(call) } }));
 
   for (const section of sections) {
@@ -529,7 +534,13 @@ export function addDeckSlides(pres: PptxGenJS, input: DeckInput): void {
       s.addNotes(
         calls
           .map((call, i) =>
-            [`${i + 1}. ${call.action}`, call.quote && `Said: "${call.quote}"`, byline(call) && `Proposed by ${byline(call)}`, `Session: ${input.sessionTitle(call.sessionId)}`]
+            [
+              `${i + 1}. ${call.action}`,
+              call.quote && `Said: "${call.quote}"`,
+              byline(call) && `Proposed by ${byline(call)}`,
+              `Session: ${input.sessionTitle(call.sessionId)}`,
+              call.present && `Stakeholders here: ${call.present}`,
+            ]
               .filter(Boolean)
               .join('\n'),
           )
@@ -709,7 +720,15 @@ export function addSessionSlides(pres: PptxGenJS, input: DeckInput & { session: 
       ];
     });
     s.addTable([header, ...cells], { x: 0.6, y: 1.45, w: 7.95, colW: [2.25, 4.3, 1.4], rowH: [0.4, ...rows.map(() => 0.5)] });
-    s.addNotes(rows.map((call, i) => [`${i + 1}. ${call.action}`, call.quote && `Said: "${call.quote}"`, byline(call) && `Proposed by ${byline(call)}`].filter(Boolean).join('\n')).join('\n\n'));
+    s.addNotes(
+      rows
+        .map((call, i) =>
+          [`${i + 1}. ${call.action}`, call.quote && `Said: "${call.quote}"`, byline(call) && `Proposed by ${byline(call)}`, call.present && `Stakeholders here: ${call.present}`]
+            .filter(Boolean)
+            .join('\n'),
+        )
+        .join('\n\n'),
+    );
   });
 }
 

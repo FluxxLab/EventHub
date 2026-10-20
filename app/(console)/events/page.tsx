@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowDownIcon, ArrowDownTrayIcon, ArrowUpIcon, ArrowsUpDownIcon, CalendarDaysIcon, PlusIcon, SwatchIcon, TagIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownIcon, ArrowDownTrayIcon, ArrowUpIcon, ArrowsUpDownIcon, CalendarDaysIcon, DevicePhoneMobileIcon, PlusIcon, SwatchIcon, TagIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useMemo, useState } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CreateEventDialog } from '@/components/events/create-event-dialog';
 import { EventBrandingDialog } from '@/components/events/event-branding';
 import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
@@ -14,7 +15,7 @@ import { Tag, type TagTone } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { categoryLabel, dateRange, editionsCsv, placeOf, sortEditions, STATUS_LABEL, type Edition, type EditionStatus, type Sort, type SortKey } from '@/lib/events/events';
 import { useSession } from '@/lib/auth/session';
-import { useEditions, useDeleteEdition } from '@/lib/events/use-editions';
+import { useEditions, useDeleteEdition, useMakeCurrent } from '@/lib/events/use-editions';
 import { cn } from '@/lib/utils';
 
 /** Status as a tag tone: drafts and ended events recede, announced is brand, live is green. */
@@ -80,6 +81,23 @@ export default function EventsPage() {
   const [editing, setEditing] = useState<Edition | null>(null);
   const [deleting, setDeleting] = useState<Edition | null>(null);
   const remove = useDeleteEdition();
+  const [makingCurrent, setMakingCurrent] = useState<Edition | null>(null);
+  const makeCurrent = useMakeCurrent();
+  const current = editions.data?.find((e) => e.isCurrent);
+  const confirmMakeCurrent = () => {
+    if (!makingCurrent) return;
+    makeCurrent.mutate(makingCurrent.id, {
+      onSuccess: () => {
+        toast.push({
+          title: 'Now in the app',
+          leading: { kind: 'icon', icon: DevicePhoneMobileIcon, tone: 'success' },
+          body: `${makingCurrent.name} is what delegates see, and what captions and venue streams follow.`,
+        });
+        setMakingCurrent(null);
+      },
+      onError: (e) => toast.push({ title: 'Not changed', body: e.message }),
+    });
+  };
   const confirmDelete = () => {
     if (!deleting) return;
     remove.mutate(deleting.id, {
@@ -194,6 +212,17 @@ export default function EventsPage() {
                         actions={[
                           { label: 'Tracks & interests', icon: TagIcon, onSelect: () => setTopicsFor(edition) },
                           ...(canCreate ? [{ label: 'Branding', icon: SwatchIcon, onSelect: () => setBrandingFor(edition) }] : []),
+                          // admins only, as the API allows; a draft has to be announced first
+                          ...(canCreate && !edition.isCurrent
+                            ? [
+                                {
+                                  label: edition.status === 'draft' ? 'Put in the app (announce it first)' : 'Put in the app',
+                                  icon: DevicePhoneMobileIcon,
+                                  disabled: edition.status === 'draft',
+                                  onSelect: () => setMakingCurrent(edition),
+                                },
+                              ]
+                            : []),
                         ]}
                         onEdit={() => setEditing(edition)}
                         onDelete={
@@ -218,6 +247,18 @@ export default function EventsPage() {
       <EventTopicsDialog edition={topicsFor} onClose={() => setTopicsFor(null)} />
       <EventBrandingDialog edition={brandingFor} onClose={() => setBrandingFor(null)} />
       <CreateEventDialog open={editing !== null} edition={editing} onClose={() => setEditing(null)} />
+      <ConfirmDialog
+        open={makingCurrent !== null}
+        title={`Put ${makingCurrent?.shortName ?? 'this event'} in the app?`}
+        confirmLabel="Put in the app"
+        pendingLabel="Switching…"
+        pending={makeCurrent.isPending}
+        onConfirm={confirmMakeCurrent}
+        onCancel={() => setMakingCurrent(null)}
+      >
+        {makingCurrent?.name} becomes the event delegates see in the app{current ? `, in place of ${current.name}` : ''}. Captions and venue streams follow it too: only
+        its sessions get captions, and streams can be set up only for its rooms. Delegates are not notified.
+      </ConfirmDialog>
       <DeleteDialog
         open={deleting !== null}
         title={`Delete ${deleting?.shortName ?? 'this event'}?`}

@@ -177,6 +177,23 @@ export function useUpdateEdition() {
   });
 }
 
+/**
+ * Points the app at this event (`POST /editions/:id/current`, admins only): delegates' app,
+ * captions and venue streams all follow the current event, and only one is current at a time.
+ * The API refuses a draft. Everything cached may depend on which event is current, so all of it
+ * is refetched.
+ */
+export function useMakeCurrent() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => (DEMO_MODE ? Promise.resolve({ id, isCurrent: true } as Edition) : api.post<Edition>(`/editions/${id}/current`, {})),
+    onSuccess: (_saved, id) => {
+      client.setQueryData<Edition[]>(KEY, (was) => was?.map((e) => ({ ...e, isCurrent: e.id === id })));
+      if (!DEMO_MODE) void client.invalidateQueries({ queryKey: ['admin'] });
+    },
+  });
+}
+
 /** Deletes an event. The API refuses (with the reason) unless nothing is in it yet. */
 export function useDeleteEdition() {
   const client = useQueryClient();

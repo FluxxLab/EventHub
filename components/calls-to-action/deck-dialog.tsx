@@ -9,7 +9,8 @@ import { FormDialog } from '@/components/ui/form-dialog';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
 import { api } from '@/lib/api/client';
-import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
+import { presentLine, type CallToAction } from '@/lib/calls-to-action/calls-to-action';
+import { useStakeholders } from '@/lib/calls-to-action/use-calls-to-action';
 import type { BuildLayout } from '@/lib/calls-to-action/build-deck';
 
 /** How the deck is made: designed by the AI for the event, or the commitment template's cards or table. */
@@ -60,7 +61,12 @@ export function DeckDialog({
 }) {
   const id = useId();
   const toast = useToast();
-  const approved = useMemo(() => items.filter((c) => c.status === 'approved'), [items]);
+  // each recommendation carries who from its organisations is at the event, for its "Stakeholders here" line
+  const stakeholders = useStakeholders(edition.id);
+  const approved = useMemo(
+    () => items.filter((c) => c.status === 'approved').map((c) => (c.type === 'recommendation' ? { ...c, present: presentLine(stakeholders.data, c.id) } : c)),
+    [items, stakeholders.data],
+  );
   const withCalls = useMemo(() => sessions.filter((s) => approved.some((c) => c.sessionId === s.id)), [sessions, approved]);
   const days = useMemo(() => [...new Set(withCalls.map((s) => s.day))].sort((a, b) => a - b), [withCalls]);
 

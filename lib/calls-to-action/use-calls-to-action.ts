@@ -3,12 +3,64 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api/client';
-import type { AnalyseResult, CallToAction, CallsToActionBoard, toBody } from '@/lib/calls-to-action/calls-to-action';
+import type { AnalyseResult, CallToAction, CallsToActionBoard, StakeholderLink, StakeholderMap, toBody } from '@/lib/calls-to-action/calls-to-action';
 import { DEMO_MODE } from '@/lib/demo';
 
 export const boardKey = (editionId: string) => ['admin', 'calls-to-action', editionId] as const;
 
-const DEMO: CallsToActionBoard = { aiReady: false, items: [], analyses: [] };
+const demoCall = (id: string, type: CallToAction['type'], directedAt: string, shortText: string, proposedBy: string, proposedByOrganisation: string | null): CallToAction => ({
+  id,
+  editionId: 'demo-gs27',
+  sessionId: 'd2',
+  type,
+  action: shortText,
+  shortText,
+  directedAt,
+  proposedBy,
+  proposedByOrganisation,
+  alsoProposedBy: [],
+  deadline: null,
+  amount: null,
+  theme: null,
+  quote: null,
+  saidAt: null,
+  needsDetail: false,
+  status: 'suggested',
+  mergedInto: null,
+  source: 'manual',
+  createdAt: '2027-09-07T10:40:00Z',
+  updatedAt: '2027-09-07T10:40:00Z',
+});
+
+const DEMO: CallsToActionBoard = {
+  aiReady: false,
+  items: [
+    demoCall('c1', 'recommendation', 'NITDA', 'Publish a shared compute access framework for universities by 2027', 'Grace Obi', 'NBS'),
+    demoCall('c2', 'recommendation', 'NITDA', 'Open government datasets in machine-readable form', 'Tunde Bakare', null),
+    demoCall('c3', 'pledge', 'World Bank', 'Fund a regional AI compute feasibility study', 'Mathew Verghis', 'World Bank'),
+    demoCall('c4', 'recommendation', 'Federal Government', 'Make disaggregated data mandatory for all ministries', 'Grace Obi', 'NBS'),
+  ],
+  analyses: [],
+};
+
+const DEMO_STAKEHOLDERS: StakeholderMap = {
+  stakeholders: [
+    {
+      name: 'National Information Technology Development Agency (NITDA)',
+      spellings: ['National Information Technology Development Agency (NITDA)', 'NITDA'],
+      delegates: [
+        { id: 'd1', name: 'Amina Sambo-Magaji', title: 'Director IT', email: 'amina@nitda.gov.ng', admitted: true },
+        { id: 'd2', name: 'Maryam Abdullahi', title: null, email: 'maryam@nitda.gov.ng', admitted: false },
+      ],
+      asks: ['c1', 'c2'],
+      commitments: [],
+    },
+    { name: 'World Bank', spellings: ['World Bank'], delegates: [{ id: 'd3', name: 'Mathew Verghis', title: 'Country Director', email: 'mverghis@worldbank.org', admitted: true }], asks: [], commitments: ['c3'] },
+  ],
+  byCall: { c1: ['National Information Technology Development Agency (NITDA)'], c2: ['National Information Technology Development Agency (NITDA)'], c3: ['World Bank'], c4: [] },
+  unmatched: [{ target: 'Federal Government', calls: 1 }],
+  links: [],
+};
 
 /**
  * The board's one fetch: every query on `boardKey` uses it (this page and the sidebar's count), as
@@ -35,6 +87,74 @@ export function useCallTargets(editionId: string) {
 
 type Body = ReturnType<typeof toBody>;
 
+/** Under the board's key, so whatever refreshes the board refreshes this too. */
+export const stakeholdersKey = (editionId: string) => [...boardKey(editionId), 'stakeholders'] as const;
+
+/**
+ * The event's organisations matched to the calls (`GET /editions/:id/calls-to-action/stakeholders`):
+ * each one's delegates, the recommendations aimed at it and its commitments.
+ */
+export function useStakeholders(editionId: string) {
+  return useQuery({
+    queryKey: stakeholdersKey(editionId),
+    queryFn: ({ signal }) =>
+      DEMO_MODE ? Promise.resolve(DEMO_STAKEHOLDERS) : api.get<StakeholderMap>(`/editions/${editionId}/calls-to-action/stakeholders`, undefined, signal),
+  });
+}
+
+/** Demo only: what confirming or rejecting a link does to the sample map. */
+function demoSetLink(map: StakeholderMap, id: string, status: 'confirmed' | 'rejected'): StakeholderMap {
+  if (!map.links.some((l) => l.id === id)) return map;
+  const links = status === 'rejected' ? map.links.filter((l) => l.id !== id) : map.links.map((l) => (l.id === id ? { ...l, status } : l));
+  // redrawn from the sample map with the confirmed links laid over it, as the API redraws it
+  const confirmed = links.filter((l) => l.status === 'confirmed');
+  const byCall = { ...DEMO_STAKEHOLDERS.byCall };
+  for (const l of confirmed) for (const c of DEMO.items.filter((c) => c.directedAt === l.target)) byCall[c.id] = [...new Set([...(byCall[c.id] ?? []), l.organisation])];
+  return {
+    links,
+    byCall,
+    stakeholders: DEMO_STAKEHOLDERS.stakeholders.map((s) => ({ ...s, asks: [...new Set([...s.asks, ...Object.keys(byCall).filter((c) => byCall[c]!.includes(s.name) && DEMO.items.find((i) => i.id === c)?.type === 'recommendation')])] })),
+    unmatched: DEMO_STAKEHOLDERS.unmatched.filter((u) => !confirmed.some((l) => l.target === u.target)),
+  };
+}
+
+/**
+ * Broad targets tied to the event's organisations: the AI's suggestions, confirmed or rejected
+ * here, or a link added by hand. Each answers with the redrawn map.
+ */
+export function useStakeholderLinks(editionId: string) {
+  const client = useQueryClient();
+  const put = (map: StakeholderMap) => client.setQueryData(stakeholdersKey(editionId), map);
+  const current = () => client.getQueryData<StakeholderMap>(stakeholdersKey(editionId)) ?? DEMO_STAKEHOLDERS;
+
+  const suggest = useMutation({
+    mutationFn: (): Promise<StakeholderMap & { added: number; message: string }> => {
+      if (!DEMO_MODE) return api.postSlow(`/editions/${editionId}/calls-to-action/stakeholders/suggest`);
+      const map = current();
+      const fresh: StakeholderLink[] = map.unmatched.some((u) => u.target === 'Federal Government') && !map.links.length
+        ? [{ id: 'l1', target: 'Federal Government', organisation: 'National Information Technology Development Agency (NITDA)', status: 'suggested', reason: 'Federal agency under the Ministry of Communications' }]
+        : [];
+      return Promise.resolve({ ...map, links: [...map.links, ...fresh], added: fresh.length, message: fresh.length ? '1 suggested link to review.' : 'Every broad target already has links or suggestions to review.' });
+    },
+    onSuccess: put,
+  });
+  const set = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'confirmed' | 'rejected' }) =>
+      DEMO_MODE ? Promise.resolve(demoSetLink(current(), id, status)) : api.patch<StakeholderMap>(`/editions/${editionId}/calls-to-action/stakeholder-links/${id}`, { status }),
+    onSuccess: put,
+  });
+  const add = useMutation({
+    mutationFn: ({ target, organisation }: { target: string; organisation: string }) => {
+      if (!DEMO_MODE) return api.post<StakeholderMap>(`/editions/${editionId}/calls-to-action/stakeholder-links`, { target, organisation });
+      const id = `l-${Date.now()}`;
+      const map = current();
+      return Promise.resolve(demoSetLink({ ...map, links: [...map.links, { id, target, organisation, status: 'suggested', reason: null }] }, id, 'confirmed'));
+    },
+    onSuccess: put,
+  });
+  return { suggest, set, add };
+}
+
 export function useCallActions(editionId: string) {
   const client = useQueryClient();
   const refresh = () => void client.invalidateQueries({ queryKey: boardKey(editionId) });
@@ -56,6 +176,8 @@ export function useCallActions(editionId: string) {
     mutationFn: ({ id, body }: { id: string; body: Partial<Body> & { status?: 'suggested' | 'approved' | 'rejected' } }) => api.patch<CallToAction>(`/calls-to-action/${id}`, body),
     onSuccess: (saved) => {
       client.setQueryData<CallsToActionBoard>(boardKey(editionId), (was) => (was ? { ...was, items: was.items.map((c) => (c.id === saved.id ? saved : c)) } : was));
+      // a new target, type or status moves the call between organisations
+      void client.invalidateQueries({ queryKey: stakeholdersKey(editionId) });
     },
   });
   const merge = useMutation({

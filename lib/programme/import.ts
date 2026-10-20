@@ -341,7 +341,7 @@ export function speakerKey(name: string): string {
   const words = name
     .toLowerCase()
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/\([^)]*\)/g, ' ')
     .replace(/[^a-z\s]/g, ' ')
     .split(/\s+/)

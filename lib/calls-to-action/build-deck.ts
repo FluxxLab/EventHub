@@ -97,12 +97,13 @@ export const MAX_ROWS = 12;
 
 /** "Commitment", the headline of a call. */
 export const commitmentOf = (call: Pick<CallToAction, 'shortText' | 'action'>) => call.shortText.trim() || call.action.trim();
-/** "Details": what is to be done, with the sum and the timeline when they were said. */
-export function detailsOf(call: Pick<CallToAction, 'action' | 'deadline' | 'amount'>): string {
+/** "Details": what is to be done, with the sum and the timeline when they were said, and who from there is at the event. */
+export function detailsOf(call: Pick<CallToAction, 'action' | 'deadline' | 'amount' | 'present'>): string {
   const parts = [call.action.trim().replace(/\.?$/, '.')];
   if (call.amount?.trim()) parts.push(call.amount.trim().replace(/\.?$/, '.'));
   // deadlines are kept as said ("within 6 months", "the 2027 budget"), so they are labelled rather than worded
   if (call.deadline?.trim()) parts.push(`Timeline: ${call.deadline.trim().replace(/\.$/, '')}.`);
+  if (call.present) parts.push(`Stakeholders here: ${call.present}.`);
   return parts.join(' ');
 }
 /** "Who said it?" */
@@ -112,7 +113,7 @@ export const whoOf = (call: Pick<CallToAction, 'proposedBy' | 'proposedByOrganis
  * A table's rows split into slides: at most twelve rows, fewer when long details would push the
  * table past the footer (about 100 characters to a line in the Details column, 0.17 in a line).
  */
-export function tablePages(calls: Pick<CallToAction, 'action' | 'deadline' | 'amount' | 'shortText'>[]): number[][] {
+export function tablePages(calls: Pick<CallToAction, 'action' | 'deadline' | 'amount' | 'shortText' | 'present'>[]): number[][] {
   const pages: number[][] = [];
   let page: number[] = [];
   let used = 0;

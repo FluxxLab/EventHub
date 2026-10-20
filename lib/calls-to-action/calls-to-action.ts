@@ -29,6 +29,8 @@ export type CallToAction = {
   source: 'ai' | 'manual';
   createdAt: string;
   updatedAt: string;
+  /** Decks only, set by the deck dialog: a recommendation's organisations with delegates at the event (see presentLine). */
+  present?: string | null;
 };
 
 export type CallsToActionBoard = {
@@ -170,3 +172,70 @@ export function callsCsv(items: CallToAction[], sessionTitle: (id: string | null
   // a byte-order mark, so Excel reads ₦ and accents correctly
   return '﻿' + [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
 }
+
+/* ------------------------------------------------------------- stakeholders */
+
+export type StakeholderDelegate = { id: string; name: string; title: string | null; email: string; admitted: boolean };
+
+/** One of the event's organisations, as `GET /editions/:id/calls-to-action/stakeholders` groups it from its delegates. */
+export type Stakeholder = {
+  name: string;
+  /** Every way its delegates wrote it ("NITDA", "National Information Technology Development Agency"). */
+  spellings: string[];
+  /** Checked-in first. */
+  delegates: StakeholderDelegate[];
+  /** Recommendations aimed at it: what it is asked to commit to. */
+  asks: string[];
+  /** Pledges by or for it. */
+  commitments: string[];
+};
+
+/**
+ * A broad target ("Federal Government") tied to one of the event's organisations: suggested by the
+ * AI, then confirmed or rejected by an organiser. Only confirmed links count.
+ */
+export type StakeholderLink = { id: string; target: string; organisation: string; status: 'suggested' | 'confirmed'; reason: string | null };
+
+export type StakeholderMap = {
+  /** Links waiting for review and confirmed ones (rejected ones are not sent). */
+  links: StakeholderLink[];
+  stakeholders: Stakeholder[];
+  /** Each call's organisations at the event. */
+  byCall: Record<string, string[]>;
+  /** Recommendation targets matching no organisation here ("Federal Government"), with how many calls name each. */
+  unmatched: { target: string; calls: number }[];
+};
+
+/** "NITDA · 4 delegates here" for a call, or null when it concerns nobody at the event. */
+export function hereFor(map: StakeholderMap | undefined, callId: string): { orgs: string[]; delegates: number } | null {
+  const orgs = map?.byCall[callId] ?? [];
+  if (!orgs.length) return null;
+  const delegates = map!.stakeholders.filter((s) => orgs.includes(s.name)).reduce((n, s) => n + s.delegates.length, 0);
+  return { orgs, delegates };
+}
+
+/** "NITDA" from "National Information Technology Development Agency (NITDA)"; a name with no abbreviation as it is. */
+export function shortOrg(name: string): string {
+  const abbr = name.match(/\(([A-Za-z][A-Za-z&.-]{1,11})\)\s*$/);
+  return abbr ? abbr[1]! : name.trim();
+}
+
+/**
+ * A call's organisations that have delegates at the event, as one line for a deck: "NITDA (3
+ * delegates); World Bank (1 delegate)", busiest first, two at most and then "and 2 more". Never names
+ * a delegate: decks are shown on screen. Null when none. (The API writes the same line for reports.)
+ */
+export function presentLine(map: StakeholderMap | undefined, callId: string): string | null {
+  const orgs = (map?.byCall[callId] ?? [])
+    .map((name) => map!.stakeholders.find((s) => s.name === name))
+    .filter((s): s is Stakeholder => !!s && s.delegates.length > 0)
+    .sort((a, b) => b.delegates.length - a.delegates.length);
+  if (!orgs.length) return null;
+  const n = (k: number) => `${k} ${k === 1 ? 'delegate' : 'delegates'}`;
+  const shown = orgs.slice(0, 2).map((s) => `${shortOrg(s.name)} (${n(s.delegates.length)})`);
+  const more = orgs.length - shown.length;
+  return `${shown.join('; ')}${more ? ` and ${more} more` : ''}`;
+}
+
+/** The asks an organisation has no commitment for yet, if it has made none: who to follow up. */
+export const openAsks = (s: Stakeholder) => (s.commitments.length ? 0 : s.asks.length);
