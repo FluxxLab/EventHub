@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpTrayIcon, CalendarDaysIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowUpTrayIcon, CalendarDaysIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { CreateSessionDialog } from '@/components/programme/create-session-dialog';
 import { ImportSessionsDialog } from '@/components/programme/import-sessions-dialog';
+import { SessionBriefDialog } from '@/components/programme/session-brief-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
 import { SessionStatusPicker } from '@/components/programme/session-status';
 import { Avatar } from '@/components/shell/avatar';
@@ -25,6 +26,7 @@ import { useTrackLibrary } from '@/lib/catalog/use-topics';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { dayDate, durationMinutes, filterSessions, MAX_DAY, timeRange, typeLabel, type Session, type SessionTrack } from '@/lib/programme/programme';
 import { useDeleteSession, useSessions, useSessionsRealtime } from '@/lib/programme/use-sessions';
+import { useSessionBriefs } from '@/lib/programme/use-briefs';
 import { useCallActions } from '@/lib/calls-to-action/use-calls-to-action';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
@@ -71,6 +73,8 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   const day = Number(dayParam);
   const [trackParam, setTrack] = useUrlParam<string>('track', 'all');
   const [speakersFor, setSpeakersFor] = useState<Session | null>(null);
+  const [briefFor, setBriefFor] = useState<Session | null>(null);
+  const briefs = useSessionBriefs(edition?.id);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [deletingSession, setDeletingSession] = useState<Session | null>(null);
   const trackLibrary = useTrackLibrary();
@@ -239,8 +243,21 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                       <p className="truncate text-ink-soft" title={s.title}>
                         {s.title}
                       </p>
-                      <p className="mt-1">
+                      <p className="mt-1 flex items-center gap-1.5">
                         <Tag>{typeLabel(s.type)}</Tag>
+                        {briefs.data?.has(s.id) && (
+                          <button
+                            type="button"
+                            onClick={() => setBriefFor(s)}
+                            title={briefs.data.get(s.id)!.fileName ? `Brief: ${briefs.data.get(s.id)!.fileName}` : 'Has a brief'}
+                            aria-label={`Session brief for ${s.title}`}
+                            className="rounded-full"
+                          >
+                            <Tag tone="primary">
+                              <DocumentTextIcon className="size-3" /> Brief
+                            </Tag>
+                          </button>
+                        )}
                       </p>
                     </td>
                     <td className={cn(td, 'max-w-48 truncate text-ink-soft')} title={trackLabel(s.track, library)}>
@@ -279,6 +296,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                       <RowActions
                         name={s.title}
                         actions={[
+                          { label: briefs.data?.has(s.id) ? 'Session brief' : 'Add session brief', icon: DocumentTextIcon, onSelect: () => setBriefFor(s) },
                           {
                             label: callActions.analyse.isPending ? 'Analysing…' : 'Analyse for calls to action',
                             icon: SparklesIcon,
@@ -312,6 +330,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
       {/* remounted on each open, so it starts from a clean sheet */}
       <ImportSessionsDialog key={importing ? 'open' : 'closed'} open={importing} edition={edition} day={day} onClose={() => setImporting(false)} />
       <SessionSpeakersDialog session={speakersFor} editionId={edition.id} onClose={() => setSpeakersFor(null)} />
+      <SessionBriefDialog session={briefFor} editionId={edition.id} onClose={() => setBriefFor(null)} />
       <CreateSessionDialog open={editingSession !== null} session={editingSession} onClose={() => setEditingSession(null)} edition={edition} day={editingSession?.day ?? day} />
       <DeleteSessionDialog editionId={edition.id} session={deletingSession} onClose={() => setDeletingSession(null)} />
     </div>
