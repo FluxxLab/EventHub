@@ -3,6 +3,7 @@
 import {
   ArrowDownTrayIcon,
   ArrowUturnLeftIcon,
+  BuildingOffice2Icon,
   CheckIcon,
   DocumentTextIcon,
   MegaphoneIcon,
@@ -28,7 +29,7 @@ import { MenuButton } from '@/components/ui/menu-button';
 import { Panel } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
-import { SegmentedTabs } from '@/components/ui/tabs';
+import { SegmentedTabs, tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { callsCsv, countByStatus, filterCalls, hereFor, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
@@ -41,6 +42,9 @@ import { useSessions } from '@/lib/programme/use-sessions';
 import { useListMotion } from '@/lib/use-list-motion';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
+
+const VIEWS = ['calls', 'stakeholders'] as const;
+type View = (typeof VIEWS)[number];
 
 const TAB_LABEL: Record<StatusTab, string> = { suggested: 'To review', approved: 'Approved', rejected: 'Rejected', all: 'All' };
 const hm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -67,6 +71,7 @@ function Board({ edition }: { edition: Edition }) {
   const [tab, setTab] = useUrlParam<StatusTab>('status', 'suggested', STATUS_TABS);
   const [sessionFilter, setSessionFilter] = useUrlParam<string>('session', 'all');
   const [targetFilter, setTargetFilter] = useUrlParam<string>('to', 'all');
+  const [view, setView] = useUrlParam<View>('view', 'calls', VIEWS);
   const [editing, setEditing] = useState<{ call: CallToAction | null } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [keep, setKeep] = useState('');
@@ -191,204 +196,217 @@ function Board({ edition }: { edition: Edition }) {
         )}
       </Panel>
 
-      {/* 2. Review */}
-      <Panel
-        title="Calls to action"
-        count={items.length}
-        description="Only approved ones go into the deck."
-        actions={
-          <>
-            <button type="button" onClick={exportCsv} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
-              <ArrowDownTrayIcon className="size-4" />
-              Export approved
-            </button>
-            {/* the AI's design for the event, or the commitment template as cards or a table */}
-            <MenuButton
-              label="Make a deck"
-              icon={PresentationChartBarIcon}
-              disabled={counts.approved === 0}
-              choices={[
-                { label: `Designed for ${edition.shortName}`, hint: 'The AI designs it from the event’s brand', icon: SparklesIcon, onSelect: () => openDeck('designed') },
-                { label: 'Cards', hint: `Template #1, eight to a slide${edition.deckTemplate === 'build' ? ', in Build’s look' : ''}`, icon: Squares2X2Icon, onSelect: () => openDeck('cards') },
-                {
-                  label: 'Table',
-                  hint: `Template #2, up to twelve rows to a slide${edition.deckTemplate === 'build' ? ', in Build’s look' : ''}`,
-                  icon: TableCellsIcon,
-                  onSelect: () => openDeck('table'),
-                },
-              ]}
-            />
-            <button type="button" onClick={() => setReportOpen(true)} disabled={sessionList.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
-              <DocumentTextIcon className="size-4" />
-              Rapporteur report
-            </button>
-            {/* with nothing listed, the empty state below offers it instead */}
-            {items.length > 0 && (
-              <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
-                <PlusIcon className="size-4" />
-                Add by hand
+      {/* 2. The calls, and 3. who they are aimed at, a tab each */}
+      <UnderlineTabs
+        label="Calls to action sections"
+        idBase="calls"
+        value={view}
+        onChange={setView}
+        options={[
+          { value: 'calls', label: 'Calls to action', icon: MegaphoneIcon, count: items.length },
+          { value: 'stakeholders', label: 'Stakeholders', icon: BuildingOffice2Icon, count: stakeholders.data?.stakeholders.filter((s) => s.asks.length || s.commitments.length).length },
+        ]}
+      />
+      <div id={tabPanelId('calls', view)} role="tabpanel" aria-labelledby={tabId('calls', view)}>
+        {view === 'calls' ? (
+        <Panel
+          title="Calls to action"
+          count={items.length}
+          description="Only approved ones go into the deck."
+          actions={
+            <>
+              <button type="button" onClick={exportCsv} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <ArrowDownTrayIcon className="size-4" />
+                Export approved
               </button>
-            )}
-          </>
-        }
-        toolbar={
-          <>
-            <SegmentedTabs label="Review status" options={STATUS_TABS.map((t) => ({ value: t, label: TAB_LABEL[t], count: counts[t] }))} value={tab} onChange={setTab} />
-            <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-              <div className="w-full sm:w-56">
-                <Select
-                  label="Session"
-                  value={sessionFilter}
-                  options={[{ value: 'all', label: 'Every session' }, ...sessionList.map((s) => ({ value: s.id, label: s.title }))]}
-                  onChange={setSessionFilter}
-                />
-              </div>
-              {targetOptions.length > 0 && (
-                <div className="w-full sm:w-56">
-                  <Select
-                    label="Directed at"
-                    value={targetFilter}
-                    options={[{ value: 'all', label: 'Everyone called on' }, ...targetOptions.map((t) => ({ value: t, label: t }))]}
-                    onChange={setTargetFilter}
-                  />
-                </div>
-              )}
-            </div>
-          </>
-        }
-      >
-        {chosen.length >= 2 && (
-          <div className="flex flex-wrap items-center gap-3 border-b border-border bg-primary-soft/40 px-6 py-3 text-sm">
-            <Squares2X2Icon className="size-4 text-primary" />
-            <span className="text-ink">Merge {chosen.length} duplicates, keeping</span>
-            <div className="w-full sm:w-80">
-              <Select
-                label="The one to keep"
-                value={chosen.includes(keep) ? keep : chosen[0]!}
-                options={chosen.map((id) => ({ value: id, label: items.find((c) => c.id === id)?.shortText ?? id }))}
-                onChange={setKeep}
+              {/* the AI's design for the event, or the commitment template as cards or a table */}
+              <MenuButton
+                label="Make a deck"
+                icon={PresentationChartBarIcon}
+                disabled={counts.approved === 0}
+                choices={[
+                  { label: `Designed for ${edition.shortName}`, hint: 'The AI designs it from the event’s brand', icon: SparklesIcon, onSelect: () => openDeck('designed') },
+                  { label: 'Cards', hint: `Template #1, eight to a slide${edition.deckTemplate === 'build' ? ', in Build’s look' : ''}`, icon: Squares2X2Icon, onSelect: () => openDeck('cards') },
+                  {
+                    label: 'Table',
+                    hint: `Template #2, up to twelve rows to a slide${edition.deckTemplate === 'build' ? ', in Build’s look' : ''}`,
+                    icon: TableCellsIcon,
+                    onSelect: () => openDeck('table'),
+                  },
+                ]}
               />
-            </div>
-            <button type="button" onClick={merge} disabled={actions.merge.isPending} className={buttonClass()}>
-              Merge
-            </button>
-            <button type="button" onClick={() => setSelected([])} className={buttonClass({ style: 'borderless', color: 'gray' })}>
-              Cancel
-            </button>
-          </div>
-        )}
-
-        {shown.length === 0 ? (
-          items.length === 0 ? (
-            <EmptyState
-              icon={MegaphoneIcon}
-              title="No calls to action yet"
-              body="Analyse a session, or add one by hand."
-              action={
+              <button type="button" onClick={() => setReportOpen(true)} disabled={sessionList.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <DocumentTextIcon className="size-4" />
+                Rapporteur report
+              </button>
+              {/* with nothing listed, the empty state below offers it instead */}
+              {items.length > 0 && (
                 <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
                   <PlusIcon className="size-4" />
                   Add by hand
                 </button>
-              }
-            />
-          ) : (
-            <EmptyState
-              icon={MegaphoneIcon}
-              title={`Nothing ${TAB_LABEL[tab].toLowerCase()} here`}
-              action={
-                (tab !== 'all' || sessionFilter !== 'all' || targetFilter !== 'all') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTab('all');
-                      setSessionFilter('all');
-                      setTargetFilter('all');
-                    }}
-                    className={buttonClass({ style: 'outline', color: 'gray' })}
-                  >
-                    Show every call
-                  </button>
-                )
-              }
-            />
-          )
-        ) : (
-          // keyed by tab, so switching tabs swaps the list rather than fading the old one out
-          <ul key={tab} ref={listRef} className="divide-y divide-border">
-            {shown.map((c) => (
-              <li key={c.id} className={cn('flex gap-4 px-6 py-4', c.status === 'merged' && 'opacity-60')}>
-                {c.status !== 'merged' && (
-                  <input
-                    type="checkbox"
-                    aria-label={`Select “${c.shortText}” to merge`}
-                    checked={selected.includes(c.id)}
-                    onChange={(e) => setSelected((s) => (e.target.checked ? [...s, c.id] : s.filter((id) => id !== c.id)))}
-                    className="mt-1 size-4 shrink-0 accent-primary"
+              )}
+            </>
+          }
+          toolbar={
+            <>
+              <SegmentedTabs label="Review status" options={STATUS_TABS.map((t) => ({ value: t, label: TAB_LABEL[t], count: counts[t] }))} value={tab} onChange={setTab} />
+              <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+                <div className="w-full sm:w-56">
+                  <Select
+                    label="Session"
+                    value={sessionFilter}
+                    options={[{ value: 'all', label: 'Every session' }, ...sessionList.map((s) => ({ value: s.id, label: s.title }))]}
+                    onChange={setSessionFilter}
                   />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 text-xs text-hint">
-                    <Tag tone="primary">To {c.directedAt}</Tag>
-                    {(() => {
-                      const here = hereFor(stakeholders.data, c.id);
-                      return (
-                        here &&
-                        here.delegates > 0 && (
-                          <span title={here.orgs.join(', ')}>
-                            {here.delegates} {here.delegates === 1 ? 'delegate' : 'delegates'} here · {here.orgs.length === 1 ? here.orgs[0] : `${here.orgs.length} organisations`}
-                          </span>
-                        )
-                      );
-                    })()}
-                    <Tag tone={c.type === 'pledge' ? 'green' : 'gray'}>{TYPE_LABEL[c.type]}</Tag>
-                    {c.needsDetail && <Tag tone="gold">Needs detail</Tag>}
-                    {c.status !== 'suggested' && <Tag tone={c.status === 'approved' ? 'green' : 'gray'}>{STATUS_LABEL[c.status]}</Tag>}
-                    {c.source === 'manual' && <span>added by hand</span>}
-                  </p>
-                  <p className="mt-1.5 text-[0.9375rem] font-medium text-ink">{c.shortText}</p>
-                  {c.action !== c.shortText && <p className="mt-0.5 text-sm text-ink-soft">{c.action}</p>}
-                  <p className="mt-1 text-xs text-ink-soft">{[c.deadline && `By ${c.deadline.replace(/^by\s+/i, '')}`, c.amount, c.theme].filter(Boolean).join(' · ')}</p>
-                  {c.quote && (
-                    <blockquote className="mt-2 border-l-2 border-border pl-3 text-sm italic text-ink-soft">
-                      “{c.quote}”<span className="not-italic text-xs text-hint"> {[voices(c), titleOf(c.sessionId), c.saidAt && hm(c.saidAt)].filter(Boolean).join(' · ')}</span>
-                    </blockquote>
-                  )}
-                  {!c.quote && voices(c) && <p className="mt-1 text-xs text-hint">{voices(c)}</p>}
                 </div>
-                {c.status !== 'merged' && (
-                  <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    {c.status !== 'approved' && (
-                      <button type="button" onClick={() => setStatus(c, 'approved')} className={buttonClass({ style: 'soft', color: 'green' })}>
-                        <CheckIcon className="size-4" />
-                        Approve
-                      </button>
-                    )}
-                    {c.status === 'suggested' && (
-                      <button type="button" onClick={() => setStatus(c, 'rejected')} className={buttonClass({ style: 'borderless', color: 'gray', className: 'hover:text-danger' })}>
-                        <XMarkIcon className="size-4" />
-                        Reject
-                      </button>
-                    )}
-                    {c.status !== 'suggested' && (
-                      <button type="button" onClick={() => setStatus(c, 'suggested')} className={buttonClass({ style: 'borderless', color: 'gray' })}>
-                        <ArrowUturnLeftIcon className="size-4" />
-                        Back to review
-                      </button>
-                    )}
-                    <button type="button" onClick={() => setEditing({ call: c })} className={buttonClass({ style: 'outline', color: 'gray' })}>
-                      <PencilSquareIcon className="size-4" />
-                      Edit
-                    </button>
+                {targetOptions.length > 0 && (
+                  <div className="w-full sm:w-56">
+                    <Select
+                      label="Directed at"
+                      value={targetFilter}
+                      options={[{ value: 'all', label: 'Everyone called on' }, ...targetOptions.map((t) => ({ value: t, label: t }))]}
+                      onChange={setTargetFilter}
+                    />
                   </div>
                 )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
+              </div>
+            </>
+          }
+        >
+          {chosen.length >= 2 && (
+            <div className="flex flex-wrap items-center gap-3 border-b border-border bg-primary-soft/40 px-6 py-3 text-sm">
+              <Squares2X2Icon className="size-4 text-primary" />
+              <span className="text-ink">Merge {chosen.length} duplicates, keeping</span>
+              <div className="w-full sm:w-80">
+                <Select
+                  label="The one to keep"
+                  value={chosen.includes(keep) ? keep : chosen[0]!}
+                  options={chosen.map((id) => ({ value: id, label: items.find((c) => c.id === id)?.shortText ?? id }))}
+                  onChange={setKeep}
+                />
+              </div>
+              <button type="button" onClick={merge} disabled={actions.merge.isPending} className={buttonClass()}>
+                Merge
+              </button>
+              <button type="button" onClick={() => setSelected([])} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                Cancel
+              </button>
+            </div>
+          )}
 
-      {/* 3. Who the calls are aimed at, and who from there is here */}
-      <StakeholdersPanel editionId={edition.id} items={items} aiReady={aiReady} />
+          {shown.length === 0 ? (
+            items.length === 0 ? (
+              <EmptyState
+                icon={MegaphoneIcon}
+                title="No calls to action yet"
+                body="Analyse a session, or add one by hand."
+                action={
+                  <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
+                    <PlusIcon className="size-4" />
+                    Add by hand
+                  </button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={MegaphoneIcon}
+                title={`Nothing ${TAB_LABEL[tab].toLowerCase()} here`}
+                action={
+                  (tab !== 'all' || sessionFilter !== 'all' || targetFilter !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTab('all');
+                        setSessionFilter('all');
+                        setTargetFilter('all');
+                      }}
+                      className={buttonClass({ style: 'outline', color: 'gray' })}
+                    >
+                      Show every call
+                    </button>
+                  )
+                }
+              />
+            )
+          ) : (
+            // keyed by tab, so switching tabs swaps the list rather than fading the old one out
+            <ul key={tab} ref={listRef} className="divide-y divide-border">
+              {shown.map((c) => (
+                <li key={c.id} className={cn('flex gap-4 px-6 py-4', c.status === 'merged' && 'opacity-60')}>
+                  {c.status !== 'merged' && (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select “${c.shortText}” to merge`}
+                      checked={selected.includes(c.id)}
+                      onChange={(e) => setSelected((s) => (e.target.checked ? [...s, c.id] : s.filter((id) => id !== c.id)))}
+                      className="mt-1 size-4 shrink-0 accent-primary"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-hint">
+                      <Tag tone="primary">To {c.directedAt}</Tag>
+                      {(() => {
+                        const here = hereFor(stakeholders.data, c.id);
+                        return (
+                          here &&
+                          here.delegates > 0 && (
+                            <span title={here.orgs.join(', ')}>
+                              {here.delegates} {here.delegates === 1 ? 'delegate' : 'delegates'} here · {here.orgs.length === 1 ? here.orgs[0] : `${here.orgs.length} organisations`}
+                            </span>
+                          )
+                        );
+                      })()}
+                      <Tag tone={c.type === 'pledge' ? 'green' : 'gray'}>{TYPE_LABEL[c.type]}</Tag>
+                      {c.needsDetail && <Tag tone="gold">Needs detail</Tag>}
+                      {c.status !== 'suggested' && <Tag tone={c.status === 'approved' ? 'green' : 'gray'}>{STATUS_LABEL[c.status]}</Tag>}
+                      {c.source === 'manual' && <span>added by hand</span>}
+                    </p>
+                    <p className="mt-1.5 text-[0.9375rem] font-medium text-ink">{c.shortText}</p>
+                    {c.action !== c.shortText && <p className="mt-0.5 text-sm text-ink-soft">{c.action}</p>}
+                    <p className="mt-1 text-xs text-ink-soft">{[c.deadline && `By ${c.deadline.replace(/^by\s+/i, '')}`, c.amount, c.theme].filter(Boolean).join(' · ')}</p>
+                    {c.quote && (
+                      <blockquote className="mt-2 border-l-2 border-border pl-3 text-sm italic text-ink-soft">
+                        “{c.quote}”<span className="not-italic text-xs text-hint"> {[voices(c), titleOf(c.sessionId), c.saidAt && hm(c.saidAt)].filter(Boolean).join(' · ')}</span>
+                      </blockquote>
+                    )}
+                    {!c.quote && voices(c) && <p className="mt-1 text-xs text-hint">{voices(c)}</p>}
+                  </div>
+                  {c.status !== 'merged' && (
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      {c.status !== 'approved' && (
+                        <button type="button" onClick={() => setStatus(c, 'approved')} className={buttonClass({ style: 'soft', color: 'green' })}>
+                          <CheckIcon className="size-4" />
+                          Approve
+                        </button>
+                      )}
+                      {c.status === 'suggested' && (
+                        <button type="button" onClick={() => setStatus(c, 'rejected')} className={buttonClass({ style: 'borderless', color: 'gray', className: 'hover:text-danger' })}>
+                          <XMarkIcon className="size-4" />
+                          Reject
+                        </button>
+                      )}
+                      {c.status !== 'suggested' && (
+                        <button type="button" onClick={() => setStatus(c, 'suggested')} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                          <ArrowUturnLeftIcon className="size-4" />
+                          Back to review
+                        </button>
+                      )}
+                      <button type="button" onClick={() => setEditing({ call: c })} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                        <PencilSquareIcon className="size-4" />
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+        ) : (
+          <StakeholdersPanel editionId={edition.id} items={items} aiReady={aiReady} />
+        )}
+      </div>
 
       {(manyOpen || queued.length > 0) && (
         <AnalyseManyDialog open={manyOpen} sessions={sessionList} analysedTimes={(id) => runsOf(id)?.runs ?? 0} queue={queue} onReview={() => setTab('suggested')} onClose={() => setManyOpen(false)} />
