@@ -52,10 +52,11 @@ const DEMO_STAKEHOLDERS: StakeholderMap = {
         { id: 'd1', name: 'Amina Sambo-Magaji', title: 'Director IT', email: 'amina@nitda.gov.ng', admitted: true },
         { id: 'd2', name: 'Maryam Abdullahi', title: null, email: 'maryam@nitda.gov.ng', admitted: false },
       ],
+      speakers: [{ id: 'sp1', name: 'Barr. Emmanuel Edet', role: 'Ag. Director Regulation and Compliance' }],
       asks: ['c1', 'c2'],
       commitments: [],
     },
-    { name: 'World Bank', spellings: ['World Bank'], delegates: [{ id: 'd3', name: 'Mathew Verghis', title: 'Country Director', email: 'mverghis@worldbank.org', admitted: true }], asks: [], commitments: ['c3'] },
+    { name: 'World Bank', spellings: ['World Bank'], delegates: [{ id: 'd3', name: 'Mathew Verghis', title: 'Country Director', email: 'mverghis@worldbank.org', admitted: true }], speakers: [], asks: [], commitments: ['c3'] },
   ],
   byCall: { c1: ['National Information Technology Development Agency (NITDA)'], c2: ['National Information Technology Development Agency (NITDA)'], c3: ['World Bank'], c4: [] },
   unmatched: [{ target: 'Federal Government', calls: 1 }],
@@ -90,15 +91,18 @@ type Body = ReturnType<typeof toBody>;
 /** Under the board's key, so whatever refreshes the board refreshes this too. */
 export const stakeholdersKey = (editionId: string) => [...boardKey(editionId), 'stakeholders'] as const;
 
+/** An API that predates speakers as stakeholders sends no `speakers`: read that as none. */
+const withSpeakers = <M extends StakeholderMap>(map: M): M => ({ ...map, stakeholders: map.stakeholders.map((s) => ({ ...s, speakers: s.speakers ?? [] })) });
+
 /**
  * The event's organisations matched to the calls (`GET /editions/:id/calls-to-action/stakeholders`):
- * each one's delegates, the recommendations aimed at it and its commitments.
+ * each one's delegates and speakers, the recommendations aimed at it and its commitments.
  */
 export function useStakeholders(editionId: string) {
   return useQuery({
     queryKey: stakeholdersKey(editionId),
     queryFn: ({ signal }) =>
-      DEMO_MODE ? Promise.resolve(DEMO_STAKEHOLDERS) : api.get<StakeholderMap>(`/editions/${editionId}/calls-to-action/stakeholders`, undefined, signal),
+      DEMO_MODE ? Promise.resolve(DEMO_STAKEHOLDERS) : api.get<StakeholderMap>(`/editions/${editionId}/calls-to-action/stakeholders`, undefined, signal).then(withSpeakers),
   });
 }
 
@@ -124,7 +128,7 @@ function demoSetLink(map: StakeholderMap, id: string, status: 'confirmed' | 'rej
  */
 export function useStakeholderLinks(editionId: string) {
   const client = useQueryClient();
-  const put = (map: StakeholderMap) => client.setQueryData(stakeholdersKey(editionId), map);
+  const put = (map: StakeholderMap) => client.setQueryData(stakeholdersKey(editionId), withSpeakers(map));
   const current = () => client.getQueryData<StakeholderMap>(stakeholdersKey(editionId)) ?? DEMO_STAKEHOLDERS;
 
   const suggest = useMutation({

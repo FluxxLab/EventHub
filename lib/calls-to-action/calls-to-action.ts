@@ -177,13 +177,17 @@ export function callsCsv(items: CallToAction[], sessionTitle: (id: string | null
 
 export type StakeholderDelegate = { id: string; name: string; title: string | null; email: string; admitted: boolean };
 
-/** One of the event's organisations, as `GET /editions/:id/calls-to-action/stakeholders` groups it from its delegates. */
+export type StakeholderSpeaker = { id: string; name: string; role: string | null };
+
+/** One of the event's organisations, as `GET /editions/:id/calls-to-action/stakeholders` groups it from its delegates and speakers. */
 export type Stakeholder = {
   name: string;
-  /** Every way its delegates wrote it ("NITDA", "National Information Technology Development Agency"). */
+  /** Every way its people wrote it ("NITDA", "National Information Technology Development Agency"). */
   spellings: string[];
   /** Checked-in first. */
   delegates: StakeholderDelegate[];
+  /** Its people on the programme. */
+  speakers: StakeholderSpeaker[];
   /** Recommendations aimed at it: what it is asked to commit to. */
   asks: string[];
   /** Pledges by or for it. */
@@ -206,12 +210,19 @@ export type StakeholderMap = {
   unmatched: { target: string; calls: number }[];
 };
 
-/** "NITDA · 4 delegates here" for a call, or null when it concerns nobody at the event. */
-export function hereFor(map: StakeholderMap | undefined, callId: string): { orgs: string[]; delegates: number } | null {
+/** "3 delegates, 1 speaker": how many of an organisation's people are at the event; empty when none. */
+export function peopleCount(s: Pick<Stakeholder, 'delegates' | 'speakers'>): string {
+  const n = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`;
+  return [s.delegates.length ? n(s.delegates.length, 'delegate') : null, s.speakers.length ? n(s.speakers.length, 'speaker') : null].filter(Boolean).join(', ');
+}
+
+/** "3 delegates, 1 speaker here · NITDA" for a call: who from its organisations is at the event, or null when nobody is. */
+export function hereFor(map: StakeholderMap | undefined, callId: string): { orgs: string[]; people: string } | null {
   const orgs = map?.byCall[callId] ?? [];
   if (!orgs.length) return null;
-  const delegates = map!.stakeholders.filter((s) => orgs.includes(s.name)).reduce((n, s) => n + s.delegates.length, 0);
-  return { orgs, delegates };
+  const mine = map!.stakeholders.filter((s) => orgs.includes(s.name));
+  const people = peopleCount({ delegates: mine.flatMap((s) => s.delegates), speakers: mine.flatMap((s) => s.speakers) });
+  return people ? { orgs, people } : null;
 }
 
 /** "NITDA" from "National Information Technology Development Agency (NITDA)"; a name with no abbreviation as it is. */
@@ -221,18 +232,19 @@ export function shortOrg(name: string): string {
 }
 
 /**
- * A call's organisations that have delegates at the event, as one line for a deck: "NITDA (3
- * delegates); World Bank (1 delegate)", busiest first, two at most and then "and 2 more". Never names
- * a delegate: decks are shown on screen. Null when none. (The API writes the same line for reports.)
+ * A call's organisations that have people at the event, as one line for a deck: "NITDA (3
+ * delegates, 1 speaker); World Bank (1 delegate)", busiest first, two at most and then "and 2 more".
+ * Never names anyone: decks are shown on screen. Null when none. (The API writes the same line for
+ * reports.)
  */
 export function presentLine(map: StakeholderMap | undefined, callId: string): string | null {
+  const people = (s: Stakeholder) => s.delegates.length + s.speakers.length;
   const orgs = (map?.byCall[callId] ?? [])
     .map((name) => map!.stakeholders.find((s) => s.name === name))
-    .filter((s): s is Stakeholder => !!s && s.delegates.length > 0)
-    .sort((a, b) => b.delegates.length - a.delegates.length);
+    .filter((s): s is Stakeholder => !!s && people(s) > 0)
+    .sort((a, b) => people(b) - people(a));
   if (!orgs.length) return null;
-  const n = (k: number) => `${k} ${k === 1 ? 'delegate' : 'delegates'}`;
-  const shown = orgs.slice(0, 2).map((s) => `${shortOrg(s.name)} (${n(s.delegates.length)})`);
+  const shown = orgs.slice(0, 2).map((s) => `${shortOrg(s.name)} (${peopleCount(s)})`);
   const more = orgs.length - shown.length;
   return `${shown.join('; ')}${more ? ` and ${more} more` : ''}`;
 }

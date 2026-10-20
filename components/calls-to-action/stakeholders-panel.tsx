@@ -9,13 +9,13 @@ import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
-import { openAsks, STATUS_LABEL, type CallToAction, type Stakeholder, type StakeholderMap } from '@/lib/calls-to-action/calls-to-action';
+import { openAsks, peopleCount, STATUS_LABEL, type CallToAction, type Stakeholder, type StakeholderMap } from '@/lib/calls-to-action/calls-to-action';
 import { useStakeholderLinks, useStakeholders } from '@/lib/calls-to-action/use-calls-to-action';
 import { count } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /**
- * The event's organisations, from its delegates, each with the recommendations aimed at it (what
+ * The event's organisations, from its delegates and speakers, each with the recommendations aimed at it (what
  * it is asked to commit to), the commitments it has made, and the people from it who are here.
  * An organisation asked to act that has committed to nothing yet is the one to follow up.
  */
@@ -36,7 +36,7 @@ export function StakeholdersPanel({ editionId, items, aiReady }: { editionId: st
       count={map.data ? asked.length : undefined}
       description={
         map.data
-          ? `Organisations at the event that calls are aimed at, from their delegates’ details.${toFollowUp ? ` ${toFollowUp} ${toFollowUp === 1 ? 'is' : 'are'} asked to act and ${toFollowUp === 1 ? 'has' : 'have'} committed to nothing yet.` : ''}`
+          ? `Organisations at the event that calls are aimed at, from their delegates’ and speakers’ details.${toFollowUp ? ` ${toFollowUp} ${toFollowUp === 1 ? 'is' : 'are'} asked to act and ${toFollowUp === 1 ? 'has' : 'have'} committed to nothing yet.` : ''}`
           : 'Organisations at the event that calls are aimed at.'
       }
       actions={
@@ -55,8 +55,12 @@ export function StakeholdersPanel({ editionId, items, aiReady }: { editionId: st
       ) : shown.length === 0 ? (
         <EmptyState
           icon={BuildingOffice2Icon}
-          title={all.length ? 'No call names an organisation that is here yet' : 'No delegate has an organisation on file'}
-          body={all.length ? 'As calls are found and approved, the organisations they are aimed at appear here with their delegates.' : 'Delegates’ organisations come from registration or the attendee import.'}
+          title={all.length ? 'No call names an organisation that is here yet' : 'No delegate or speaker has an organisation on file'}
+          body={
+            all.length
+              ? 'As calls are found and approved, the organisations they are aimed at appear here with their delegates and speakers.'
+              : 'Organisations come from delegates’ registration or the attendee import, and from speakers’ details.'
+          }
         />
       ) : (
         <ul className="divide-y divide-border">
@@ -83,8 +87,8 @@ function StakeholderRow({ stakeholder: s, byId, expanded, onToggle }: { stakehol
           </span>
           <span className="mt-0.5 flex items-center gap-1.5 text-xs text-hint">
             <UserGroupIcon className="size-3.5" />
-            {count(s.delegates.length)} {s.delegates.length === 1 ? 'delegate' : 'delegates'}
-            {here > 0 && `, ${count(here)} checked in`}
+            {peopleCount(s)}
+            {here > 0 && ` · ${count(here)} checked in`}
           </span>
         </span>
         <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
@@ -100,19 +104,36 @@ function StakeholderRow({ stakeholder: s, byId, expanded, onToggle }: { stakehol
             <CallList title="Asked to commit to" empty="Nothing aimed at it yet." calls={calls(s.asks)} />
             <CallList title="Committed to" empty="No commitment yet." calls={calls(s.commitments)} />
           </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-hint">Their delegates</p>
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {s.delegates.map((d) => (
-                <li key={d.id} className="text-sm">
-                  <span className="flex items-center gap-1.5 text-ink">
-                    {d.name}
-                    {d.admitted && <CheckCircleIcon className="size-4 text-success" aria-label="Checked in" />}
-                  </span>
-                  <span className="block truncate text-xs text-hint">{[d.title, d.email].filter(Boolean).join(' · ')}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="flex flex-col gap-4">
+            {s.delegates.length > 0 && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-hint">Their delegates</p>
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {s.delegates.map((d) => (
+                    <li key={d.id} className="text-sm">
+                      <span className="flex items-center gap-1.5 text-ink">
+                        {d.name}
+                        {d.admitted && <CheckCircleIcon className="size-4 text-success" aria-label="Checked in" />}
+                      </span>
+                      <span className="block truncate text-xs text-hint">{[d.title, d.email].filter(Boolean).join(' · ')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {s.speakers.length > 0 && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-hint">Their speakers</p>
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {s.speakers.map((sp) => (
+                    <li key={sp.id} className="text-sm">
+                      <span className="block text-ink">{sp.name}</span>
+                      {sp.role && <span className="block truncate text-xs text-hint">{sp.role}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       )}

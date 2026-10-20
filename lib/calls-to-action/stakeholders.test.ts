@@ -3,25 +3,27 @@ import { describe, expect, it } from 'vitest';
 import { detailsOf } from '@/lib/calls-to-action/build-deck';
 import { hereFor, openAsks, presentLine, shortOrg, type Stakeholder, type StakeholderMap } from '@/lib/calls-to-action/calls-to-action';
 
-const org = (name: string, delegates: number, asks: string[] = [], commitments: string[] = []): Stakeholder => ({
+const org = (name: string, delegates: number, asks: string[] = [], commitments: string[] = [], speakers = 0): Stakeholder => ({
   name,
   spellings: [name],
   delegates: Array.from({ length: delegates }, (_, i) => ({ id: `${name}-${i}`, name: `P${i}`, title: null, email: `p${i}@x.org`, admitted: i === 0 })),
+  speakers: Array.from({ length: speakers }, (_, i) => ({ id: `${name}-sp${i}`, name: `S${i}`, role: null })),
   asks,
   commitments,
 });
 
 const MAP: StakeholderMap = {
-  stakeholders: [org('NITDA', 3, ['c1', 'c2']), org('NCAIR', 1, ['c2'], ['p1'])],
-  byCall: { c1: ['NITDA'], c2: ['NITDA', 'NCAIR'], c3: [] },
+  stakeholders: [org('NITDA', 3, ['c1', 'c2'], [], 1), org('NCAIR', 1, ['c2'], ['p1']), org('DSN', 0, ['c4'], [], 2)],
+  byCall: { c1: ['NITDA'], c2: ['NITDA', 'NCAIR'], c3: [], c4: ['DSN'] },
   unmatched: [],
   links: [],
 };
 
 describe('stakeholders', () => {
-  it('counts the delegates here from every organisation a call concerns', () => {
-    expect(hereFor(MAP, 'c1')).toEqual({ orgs: ['NITDA'], delegates: 3 });
-    expect(hereFor(MAP, 'c2')).toEqual({ orgs: ['NITDA', 'NCAIR'], delegates: 4 });
+  it('counts the delegates and speakers here from every organisation a call concerns', () => {
+    expect(hereFor(MAP, 'c1')).toEqual({ orgs: ['NITDA'], people: '3 delegates, 1 speaker' });
+    expect(hereFor(MAP, 'c2')).toEqual({ orgs: ['NITDA', 'NCAIR'], people: '4 delegates, 1 speaker' });
+    expect(hereFor(MAP, 'c4')).toEqual({ orgs: ['DSN'], people: '2 speakers' });
   });
 
   it('says nothing for a call that concerns nobody here, or before the map loads', () => {
@@ -38,7 +40,7 @@ describe('stakeholders', () => {
 
 describe('stakeholders present in decks', () => {
   const map: StakeholderMap = {
-    stakeholders: [org('National Information Technology Development Agency (NITDA)', 3), org('World Bank', 1), org('NCAIR', 2), org('Nobody Org', 0)],
+    stakeholders: [org('National Information Technology Development Agency (NITDA)', 3, [], [], 1), org('World Bank', 1), org('NCAIR', 2), org('Nobody Org', 0)],
     byCall: { one: ['World Bank'], many: ['World Bank', 'National Information Technology Development Agency (NITDA)', 'NCAIR'], none: [], empty: ['Nobody Org'] },
     unmatched: [],
     links: [],
@@ -48,7 +50,7 @@ describe('stakeholders present in decks', () => {
     expect(shortOrg('National Information Technology Development Agency (NITDA)')).toBe('NITDA');
     expect(shortOrg('World Bank')).toBe('World Bank');
     expect(presentLine(map, 'one')).toBe('World Bank (1 delegate)');
-    expect(presentLine(map, 'many')).toBe('NITDA (3 delegates); NCAIR (2 delegates) and 1 more');
+    expect(presentLine(map, 'many')).toBe('NITDA (3 delegates, 1 speaker); NCAIR (2 delegates) and 1 more');
   });
 
   it('says nothing when nobody from there is here, or before the map loads', () => {

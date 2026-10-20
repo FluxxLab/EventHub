@@ -349,10 +349,9 @@ function Board({ edition }: { edition: Edition }) {
                       {(() => {
                         const here = hereFor(stakeholders.data, c.id);
                         return (
-                          here &&
-                          here.delegates > 0 && (
+                          here && (
                             <span title={here.orgs.join(', ')}>
-                              {here.delegates} {here.delegates === 1 ? 'delegate' : 'delegates'} here · {here.orgs.length === 1 ? here.orgs[0] : `${here.orgs.length} organisations`}
+                              {here.people} here · {here.orgs.length === 1 ? here.orgs[0] : `${here.orgs.length} organisations`}
                             </span>
                           )
                         );
