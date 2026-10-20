@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { CalendarDaysIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowUpTrayIcon, CalendarDaysIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { CreateSessionDialog } from '@/components/programme/create-session-dialog';
+import { ImportSessionsDialog } from '@/components/programme/import-sessions-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
 import { SessionStatusPicker } from '@/components/programme/session-status';
 import { Avatar } from '@/components/shell/avatar';
@@ -79,6 +80,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   const track = (trackFilter.some((o) => o.value === trackParam) ? trackParam : 'all') as SessionTrack | 'all';
   const [query, setQuery] = useState(initial.q);
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const all = useMemo(() => sessions.data ?? [], [sessions.data]);
   const rows = useMemo(
@@ -118,10 +120,16 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
         title="Programme"
         description={edition.name}
         actions={
-          <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
-            <PlusIcon className="size-4" />
-            Add session
-          </button>
+          <>
+            <button type="button" onClick={() => setImporting(true)} className={buttonClass({ style: 'soft', color: 'gray' })}>
+              <ArrowUpTrayIcon className="size-4" />
+              Import sessions
+            </button>
+            <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
+              <PlusIcon className="size-4" />
+              Add session
+            </button>
+          </>
         }
         toolbar={
           <>
@@ -160,12 +168,18 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
             <EmptyState
               icon={CalendarDaysIcon}
               title={`Nothing on Day ${day} yet`}
-              body="Add the day's talks, panels and breaks."
+              body="Add the day's talks, panels and breaks, or import the whole programme from a spreadsheet."
               action={
-                <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
-                  <PlusIcon className="size-4" />
-                  Add session
-                </button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button type="button" onClick={() => setImporting(true)} className={buttonClass({ style: 'soft', color: 'gray' })}>
+                    <ArrowUpTrayIcon className="size-4" />
+                    Import sessions
+                  </button>
+                  <button type="button" onClick={() => setAdding(true)} className={buttonClass()}>
+                    <PlusIcon className="size-4" />
+                    Add session
+                  </button>
+                </div>
               }
             />
           ) : (
@@ -295,6 +309,8 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
       </Panel>
 
       <CreateSessionDialog open={adding} onClose={() => setAdding(false)} edition={edition} day={day} />
+      {/* remounted on each open, so it starts from a clean sheet */}
+      <ImportSessionsDialog key={importing ? 'open' : 'closed'} open={importing} edition={edition} day={day} onClose={() => setImporting(false)} />
       <SessionSpeakersDialog session={speakersFor} editionId={edition.id} onClose={() => setSpeakersFor(null)} />
       <CreateSessionDialog open={editingSession !== null} session={editingSession} onClose={() => setEditingSession(null)} edition={edition} day={editingSession?.day ?? day} />
       <DeleteSessionDialog editionId={edition.id} session={deletingSession} onClose={() => setDeletingSession(null)} />

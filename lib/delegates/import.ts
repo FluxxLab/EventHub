@@ -29,17 +29,20 @@ export type Table = { headers: string[]; rows: string[][] };
 
 /* ------------------------------------------------------------------- reading */
 
-/** The delimiter a file most likely uses: tabs from a paste, semicolons from European Excel, else commas. */
-function delimiterOf(firstLine: string): string {
-  if (firstLine.includes('\t')) return '\t';
-  const count = (c: string) => firstLine.split(c).length - 1;
+/**
+ * The delimiter a file most likely uses: tabs from a paste, semicolons from European Excel, else
+ * commas. Judged over the first few lines, since a title line above the headings has none.
+ */
+function delimiterOf(head: string): string {
+  if (head.includes('\t')) return '\t';
+  const count = (c: string) => head.split(c).length - 1;
   return count(';') > count(',') ? ';' : ',';
 }
 
 /** RFC 4180 CSV (quotes, doubled quotes, newlines inside quotes), or tab-separated text. */
 export function parseTable(text: string): Table {
   const src = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
-  const delimiter = delimiterOf(src.slice(0, src.indexOf('\n') === -1 ? undefined : src.indexOf('\n')));
+  const delimiter = delimiterOf(src.split('\n', 5).join('\n'));
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
