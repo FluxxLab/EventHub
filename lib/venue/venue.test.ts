@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Edition } from '@/lib/events/events';
-import { parsePin, roomSchema, toRoomBody, venueFormOf, venuePatch, venueSchema } from '@/lib/venue/venue';
+import { looseRoomKey, parsePin, roomClashes, roomSchema, toRoomBody, venueFormOf, venuePatch, venueSchema } from '@/lib/venue/venue';
 
 const edition = { venue: 'Transcorp Hilton', address: null, city: 'Abuja', latitude: 9.05, longitude: 7.49 } as Edition;
 
@@ -55,5 +55,44 @@ describe('rooms', () => {
 
   it('requires a name', () => {
     expect(roomSchema.safeParse({ name: ' ', floor: '', notes: '' }).success).toBe(false);
+  });
+});
+
+describe('room clashes', () => {
+  const room = (name: string, sessionCount: number, id: string | null = null) => ({ id, name, floor: null, notes: null, sessionCount });
+
+  it('treats & and "and", spacing and punctuation as the same room', () => {
+    expect(looseRoomKey('Acacia A&B')).toBe(looseRoomKey('Acacia A and B'));
+    expect(looseRoomKey('acacia a & b')).toBe(looseRoomKey('Acacia A-B'));
+    expect(looseRoomKey('Tamarind A')).not.toBe(looseRoomKey('Tamarind B'));
+  });
+
+  it('finds nothing when every room is written one way', () => {
+    expect(roomClashes([room('Main Hall', 30, 'r1'), room('Tamarind A', 8), room('Tamarind B', 7)])).toEqual([]);
+  });
+
+  it('keeps the busiest spelling and renames an unused Venue description to it', () => {
+    const [clash] = roomClashes([room('Acacia A&B', 9), room('Acacia A and B', 0, 'r2'), room('Main Hall', 30, 'r1')]);
+    expect(clash!.keep.name).toBe('Acacia A&B');
+    expect(clash!.fixes).toEqual([{ kind: 'rename', room: room('Acacia A and B', 0, 'r2') }]);
+  });
+
+  it('removes an unused description when the kept spelling is described too', () => {
+    const [clash] = roomClashes([room('Acacia A&B', 9, 'r1'), room('Acacia A and B', 0, 'r2')]);
+    expect(clash!.fixes.map((f) => f.kind)).toEqual(['remove']);
+  });
+
+  it('only one unused description can take the kept name; another is removed', () => {
+    const [clash] = roomClashes([room('Acacia A&B', 9), room('Acacia A and B', 0, 'r2'), room('Acacia A & B', 0, 'r3')]);
+    expect(clash!.fixes.map((f) => [f.kind, f.room.name])).toEqual([
+      ['rename', 'Acacia A & B'],
+      ['remove', 'Acacia A and B'],
+    ]);
+  });
+
+  it('says sessions must be edited when both spellings have sessions', () => {
+    const [clash] = roomClashes([room('Acacia A and B', 3), room('Acacia A&B', 9, 'r1')]);
+    expect(clash!.keep.name).toBe('Acacia A&B');
+    expect(clash!.fixes).toEqual([{ kind: 'sessions', room: room('Acacia A and B', 3) }]);
   });
 });

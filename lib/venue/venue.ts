@@ -88,3 +88,59 @@ export const toRoomBody = (form: z.output<typeof roomSchema>) => ({
   floor: form.floor || null,
   notes: form.notes || null,
 });
+
+/* ------------------------------------------------------------- room clashes */
+
+/**
+ * A room's name with what does not tell rooms apart taken out: case, accents, spacing,
+ * punctuation and "and" against "&". "Acacia A&B", "Acacia A and B" and "acacia a & b" are one.
+ */
+export function looseRoomKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' and ')
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w && w !== 'and')
+    .join('');
+}
+
+/**
+ * How to bring one spelling into line. A Venue description with no sessions is renamed to the
+ * kept spelling, or removed when the kept one is described too (two descriptions cannot share a
+ * name): neither tells delegates anything. Sessions filed under the spelling have to be edited,
+ * and each edit is a schedule change delegates are told about.
+ */
+export type RoomFix = { kind: 'rename' | 'remove' | 'sessions'; room: Room };
+
+/** One room written more than one way: the spelling to keep (the busiest) and how to fix the rest. */
+export type RoomClash = { keep: Room; fixes: RoomFix[] };
+
+/**
+ * Rooms written more than one way. Captions find a session by its room's exact name (case aside),
+ * so a desk or stream set up under one spelling never captions sessions filed under another.
+ */
+export function roomClashes(rooms: Room[]): RoomClash[] {
+  const groups = new Map<string, Room[]>();
+  for (const r of rooms) {
+    const key = looseRoomKey(r.name);
+    if (key) groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  const clashes: RoomClash[] = [];
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [keep, ...rest] = [...group].sort((a, b) => b.sessionCount - a.sessionCount || Number(!!b.id) - Number(!!a.id) || a.name.localeCompare(b.name));
+    let nameFree = !keep!.id;
+    const fixes = rest.map((room): RoomFix => {
+      if (room.sessionCount > 0 || !room.id) return { kind: 'sessions', room };
+      if (nameFree) {
+        nameFree = false;
+        return { kind: 'rename', room };
+      }
+      return { kind: 'remove', room };
+    });
+    clashes.push({ keep: keep!, fixes });
+  }
+  return clashes.sort((a, b) => a.keep.name.localeCompare(b.keep.name));
+}

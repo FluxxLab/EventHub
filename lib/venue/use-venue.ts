@@ -64,7 +64,11 @@ export function useRoomMutations(editionId: string | undefined) {
   const update = useMutation({
     mutationFn: ({ id, body }: { id: string; body: RoomBody }) => {
       if (!DEMO_MODE) return api.patch<Room>(`/editions/rooms/${id}`, body);
-      demoRooms = demoRooms.map((r) => (r.id === id ? { ...r, ...body } : r));
+      // as the API lists them: a description renamed to a room the programme names takes over its sessions
+      const programmeOnly = demoRooms.find((r) => !r.id && r.name.toLowerCase() === body.name.toLowerCase());
+      demoRooms = demoRooms
+        .filter((r) => r !== programmeOnly)
+        .map((r) => (r.id === id ? { ...r, ...body, sessionCount: r.sessionCount + (programmeOnly?.sessionCount ?? 0) } : r));
       return Promise.resolve(demoRooms.find((r) => r.id === id)!);
     },
     onSuccess: refresh,

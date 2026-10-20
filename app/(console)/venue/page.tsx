@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowTopRightOnSquareIcon, BuildingOffice2Icon, CheckCircleIcon, GlobeAltIcon, KeyIcon, MapIcon, MapPinIcon, PlusIcon, SignalIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowTopRightOnSquareIcon, BuildingOffice2Icon, CheckCircleIcon, ExclamationTriangleIcon, GlobeAltIcon, KeyIcon, MapIcon, MapPinIcon, PlusIcon, SignalIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import { EventBar } from '@/components/events/event-bar';
@@ -25,7 +25,7 @@ import { INPUT_LABEL, SOURCE_LABEL, streamStatus, type IngestRoom, type StreamCr
 import { useIngestActions, useIngestRooms } from '@/lib/ingest/use-ingest';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
-import { mapEmbedUrl, parsePin, venueFormOf, venuePatch, venueSchema, type Room, type VenueForm } from '@/lib/venue/venue';
+import { mapEmbedUrl, parsePin, roomClashes, venueFormOf, venuePatch, venueSchema, type Room, type RoomFix, type VenueForm } from '@/lib/venue/venue';
 import { useRoomMutations, useRooms, useSaveVenue } from '@/lib/venue/use-venue';
 
 const th = 'h-15 border-b border-border bg-surface-soft px-4 text-left text-sm font-normal text-ink-soft';
@@ -208,6 +208,7 @@ function RoomsCard({ edition }: { edition: Edition }) {
         </button>
       }
     >
+      {rooms.data && <RoomClashes rooms={rooms.data} editionId={edition.id} />}
       {rooms.hiddenWhileDraft ? (
         <EmptyState icon={BuildingOffice2Icon} title="Rooms are listed once the event is announced" body="You can add them now; they appear here when it goes live." />
       ) : rooms.isError && !rooms.data ? (
@@ -288,6 +289,69 @@ function RoomsCard({ edition }: { edition: Edition }) {
         Its floor and notes are deleted. Sessions that name this room keep it, and it stays listed from the programme.
       </ConfirmDialog>
     </Panel>
+  );
+}
+
+/**
+ * Rooms written more than one way ("Acacia A&B" and "Acacia A and B"). Captions find a session by
+ * its room's name, so a desk or stream on one spelling misses sessions filed under the other.
+ * A Venue-only spelling is fixed here in one click; sessions are fixed on the Programme page.
+ */
+function RoomClashes({ rooms, editionId }: { rooms: Room[]; editionId: string }) {
+  const clashes = useMemo(() => roomClashes(rooms), [rooms]);
+  const { update, remove } = useRoomMutations(editionId);
+  const toast = useToast();
+  if (clashes.length === 0) return null;
+  const busy = update.isPending || remove.isPending;
+  const sessions = (n: number) => `${n} ${n === 1 ? 'session' : 'sessions'}`;
+  const fix = (keep: Room, f: RoomFix) => {
+    const done = () => toast.push({ title: 'Room fixed', body: `“${f.room.name}” is now “${keep.name}”.` });
+    if (f.kind === 'rename') update.mutate({ id: f.room.id!, body: { name: keep.name, floor: f.room.floor, notes: f.room.notes } }, { onSuccess: done });
+    if (f.kind === 'remove') remove.mutate(f.room.id!, { onSuccess: done });
+  };
+  return (
+    <div role="alert" className="mx-4 mb-4 flex gap-3 rounded-xl bg-gold/10 p-4 ring-1 ring-gold/30 sm:mx-6">
+      <ExclamationTriangleIcon className="size-6 shrink-0 text-gold" />
+      <div className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
+        <div>
+          <p className="font-medium text-ink">{clashes.length === 1 ? 'One room is' : `${clashes.length} rooms are`} written more than one way</p>
+          <p className="mt-0.5 text-ink-soft">
+            Captions find a session by its room’s exact name, so a sound desk or stream set up under one spelling misses the sessions filed under the other. Keep one spelling per room.
+          </p>
+        </div>
+        <ul className="flex flex-col gap-2">
+          {clashes.map(({ keep, fixes }) => (
+            <li key={keep.name} className="rounded-lg bg-surface/70 px-3 py-2">
+              <p className="text-ink">
+                Keep <span className="font-medium">“{keep.name}”</span> <span className="text-hint">· {sessions(keep.sessionCount)}</span>
+              </p>
+              <ul className="mt-1 flex flex-col gap-1">
+                {fixes.map((f) => (
+                  <li key={f.room.id ?? f.room.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-soft">
+                    <span>
+                      “{f.room.name}” <span className="text-hint">· {f.room.sessionCount ? sessions(f.room.sessionCount) : 'described on this page, no sessions'}</span>
+                    </span>
+                    {f.kind === 'sessions' ? (
+                      <span className="text-xs">
+                        <Link href={`/programme?q=${encodeURIComponent(f.room.name)}`} className="text-primary hover:underline">
+                          Edit {f.room.sessionCount === 1 ? 'that session' : 'those sessions'} on Programme
+                        </Link>
+                        <span className="text-hint"> (delegates are told of each as a schedule change)</span>
+                      </span>
+                    ) : (
+                      <button type="button" disabled={busy} onClick={() => fix(keep, f)} className="text-xs text-primary hover:underline disabled:opacity-50">
+                        {f.kind === 'rename' ? `Rename it to “${keep.name}”` : 'Remove this duplicate'}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+        {(update.error ?? remove.error) && <p className="text-danger">{(update.error ?? remove.error)!.message}</p>}
+      </div>
+    </div>
   );
 }
 
