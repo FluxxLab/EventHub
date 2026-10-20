@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpTrayIcon, CalendarDaysIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowUpTrayIcon, CalendarDaysIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { CreateSessionDialog } from '@/components/programme/create-session-dialog';
 import { ImportSessionsDialog } from '@/components/programme/import-sessions-dialog';
 import { SessionBriefDialog } from '@/components/programme/session-brief-dialog';
+import { UploadBriefsDialog } from '@/components/programme/upload-briefs-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
 import { SessionStatusPicker } from '@/components/programme/session-status';
 import { Avatar } from '@/components/shell/avatar';
@@ -74,6 +75,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   const [trackParam, setTrack] = useUrlParam<string>('track', 'all');
   const [speakersFor, setSpeakersFor] = useState<Session | null>(null);
   const [briefFor, setBriefFor] = useState<Session | null>(null);
+  const [uploadingBriefs, setUploadingBriefs] = useState(false);
   const briefs = useSessionBriefs(edition?.id);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [deletingSession, setDeletingSession] = useState<Session | null>(null);
@@ -125,6 +127,12 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
         description={edition.name}
         actions={
           <>
+            {all.length > 0 && (
+              <button type="button" onClick={() => setUploadingBriefs(true)} className={buttonClass({ style: 'soft', color: 'gray' })}>
+                <DocumentDuplicateIcon className="size-4" />
+                Upload briefs
+              </button>
+            )}
             <button type="button" onClick={() => setImporting(true)} className={buttonClass({ style: 'soft', color: 'gray' })}>
               <ArrowUpTrayIcon className="size-4" />
               Import sessions
@@ -328,9 +336,11 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
 
       <CreateSessionDialog open={adding} onClose={() => setAdding(false)} edition={edition} day={day} />
       {/* remounted on each open, so it starts from a clean sheet */}
-      <ImportSessionsDialog key={importing ? 'open' : 'closed'} open={importing} edition={edition} day={day} onClose={() => setImporting(false)} />
+      <ImportSessionsDialog key={importing ? 'import-open' : 'import-closed'} open={importing} edition={edition} day={day} onClose={() => setImporting(false)} />
       <SessionSpeakersDialog session={speakersFor} editionId={edition.id} onClose={() => setSpeakersFor(null)} />
       <SessionBriefDialog session={briefFor} editionId={edition.id} onClose={() => setBriefFor(null)} />
+      {/* remounted on each open, so it starts empty */}
+      <UploadBriefsDialog key={uploadingBriefs ? 'briefs-open' : 'briefs-closed'} open={uploadingBriefs} edition={edition} onClose={() => setUploadingBriefs(false)} />
       <CreateSessionDialog open={editingSession !== null} session={editingSession} onClose={() => setEditingSession(null)} edition={edition} day={editingSession?.day ?? day} />
       <DeleteSessionDialog editionId={edition.id} session={deletingSession} onClose={() => setDeletingSession(null)} />
     </div>
