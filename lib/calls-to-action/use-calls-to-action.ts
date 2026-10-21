@@ -188,5 +188,14 @@ export function useCallActions(editionId: string) {
     mutationFn: ({ into, ids }: { into: string; ids: string[] }) => api.post<CallToAction>('/calls-to-action/merge', { into, ids }),
     onSuccess: refresh,
   });
-  return { analyse, create, update, merge };
+  /** Deletes calls (and any merged into them), e.g. before analysing a session again. */
+  const remove = useMutation({
+    mutationFn: (ids: string[]) =>
+      DEMO_MODE ? Promise.resolve({ deleted: ids.length }) : api.post<{ deleted: number }>(`/editions/${editionId}/calls-to-action/delete`, { ids }),
+    onSuccess: () => {
+      refresh();
+      void client.invalidateQueries({ queryKey: stakeholdersKey(editionId) });
+    },
+  });
+  return { analyse, create, update, merge, remove };
 }

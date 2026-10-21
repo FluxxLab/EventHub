@@ -13,6 +13,7 @@ import {
   SparklesIcon,
   Squares2X2Icon,
   TableCellsIcon,
+  TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useMemo, useState } from 'react';
@@ -27,6 +28,7 @@ import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { MenuButton } from '@/components/ui/menu-button';
 import { Panel } from '@/components/ui/panel';
+import { DeleteDialog } from '@/components/ui/row-actions';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { SegmentedTabs, tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
@@ -74,6 +76,7 @@ function Board({ edition }: { edition: Edition }) {
   const [view, setView] = useUrlParam<View>('view', 'calls', VIEWS);
   const [editing, setEditing] = useState<{ call: CallToAction | null } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
   const [keep, setKeep] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
   const [deckStyle, setDeckStyle] = useState<DeckStyle>('designed');
@@ -104,7 +107,16 @@ function Board({ edition }: { edition: Edition }) {
   const shown = filterCalls(items, tab, sessionFilter, targetFilter);
   const targetOptions = [...new Set(items.map((c) => c.directedAt))].sort();
   const chosen = selected.filter((id) => shown.some((c) => c.id === id && c.status !== 'merged'));
+  const selectable = shown.filter((c) => c.status !== 'merged');
   const analysing = actions.analyse.isPending;
+  const removeChosen = () =>
+    actions.remove.mutate(chosen, {
+      onSuccess: ({ deleted }) => {
+        toast.push({ title: 'Deleted', body: `${deleted} call${deleted === 1 ? '' : 's'} to action removed. Analyse the session again to look afresh.`, leading: { kind: 'icon', icon: TrashIcon } });
+        setSelected([]);
+        setDeleting(false);
+      },
+    });
 
   const analyse = () => {
     const sessionId = sessionToAnalyse || sessionList.find((s) => s.status === 'live')?.id;
@@ -166,7 +178,7 @@ function Board({ edition }: { edition: Edition }) {
               <label className="mt-3 flex w-fit items-center gap-2 text-sm text-ink">
                 <input type="checkbox" checked={fromStart} onChange={(e) => setFromStart(e.target.checked)} className="size-4 accent-primary" />
                 Read the whole session again
-                <span className="text-hint">· calls already listed are not suggested twice</span>
+                <span className="text-hint">· replaces its unreviewed AI suggestions; approved, rejected and edited ones stay</span>
               </label>
             )}
           </div>
@@ -274,10 +286,29 @@ function Board({ edition }: { edition: Edition }) {
             </>
           }
         >
+          {selectable.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-2.5 text-sm">
+              <span className="text-ink-soft">{chosen.length ? `${chosen.length} selected` : 'Tick calls to merge or delete them'}</span>
+              <button type="button" onClick={() => setSelected(selectable.map((c) => c.id))} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                Select all {selectable.length} shown
+              </button>
+              {chosen.length > 0 && (
+                <>
+                  <button type="button" onClick={() => setDeleting(true)} className={buttonClass({ style: 'soft', color: 'danger' })}>
+                    <TrashIcon className="size-4" />
+                    Delete {chosen.length}
+                  </button>
+                  <button type="button" onClick={() => setSelected([])} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {chosen.length >= 2 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-border bg-primary-soft/40 px-6 py-3 text-sm">
               <Squares2X2Icon className="size-4 text-primary" />
-              <span className="text-ink">Merge {chosen.length} duplicates, keeping</span>
+              <span className="text-ink">Or merge {chosen.length} duplicates, keeping</span>
               <div className="w-full sm:w-80">
                 <Select
                   label="The one to keep"
@@ -289,11 +320,21 @@ function Board({ edition }: { edition: Edition }) {
               <button type="button" onClick={merge} disabled={actions.merge.isPending} className={buttonClass()}>
                 Merge
               </button>
-              <button type="button" onClick={() => setSelected([])} className={buttonClass({ style: 'borderless', color: 'gray' })}>
-                Cancel
-              </button>
             </div>
           )}
+          <DeleteDialog
+            open={deleting}
+            title={`Delete ${chosen.length} call${chosen.length === 1 ? '' : 's'} to action?`}
+            pending={actions.remove.isPending}
+            refusal={actions.remove.error?.message ?? null}
+            onConfirm={removeChosen}
+            onCancel={() => {
+              actions.remove.reset();
+              setDeleting(false);
+            }}
+          >
+            They are removed for good, approved ones included, along with any merged into them. To find them again, analyse the session with “Read the whole session again”.
+          </DeleteDialog>
 
           {shown.length === 0 ? (
             items.length === 0 ? (
@@ -337,7 +378,7 @@ function Board({ edition }: { edition: Edition }) {
                   {c.status !== 'merged' && (
                     <input
                       type="checkbox"
-                      aria-label={`Select “${c.shortText}” to merge`}
+                      aria-label={`Select “${c.shortText}”`}
                       checked={selected.includes(c.id)}
                       onChange={(e) => setSelected((s) => (e.target.checked ? [...s, c.id] : s.filter((id) => id !== c.id)))}
                       className="mt-1 size-4 shrink-0 accent-primary"
