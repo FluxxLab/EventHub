@@ -3,6 +3,7 @@ import type PptxGenJS from 'pptxgenjs';
 import { api } from '@/lib/api/client';
 import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
 import { byline, contrast, tint, toDeckImage, type DeckImage, type DeckImageSource } from '@/lib/calls-to-action/deck';
+import { nameFromTranscripts } from '@/lib/calls-to-action/who-said-it';
 
 /**
  * The commitment template, from the Build conference's ("Commitment Tracking: Workflow &
@@ -87,9 +88,10 @@ export function eventLook(event: { name: string; shortName: string; brandColor: 
 }
 const FONT = 'Montserrat';
 
-export const CARDS_PER_SLIDE = 8;
+/** The template draws eight; six keeps a commitment's details readable at slide size. */
+export const CARDS_PER_SLIDE = 6;
 /** The table's body runs from just under its header to above the footer. */
-const TABLE_TOP = 1.03;
+const TABLE_TOP = 1.1;
 const HEADER_H = 0.44;
 const ROW_H = 0.44;
 const TABLE_ROOM = 6.85 - TABLE_TOP - HEADER_H;
@@ -106,8 +108,8 @@ export function detailsOf(call: Pick<CallToAction, 'action' | 'deadline' | 'amou
   if (call.present) parts.push(`Stakeholders here: ${call.present}.`);
   return parts.join(' ');
 }
-/** "Who said it?" */
-export const whoOf = (call: Pick<CallToAction, 'proposedBy' | 'proposedByOrganisation' | 'alsoProposedBy'>) => byline(call) ?? 'Not recorded';
+/** "Who said it?", or empty when nobody was named: the slide leaves it blank rather than say so. */
+export const whoOf = (call: Pick<CallToAction, 'proposedBy' | 'proposedByOrganisation' | 'alsoProposedBy'>) => byline(call) ?? '';
 
 /**
  * A table's rows split into slides: at most twelve rows, fewer when long details would push the
@@ -134,6 +136,38 @@ export function tablePages(calls: Pick<CallToAction, 'action' | 'deadline' | 'am
 
 const two = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * Lines `text` wraps to in a box `w` inches wide at `pt`, for Montserrat (a wide face: about 0.58
+ * of the size per character, 0.7 in bold capitals). PowerPoint only shrinks text to fit once a box
+ * is edited, so sizes are chosen here instead of left to it.
+ */
+export function linesAt(text: string, w: number, pt: number, em = 0.58): number {
+  const perLine = Math.max(1, Math.floor((w * 72) / (pt * em)));
+  let lines = 0;
+  for (const para of text.split('\n')) {
+    let line = 0;
+    lines++;
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      if (line && line + 1 + word.length > perLine) {
+        lines++;
+        line = word.length;
+      } else line += (line ? 1 : 0) + word.length;
+    }
+  }
+  return lines;
+}
+
+/** The largest size, from `sizes` (largest first), at which `text` fits `w` by `h` inches; with its height. */
+export function fitText(text: string, w: number, h: number, sizes: number[], spacing = 1.2, em = 0.58, maxLines = Infinity): { pt: number; h: number } {
+  for (const pt of sizes) {
+    const lines = linesAt(text, w, pt, em);
+    const height = (lines * pt * 1.2 * spacing) / 72;
+    if (lines <= maxLines && height <= h) return { pt, h: height };
+  }
+  const pt = sizes.at(-1)!;
+  return { pt, h: (linesAt(text, w, pt, em) * pt * 1.2 * spacing) / 72 };
+}
+
 /** The two kinds of call, in the order a session shows them: what was promised, then what was asked for. */
 export const KINDS = [
   { type: 'pledge', plural: 'Commitments', one: 'Commitment' },
@@ -156,17 +190,21 @@ function pagesOf(calls: CallToAction[], layout: BuildLayout): number[][] {
 /** A slide's top and foot: the title, the kind and its date | time | venue line, the page count and the site. */
 function frame(s: PptxGenJS.Slide, look: Look, title: string, kind: Kind, when: string, page: string) {
   s.background = { color: 'FFFFFF' };
-  s.addText(title.toUpperCase(), { x: 0.22, y: 0.03, w: 10.34, h: 0.53, fontFace: FONT, fontSize: 24, bold: true, color: look.accent, margin: 0, valign: 'middle', fit: 'shrink', isTextBox: true });
+  // one line at up to 24 pt; a long title wraps to two smaller lines in the same band, never into the line below
+  const heading = title.toUpperCase();
+  const oneLine = fitText(heading, 10.2, 0.62, [24, 22, 20], 1, 0.72, 1);
+  const size = linesAt(heading, 10.2, oneLine.pt, 0.72) === 1 ? oneLine.pt : fitText(heading, 10.2, 0.62, [17, 16, 15, 14, 13, 12], 1, 0.72, 2).pt;
+  s.addText(heading, { x: 0.22, y: 0.04, w: 10.34, h: 0.62, fontFace: FONT, fontSize: size, bold: true, color: look.accent, margin: 0, valign: 'middle', lineSpacingMultiple: 0.95, isTextBox: true });
   s.addText(
     [
       { text: kind.plural.toUpperCase(), options: { bold: true, color: look.accent } },
       { text: `  ·  ${when}`, options: { color: INK } },
     ],
-    { x: 0.24, y: 0.57, w: 9.5, h: 0.22, fontFace: FONT, fontSize: 12, margin: 0, isTextBox: true },
+    { x: 0.24, y: 0.72, w: 9.5, h: 0.24, fontFace: FONT, fontSize: 12, margin: 0, isTextBox: true },
   );
   if (look.art) {
     // Build's slides, as its template: the page count top right, the site in the foot, no logo
-    s.addText(page, { x: 9.94, y: 0.57, w: 2.64, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
+    s.addText(page, { x: 9.94, y: 0.72, w: 2.64, h: 0.24, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
     s.addText(look.footer, { x: 10.5, y: 7.1, w: 2.6, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
     return;
   }
@@ -179,47 +217,55 @@ function frame(s: PptxGenJS.Slide, look: Look, title: string, kind: Kind, when: 
   s.addText(`${look.footer}  ·  ${page}`, { x: 9.5, y: 7.1, w: 3.6, h: 0.22, fontFace: FONT, fontSize: 13, color: look.accent, align: 'right', margin: 0, isTextBox: true });
 }
 
-/** Template #1: up to eight cards, two rows of four. */
+/**
+ * Where a slide's cards go: one row when there are four or fewer, using the slide's full height
+ * (wider cards when there are fewer), else two rows of three. Centred across the slide.
+ */
+export function cardGrid(n: number): { x: number; y: number; w: number; h: number }[] {
+  const [left, right, top, bottom, gap] = [0.55, 12.78, 1.25, 6.9, 0.25];
+  const cols = n <= 4 ? Math.max(n, 1) : 3;
+  const rows = n <= 4 ? 1 : 2;
+  const w = Math.min((right - left - gap * (cols - 1)) / cols, 4.6);
+  const h = rows === 1 ? Math.min(bottom - top, 4.2) : (bottom - top - gap) / 2;
+  const start = left + (right - left - (w * cols + gap * (cols - 1))) / 2;
+  return Array.from({ length: n }, (_, i) => ({ x: start + (i % cols) * (w + gap), y: top + Math.floor(i / cols) * (h + gap), w, h }));
+}
+
+/** Template #1: up to six cards, sized to how many there are, their text sized to fit. */
 function cardsSlide(pres: PptxGenJS, look: Look, session: BuildSession, kind: Kind, calls: CallToAction[], first: number, page: string) {
   const s = pres.addSlide();
   frame(s, look, session.title, kind, session.when, page);
-  const xs = [0.61, 3.67, 6.69, 9.75];
-  const ys = [1.4, 4.03];
-  calls.forEach((call, i) => {
-    const x = xs[i % 4]!;
-    const y = ys[Math.floor(i / 4)]!;
-    s.addShape(pres.ShapeType.roundRect, { x, y, w: 2.85, h: 2.44, rectRadius: 0.15, fill: { color: look.cardTints[i]! }, line: { type: 'none' } });
-    // a long headline steps down a size, so it stays within its two or three lines above the details
+  const grid = cardGrid(calls.length);
+  const { w, h } = grid[0] ?? { w: 0, h: 0 };
+  const pad = 0.2;
+  const inner = w - pad * 2;
+  const headW = inner - 0.4; // beside the number
+  const lineH = (pt: number, lines: number) => (lines * pt * 1.2) / 72;
+  // one size for every card on the slide, the one the fullest card needs, so the cards read as a set
+  const headPt = Math.min(...calls.map((c) => fitText(commitmentOf(c), headW, Math.min(1.2, h * 0.32), [18, 17, 16, 15, 14, 13, 12, 11], 1, 0.62, 4).pt));
+  const whoPt = h > 3 ? 11 : 10;
+  const parts = calls.map((call) => {
     const head = commitmentOf(call);
-    s.addText(head, {
-      x: x + 0.15,
-      y: y + 0.12,
-      w: 2.2,
-      h: 0.62,
-      fontFace: FONT,
-      fontSize: head.length > 60 ? 10 : head.length > 30 ? 11.5 : 13,
-      color: look.accent,
-      valign: 'top',
-      margin: 0,
-      fit: 'shrink',
-      isTextBox: true,
-    });
-    s.addText(two(first + i + 1), { x: x + 2.33, y: y + 0.1, w: 0.4, h: 0.26, fontFace: FONT, fontSize: 13, bold: true, color: NUMBER_GREY, align: 'right', margin: 0, isTextBox: true });
-    s.addText(detailsOf(call), {
-      x: x + 0.15,
-      y: y + 0.8,
-      w: 2.56,
-      h: 1.2,
-      fontFace: FONT,
-      fontSize: 10,
-      color: INK,
-      valign: 'top',
-      lineSpacingMultiple: 1.2,
-      margin: 0,
-      fit: 'shrink',
-      isTextBox: true,
-    });
-    s.addText(whoOf(call), { x: x + 0.15, y: y + 2.04, w: 2.56, h: 0.26, fontFace: FONT, fontSize: 10, italic: true, color: look.accent, margin: 0, fit: 'shrink', isTextBox: true });
+    const headH = Math.max(lineH(headPt, linesAt(head, headW, headPt, 0.62)), 0.3);
+    const who = whoOf(call);
+    const whoH = who ? lineH(whoPt, linesAt(who, inner, whoPt)) : 0;
+    const room = h - pad * 2 - headH - 0.14 - whoH - (who ? 0.16 : 0);
+    return { head, headH, who, whoH, room, details: detailsOf(call) };
+  });
+  // the body stays a step under the headline
+  const bodySizes = [14, 13, 12, 11, 10.5, 10, 9.5, 9, 8.5, 8].filter((pt) => pt <= headPt - 2);
+  const detailsPt = Math.min(...parts.map((p) => fitText(p.details, inner, p.room, bodySizes.length ? bodySizes : [8], 1.2, 0.56).pt));
+
+  calls.forEach((_, i) => {
+    const { x, y } = grid[i]!;
+    const p = parts[i]!;
+    s.addShape(pres.ShapeType.roundRect, { x, y, w, h, rectRadius: 0.15, fill: { color: look.cardTints[i]! }, line: { type: 'none' } });
+    s.addText(two(first + i + 1), { x: x + w - pad - 0.45, y: y + pad - 0.02, w: 0.45, h: 0.28, fontFace: FONT, fontSize: 13, bold: true, color: NUMBER_GREY, align: 'right', margin: 0, isTextBox: true });
+    // the headline beside the number; the details take the room left above the byline
+    s.addText(p.head, { x: x + pad, y: y + pad, w: headW, h: p.headH + 0.04, fontFace: FONT, fontSize: headPt, bold: true, color: look.accent, valign: 'top', margin: 0, isTextBox: true });
+    const detailsTop = y + pad + p.headH + 0.14;
+    s.addText(p.details, { x: x + pad, y: detailsTop, w: inner, h: Math.max(p.room, 0.3), fontFace: FONT, fontSize: detailsPt, color: INK, valign: 'top', lineSpacingMultiple: 1.2, margin: 0, isTextBox: true });
+    if (p.who) s.addText(p.who, { x: x + pad, y: y + h - pad - p.whoH, w: inner, h: p.whoH + 0.02, fontFace: FONT, fontSize: whoPt, italic: true, color: look.accent, valign: 'bottom', margin: 0, isTextBox: true });
   });
 }
 
@@ -422,6 +468,8 @@ export async function downloadBuildDeck(
   const pres = new Pptx();
   const { event, ...rest } = input;
   const look = event.build ? buildLook(await loadBuildArt()) : eventLook({ ...event, logo: await loadLogo(event.id, event.logoUrl) });
-  addBuildSlides(pres, { ...rest, look });
+  // who said each call, from the named transcript, where the analysis left it blank
+  const sessions = await Promise.all(rest.sessions.map(async (s) => ({ ...s, calls: await nameFromTranscripts(s.calls) })));
+  addBuildSlides(pres, { ...rest, sessions, look });
   await pres.writeFile({ fileName });
 }

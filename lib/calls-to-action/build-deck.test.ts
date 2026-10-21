@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { CARD_TINTS, commitmentOf, detailsOf, MAX_ROWS, sessionGroups, slideCount, tablePages, whoOf } from '@/lib/calls-to-action/build-deck';
+import { CARD_TINTS, CARDS_PER_SLIDE, cardGrid, commitmentOf, detailsOf, fitText, linesAt, MAX_ROWS, sessionGroups, slideCount, tablePages, whoOf } from '@/lib/calls-to-action/build-deck';
 import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
 
 const call = (over: Partial<CallToAction> = {}): CallToAction => ({
@@ -40,9 +40,9 @@ describe('Build template columns', () => {
     expect(detailsOf(call({ amount: '₦50 million', deadline: 'end of 2027' }))).toBe('Train 1,000 young women in AI literacy. ₦50 million. Timeline: end of 2027.');
   });
 
-  it('names who said it, or says it was not recorded', () => {
+  it('names who said it, or leaves it blank', () => {
     expect(whoOf(call())).toContain('Amina Yusuf');
-    expect(whoOf(call({ proposedBy: null, proposedByOrganisation: null }))).toBe('Not recorded');
+    expect(whoOf(call({ proposedBy: null, proposedByOrganisation: null }))).toBe('');
   });
 });
 
@@ -59,10 +59,28 @@ describe('Build template pages', () => {
     expect(pages.flat()).toEqual(Array.from({ length: 12 }, (_, i) => i));
   });
 
-  it('puts eight cards to a slide and counts only approved calls', () => {
-    const calls = [...Array.from({ length: 9 }, () => call()), call({ status: 'rejected' })];
+  it('puts six cards to a slide and counts only approved calls', () => {
+    const calls = [...Array.from({ length: 7 }, () => call()), call({ status: 'rejected' })];
     expect(slideCount({ title: 'S', when: '', calls }, 'cards')).toBe(2);
-    expect(CARD_TINTS).toHaveLength(8);
+    expect(slideCount({ title: 'S', when: '', calls: calls.slice(0, 6) }, 'cards')).toBe(1);
+    expect(CARD_TINTS.length).toBeGreaterThanOrEqual(CARDS_PER_SLIDE);
+  });
+
+  it('sizes cards to how many there are, inside the slide', () => {
+    const six = cardGrid(6);
+    expect(cardGrid(1)[0]!.h).toBeGreaterThan(six[0]!.h);
+    for (const c of [...cardGrid(1), ...cardGrid(4), ...six]) {
+      expect(c.x).toBeGreaterThanOrEqual(0.5);
+      expect(c.x + c.w).toBeLessThanOrEqual(12.8);
+      expect(c.y + c.h).toBeLessThanOrEqual(6.95);
+    }
+  });
+
+  it('picks the largest size the text fits at', () => {
+    const text = 'Set up a Nigerian GPU facility that can be connected with Gates Foundation-funded GPUs in Rwanda, Senegal and Kenya.';
+    expect(fitText(text, 4, 3, [14, 12, 10]).pt).toBe(14);
+    expect(fitText(text, 2, 0.6, [14, 12, 10, 8]).pt).toBeLessThan(14);
+    expect(linesAt('one two three', 10, 12)).toBe(1);
   });
 });
 
