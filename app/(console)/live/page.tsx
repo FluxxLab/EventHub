@@ -13,6 +13,7 @@ import {
   PlayCircleIcon,
   SignalIcon,
   SignalSlashIcon,
+  SparklesIcon,
   StopCircleIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -28,6 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { switchTally, useSwitchDecision, useSwitchSuggestions, type SwitchSuggestion } from '@/lib/live/use-switch';
 import { canControlLive, runsEvents, useSession } from '@/lib/auth/session';
 import { count } from '@/lib/format';
 import { currentDay, roomStates, totals, type BoardSession, type RoomState } from '@/lib/live/live';
@@ -53,8 +55,10 @@ type Pending =
       room: string;
       start: BoardSession;
       end: BoardSession | null;
+      /** Set when switching from the AI's suggestion, which is then counted right. */
+      suggestionId?: string;
     }
-  | { kind: 'end'; room: string; end: BoardSession };
+  | { kind: 'end'; room: string; end: BoardSession; suggestionId?: string };
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -102,6 +106,9 @@ function RoomCard({
   stream,
   onStart,
   onEnd,
+  suggestion,
+  onSuggestion,
+  onDismissSuggestion,
 }: {
   state: RoomState;
   canControl: boolean;
@@ -109,6 +116,10 @@ function RoomCard({
   stream: IngestRoom | null;
   onStart: (s: BoardSession) => void;
   onEnd: (s: BoardSession) => void;
+  /** The AI's open changeover suggestion for this room, when it still fits what is live. */
+  suggestion?: SwitchSuggestion | null;
+  onSuggestion?: (s: SwitchSuggestion) => void;
+  onDismissSuggestion?: (s: SwitchSuggestion) => void;
 }) {
   const { setBreak, setOverlays } = useLiveActions();
   const toast = useToast();
@@ -176,6 +187,36 @@ function RoomCard({
       className={cn(live && onBreak && 'border-gold/60')}
       bodyClassName="flex flex-col gap-4 px-6 py-5"
     >
+      {suggestion && canControl && live && (
+        <div role="status" className="flex flex-col gap-2 rounded-lg border border-primary/30 bg-primary-soft/40 px-3 py-2.5 text-sm">
+          <p className="flex items-start gap-2 text-ink">
+            <SparklesIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            <span>
+              {suggestion.kind === 'start_next' ? (
+                <>
+                  It sounds like <span className="font-medium">“{state.sessions.find((x) => x.id === suggestion.toSessionId)?.title ?? 'the next session'}”</span> has started.
+                </>
+              ) : (
+                <>
+                  It sounds like <span className="font-medium">“{live.title}”</span> has ended.
+                </>
+              )}{' '}
+              <span className="text-hint">{suggestion.reason}</span>
+            </span>
+          </p>
+          <blockquote className="ml-6 border-l-2 border-primary/30 pl-2 text-xs italic text-ink-soft">“{suggestion.evidence}”</blockquote>
+          <div className="ml-6 flex flex-wrap gap-2">
+            <button type="button" onClick={() => onSuggestion?.(suggestion)} className={buttonClass()}>
+              {suggestion.kind === 'start_next' ? <PlayCircleIcon className="size-4" /> : <StopCircleIcon className="size-4" />}
+              {suggestion.kind === 'start_next' ? 'Start next' : 'End session'}
+            </button>
+            <button type="button" onClick={() => onDismissSuggestion?.(suggestion)} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+              Not yet
+            </button>
+          </div>
+        </div>
+      )}
+
       {(state.conflict || late > 0 || overrun > 0 || streamProblem) && (
         <div className="flex flex-col gap-2">
           {state.conflict && (
@@ -313,6 +354,11 @@ export default function LiveOpsPage() {
   const board = useBoard();
   const overview = useLiveOverview(canControl);
   const { switchSession } = useLiveActions();
+  // the AI's changeover suggestions, when the server has them on
+  const switches = useSwitchSuggestions(canControl);
+  const decision = useSwitchDecision();
+  const switchesOn = !!switches.data?.enabled;
+  const tally = switches.data ? switchTally(switches.data.today) : null;
   const streams = useIngestRooms();
   const streamOf = (room: string) => (streams.disabled ? null : (streams.data?.find((r) => r.room.trim().toLowerCase() === room.trim().toLowerCase()) ?? null));
   const toast = useToast();
@@ -327,11 +373,18 @@ export default function LiveOpsPage() {
   const rooms = useMemo(() => roomStates(sessions, overview.data ?? [], day), [sessions, overview.data, day]);
   const sum = totals(rooms);
 
+  /** A room's open suggestion, while it still fits: made for the session live there now. */
+  const suggestionFor = (r: (typeof rooms)[number]) =>
+    switches.data?.open.find(
+      (s) => s.room.trim().toLowerCase() === r.room.trim().toLowerCase() && s.fromSessionId === r.live?.id && (s.kind === 'end_current' || r.sessions.some((x) => x.id === s.toSessionId)),
+    ) ?? null;
+
   const confirm = () => {
     if (!pending) return;
     const body = pending.kind === 'start' ? { endId: pending.end?.id, startId: pending.start.id } : { endId: pending.end.id };
     switchSession.mutate(body, {
       onSuccess: () => {
+        if (pending.suggestionId) decision.mutate({ id: pending.suggestionId, decision: 'accept' });
         toast.push(
           pending.kind === 'start'
             ? {
@@ -383,6 +436,12 @@ export default function LiveOpsPage() {
           />
         )}
         {!auto.isToday && <p className="min-w-0 text-xs text-hint">No sessions are scheduled for today; showing Day {day} to rehearse.</p>}
+        {canControl && switchesOn && (
+          <p className="flex items-center gap-1.5 text-xs text-hint">
+            <SparklesIcon className="size-3.5" aria-hidden />
+            AI changeover suggestions on{tally ? ` · ${tally} today` : ''}
+          </p>
+        )}
         <ConnectionIndicator refreshing={overview.isFetching || board.isFetching} />
       </div>
 
@@ -428,6 +487,18 @@ export default function LiveOpsPage() {
               stream={streamOf(r.room)}
               onStart={(start) => setPending({ kind: 'start', room: r.room, start, end: r.live })}
               onEnd={(end) => setPending({ kind: 'end', room: r.room, end })}
+              suggestion={switchesOn ? suggestionFor(r) : null}
+              onSuggestion={(s) => {
+                if (s.kind === 'end_current' && r.live) return setPending({ kind: 'end', room: r.room, end: r.live, suggestionId: s.id });
+                const start = r.sessions.find((x) => x.id === s.toSessionId);
+                if (start) setPending({ kind: 'start', room: r.room, start, end: r.live, suggestionId: s.id });
+              }}
+              onDismissSuggestion={(s) =>
+                decision.mutate(
+                  { id: s.id, decision: 'dismiss' },
+                  { onSuccess: () => toast.push({ title: 'Noted', body: 'Counted as a wrong suggestion; it will not be repeated for 10 minutes.' }) },
+                )
+              }
             />
           ))}
         </div>
