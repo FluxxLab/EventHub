@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
 import { api } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/session';
-import type { RapporteurReport } from '@/lib/calls-to-action/report-docx';
+import type { RapporteurReport, ReportHeader } from '@/lib/calls-to-action/report-docx';
 import { DEMO_MODE } from '@/lib/demo';
 import type { Edition } from '@/lib/events/events';
 import { timeRange, type Session } from '@/lib/programme/programme';
@@ -179,9 +179,72 @@ export function ReportDialog({ open, edition, sessions, initialSessionId, onClos
   const [sessionId, setSessionId] = useState(initialSessionId && sessions.some((s) => s.id === initialSessionId) ? initialSessionId : (sessions.at(-1)?.id ?? ''));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const days = [...new Set(sessions.map((s) => s.day))].sort((a, b) => a - b);
+  // the day the chosen session is on, else the latest day
+  const [scope, setScope] = useState<string>('session');
+  const [progress, setProgress] = useState<{ done: number; of: number } | null>(null);
+  const completedBy = auth.status === 'signed-in' ? `${auth.user.name} (drafted with AI from the session transcript)` : 'Drafted with AI from the session transcript';
+
+  const writeDay = async (day: number) => {
+    const today = sessions.filter((s) => s.day === day && s.status === 'completed').sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    if (!today.length) throw new Error(`No session on day ${day} has finished yet.`);
+    setProgress({ done: 0, of: today.length });
+    const parts: ({ header: ReportHeader; report: RapporteurReport; title: string } | null)[] = new Array(today.length).fill(null);
+    let next = 0;
+    let done = 0;
+    // three at a time: each is a minute or so of AI reading
+    const worker = async () => {
+      while (next < today.length) {
+        const i = next++;
+        const session = today[i]!;
+        try {
+          const answer: ReportResponse = DEMO_MODE
+            ? { report: DEMO_REPORT, event: edition.name, session: { title: session.title, startsAt: session.startsAt, endsAt: session.endsAt, room: session.room }, read: 0 }
+            : await api.postSlow<ReportResponse>(`/sessions/${session.id}/rapporteur-report`);
+          parts[i] = {
+            title: `${timeRange(answer.session.startsAt, answer.session.endsAt)} · ${answer.session.room ?? session.room} · ${answer.session.title}`,
+            header: {
+              event: answer.event,
+              date: `${longDate(answer.session.startsAt)}, ${timeRange(answer.session.startsAt, answer.session.endsAt)}${answer.session.room ? `, ${answer.session.room}` : ''}`,
+              title: answer.session.title,
+              completedBy,
+              completedOn: longDate(new Date().toISOString()),
+            },
+            report: answer.report,
+          };
+        } catch {
+          // a session with no transcript is left out; the toast says how many
+        }
+        setProgress({ done: ++done, of: today.length });
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    const written = parts.filter((p): p is NonNullable<typeof p> => p !== null);
+    if (!written.length) throw new Error(`None of day ${day}'s sessions could be written up. Check they have captions.`);
+    const { dayReportDocx, saveFile } = await import('@/lib/calls-to-action/report-docx');
+    const blob = await dayReportDocx({ event: written[0]!.header.event, day: `Day ${day}, ${longDate(today[0]!.startsAt)}`, sessions: written.map((p) => p.title) }, written);
+    saveFile(blob, `${edition.shortName}-day-${day}-rapporteur-report.docx`);
+    toast.push({
+      title: 'End of day report downloaded',
+      body: `${written.length} session${written.length === 1 ? '' : 's'} in one file${written.length < today.length ? `; ${today.length - written.length} had nothing to write up` : ''}. A draft: check it before sharing.`,
+      leading: { kind: 'icon', icon: DocumentTextIcon, tone: 'success' },
+    });
+    onClose();
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (scope.startsWith('day:')) {
+      setError(null);
+      setPending(true);
+      void writeDay(Number(scope.slice(4)))
+        .catch((e: Error) => setError(e.message))
+        .finally(() => {
+          setPending(false);
+          setProgress(null);
+        });
+      return;
+    }
     const session = sessions.find((s) => s.id === sessionId);
     if (!session) return setError('Choose a session.');
     setError(null);
@@ -224,23 +287,42 @@ export function ReportDialog({ open, edition, sessions, initialSessionId, onClos
       title="Rapporteur report"
       subtitle="Written from the session’s transcript and its approved calls, in the Rapporteur Session Guide (Word)."
       pending={pending}
-      pendingLabel="Writing… about a minute"
+      pendingLabel={progress ? `Writing… ${progress.done} of ${progress.of} sessions` : 'Writing… about a minute'}
       submitLabel="Download report"
       error={error}
       onSubmit={submit}
       onClose={onClose}
     >
       {pending ? (
-        <ReportProgress />
+        <>
+          <ReportProgress />
+          {progress && <p className="text-center text-sm text-ink-soft">{progress.done} of {progress.of} sessions written. A long day takes several minutes; keep this open.</p>}
+        </>
       ) : (
-        <Field id={`${id}-session`} label="Session" hint="Analyse the session first so its recommendations and commitments are approved; the report keeps the two apart.">
-          <Select
-            id={`${id}-session`}
-            value={sessionId}
-            options={sessions.length ? sessions.map((s) => ({ value: s.id, label: `Day ${s.day} · ${timeRange(s.startsAt, s.endsAt)} · ${s.title}` })) : [{ value: '', label: 'No sessions yet' }]}
-            onChange={setSessionId}
-          />
-        </Field>
+        <>
+          <Field id={`${id}-scope`} label="Report for">
+            <Select
+              id={`${id}-scope`}
+              value={scope}
+              options={[{ value: 'session', label: 'One session' }, ...days.map((d) => ({ value: `day:${d}`, label: `End of day ${d}: every finished session, in one file` }))]}
+              onChange={setScope}
+            />
+          </Field>
+          {scope === 'session' ? (
+            <Field id={`${id}-session`} label="Session" hint="Analyse the session first so its recommendations and commitments are approved; the report keeps the two apart.">
+              <Select
+                id={`${id}-session`}
+                value={sessionId}
+                options={sessions.length ? sessions.map((s) => ({ value: s.id, label: `Day ${s.day} · ${timeRange(s.startsAt, s.endsAt)} · ${s.title}` })) : [{ value: '', label: 'No sessions yet' }]}
+                onChange={setSessionId}
+              />
+            </Field>
+          ) : (
+            <p className="text-sm text-ink-soft">
+              Writes the guide for each of the day’s {sessions.filter((s) => `day:${s.day}` === scope && s.status === 'completed').length} finished sessions, three at a time, and puts them in one Word file with a contents page. Do the agenda check and analysis first.
+            </p>
+          )}
+        </>
       )}
     </FormDialog>
   );

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 
-import { fillReportXml, type RapporteurReport } from '@/lib/calls-to-action/report-docx';
+import { fillDayReportXml, fillReportXml, type RapporteurReport } from '@/lib/calls-to-action/report-docx';
 
 const report = (over: Partial<RapporteurReport> = {}): RapporteurReport => ({
   purpose: 'How Nigeria can build the data and compute AI needs.',
@@ -73,5 +73,30 @@ describe('rapporteur report in the Word template', () => {
     const xml = fillReportXml(await template(), header, report());
     const ids = [...xml.matchAll(/w14:paraId="([0-9A-F]+)"/g)].map((m) => m[1]);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('end of day report', () => {
+  it('puts each session’s guide after a contents page, in one document', async () => {
+    const xml = await template();
+    const out = fillDayReportXml(xml, { event: 'Build Conference 2026', day: 'Day 1', sessions: ['10:05 · Main Hall · Welcome', '11:10 · Main Hall · Fireside'] }, [
+      { header, report: report() },
+      { header: { ...header, title: 'Positioning Africa' }, report: report({ synthesis: 'Second session synthesis.' }) },
+    ]);
+    expect(out).toContain('End of day rapporteur report · Day 1');
+    expect(out).toContain('2. 11:10 · Main Hall · Fireside');
+    // both sessions' guides, each with its own tables, and one section setting at the end
+    expect(out.split('RAPPORTEUR SESSION GUIDE').length - 1).toBe(2);
+    expect(out).toContain('Second session synthesis.');
+    expect(tableRows(out).length).toBe(2 * tableRows(fillReportXml(xml, header, report())).length);
+    expect(out.match(/<w:sectPr/g)?.length).toBe(1);
+    // no paragraph ids repeated, which Word would object to
+    expect(out).not.toMatch(/w14:paraId/);
+    if (process.env.DAY_REPORT_OUT) {
+      const zip = await JSZip.loadAsync(readFileSync('public/report/rapporteur-guide.docx'));
+      zip.file('word/document.xml', out);
+      const { writeFileSync } = await import('node:fs');
+      writeFileSync(process.env.DAY_REPORT_OUT, await zip.generateAsync({ type: 'nodebuffer' }));
+    }
   });
 });

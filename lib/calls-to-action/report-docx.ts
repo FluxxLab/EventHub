@@ -163,6 +163,61 @@ export async function reportDocx(header: ReportHeader, report: RapporteurReport)
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const para = (text: string, opts: { bold?: boolean; size?: number; pageBreakBefore?: boolean } = {}) =>
+  `<w:p xmlns:w="${W}"><w:pPr>${opts.pageBreakBefore ? '<w:pageBreakBefore/>' : ''}<w:spacing w:after="120"/></w:pPr><w:r><w:rPr>${opts.bold ? '<w:b/>' : ''}${opts.size ? `<w:sz w:val="${opts.size}"/>` : ''}</w:rPr><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
+const pageBreak = () => `<w:p xmlns:w="${W}"><w:r><w:br w:type="page"/></w:r></w:p>`;
+
+/**
+ * One day's sessions in one document.xml: a contents page, then each session's filled guide on
+ * its own pages. Each guide is filled from its own copy of the template; the copies' paragraph
+ * ids and bookmarks are dropped so Word does not see the same id twice.
+ */
+export function fillDayReportXml(xml: string, cover: { event: string; day: string; sessions: string[] }, parts: { header: ReportHeader; report: RapporteurReport }[]): string {
+  const filled = parts.map((p) => new DOMParser().parseFromString(fillReportXml(xml, p.header, p.report), 'application/xml'));
+  const doc = new DOMParser().parseFromString(xml.replace(/^\uFEFF/, ''), 'application/xml');
+  const body = doc.getElementsByTagNameNS(W, 'body')[0];
+  if (!body) throw new Error('The report template could not be read.');
+  const sectPr = Array.from(body.childNodes).find((n): n is Element => n.nodeType === 1 && (n as Element).localName === 'sectPr') ?? null;
+  for (const n of Array.from(body.childNodes)) if (n !== sectPr) body.removeChild(n);
+
+  const add = (fragment: string) => {
+    const node = doc.importNode(new DOMParser().parseFromString(fragment, 'application/xml').documentElement, true);
+    body.insertBefore(node, sectPr);
+  };
+  add(para(cover.event, { bold: true, size: 40 }));
+  add(para(`End of day rapporteur report · ${cover.day}`, { bold: true, size: 30 }));
+  add(para(`${cover.sessions.length} session${cover.sessions.length === 1 ? '' : 's'}, each on its own pages, drafted with AI from the session transcripts and approved calls to action. Check before sharing.`));
+  cover.sessions.forEach((s, i) => add(para(`${i + 1}. ${s}`)));
+
+  filled.forEach((f) => {
+    add(pageBreak());
+    const fBody = f.getElementsByTagNameNS(W, 'body')[0]!;
+    for (const n of Array.from(fBody.childNodes)) {
+      if (n.nodeType !== 1 || (n as Element).localName === 'sectPr') continue;
+      const copy = doc.importNode(n, true) as Element;
+      for (const el of [copy, ...Array.from(copy.getElementsByTagName('*'))]) {
+        el.removeAttributeNS(W14, 'paraId');
+        el.removeAttributeNS(W14, 'textId');
+      }
+      for (const b of [...Array.from(copy.getElementsByTagNameNS(W, 'bookmarkStart')), ...Array.from(copy.getElementsByTagNameNS(W, 'bookmarkEnd'))]) b.parentNode?.removeChild(b);
+      body.insertBefore(copy, sectPr);
+    }
+  });
+  const out = new XMLSerializer().serializeToString(doc);
+  return out.startsWith('<?xml') ? out : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${out}`;
+}
+
+/** One day's reports as one Word file. */
+export async function dayReportDocx(cover: { event: string; day: string; sessions: string[] }, parts: { header: ReportHeader; report: RapporteurReport }[]): Promise<Blob> {
+  const { default: JSZip } = await import('jszip');
+  const template = await (await fetch('/report/rapporteur-guide.docx')).arrayBuffer();
+  const zip = await JSZip.loadAsync(template);
+  const xml = await zip.file('word/document.xml')!.async('string');
+  zip.file('word/document.xml', fillDayReportXml(xml, cover, parts));
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
 /** Hands a file to the browser to save. */
 export function saveFile(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
