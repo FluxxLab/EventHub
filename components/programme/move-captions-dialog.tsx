@@ -70,14 +70,15 @@ export function MoveCaptionsDialog({ session, sessions, onClose }: { session: Se
     setPending(true);
     setError(null);
     const request = DEMO_MODE
-      ? Promise.resolve({ moved: 42 })
-      : api.post<{ moved: number }>(`/captions/${session.id}/captions/move`, { toSessionId: to.id, ...(since ? { since } : {}) });
+      ? Promise.resolve({ moved: 42, calls: 2 })
+      : api.post<{ moved: number; calls?: number }>(`/captions/${session.id}/captions/move`, { toSessionId: to.id, ...(since ? { since } : {}) });
     request
-      .then(({ moved }) => {
+      .then(({ moved, calls = 0 }) => {
+        const callsLine = calls ? ` ${calls} call${calls === 1 ? '' : 's'} to action went with them.` : '';
         toast.push({
-          title: moved ? 'Captions moved' : 'Nothing to move',
-          body: moved ? `${moved} line(s) moved to “${to.title}”.` : `“${session.title}” has no lines${all ? '' : ` from ${from}`} on.`,
-          leading: { kind: 'icon', icon: ArrowRightCircleIcon, tone: moved ? 'success' : undefined },
+          title: moved || calls ? 'Captions moved' : 'Nothing to move',
+          body: moved || calls ? `${moved} line(s) moved to “${to.title}”.${callsLine} Analyse it for anything not yet found.` : `“${session.title}” has no lines${all ? '' : ` from ${from}`} on.`,
+          leading: { kind: 'icon', icon: ArrowRightCircleIcon, tone: moved || calls ? 'success' : undefined },
         });
         close();
       })
@@ -98,7 +99,7 @@ export function MoveCaptionsDialog({ session, sessions, onClose }: { session: Se
       onSubmit={submit}
     >
       <p className="text-sm text-ink-soft">
-        For when the wrong session was left live. End this session first, and give it a few minutes to be re-transcribed before moving.
+        For when the wrong session was left live. The calls to action found in those lines move with them. End this session first, and give it a few minutes to be re-transcribed before moving.
       </p>
       <Field id={`${baseId}-to`} label="Move to">
         <Select
