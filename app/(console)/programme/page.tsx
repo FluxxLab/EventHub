@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpTrayIcon, CalendarDaysIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArrowPathIcon, ArrowUpTrayIcon, CalendarDaysIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -28,6 +28,9 @@ import { useWorkingEdition } from '@/lib/events/working-edition';
 import { dayDate, durationMinutes, filterSessions, MAX_DAY, timeRange, typeLabel, type Session, type SessionTrack } from '@/lib/programme/programme';
 import { useDeleteSession, useSessions, useSessionsRealtime } from '@/lib/programme/use-sessions';
 import { useSessionBriefs } from '@/lib/programme/use-briefs';
+import { useSession } from '@/lib/auth/session';
+import { downloadTranscript } from '@/lib/captions/use-captions';
+import { recheckNames } from '@/lib/captions/speaker-names';
 import { useCallActions } from '@/lib/calls-to-action/use-calls-to-action';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
@@ -77,6 +80,25 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   const [briefFor, setBriefFor] = useState<Session | null>(null);
   const [uploadingBriefs, setUploadingBriefs] = useState(false);
   const briefs = useSessionBriefs(edition?.id);
+  const auth = useSession();
+  const isAdmin = auth.status === 'signed-in' && auth.user.tier === 'admin';
+  const [rechecking, setRechecking] = useState<Set<string>>(new Set());
+  const getTranscript = (s: Session, format: 'csv' | 'txt') =>
+    void downloadTranscript(s.id, s.title, format).catch((e: Error) => toast.push({ title: 'Transcript not downloaded', body: e.message }));
+  const runRecheck = (s: Session) => {
+    setRechecking((was) => new Set(was).add(s.id));
+    toast.push({ title: 'Rechecking speaker names', body: `Reading “${s.title}”. This takes a minute or two.` });
+    recheckNames(s.id)
+      .then(({ added, changed }) => toast.push({ title: 'Speaker names rechecked', body: `“${s.title}”: ${added} added, ${changed} changed. Download the transcript to see them.` }))
+      .catch((e: Error) => toast.push({ title: 'Names not rechecked', body: e.message }))
+      .finally(() =>
+        setRechecking((was) => {
+          const next = new Set(was);
+          next.delete(s.id);
+          return next;
+        }),
+      );
+  };
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [deletingSession, setDeletingSession] = useState<Session | null>(null);
   const trackLibrary = useTrackLibrary();
@@ -321,6 +343,24 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                               );
                             },
                           },
+                          // the transcript of a session once it has started; after it ends, the re-transcribed one with voices apart
+                          ...(s.status !== 'scheduled'
+                            ? [
+                                { label: 'Download transcript (.txt)', icon: ArrowDownTrayIcon, onSelect: () => getTranscript(s, 'txt') },
+                                { label: 'Download transcript (.csv)', icon: ArrowDownTrayIcon, onSelect: () => getTranscript(s, 'csv') },
+                              ]
+                            : []),
+                          // names the voices of a finished session from its introductions (admins and session operators)
+                          ...(s.status === 'completed' && isAdmin
+                            ? [
+                                {
+                                  label: rechecking.has(s.id) ? 'Rechecking speaker names…' : 'Recheck speaker names',
+                                  icon: ArrowPathIcon,
+                                  disabled: rechecking.has(s.id),
+                                  onSelect: () => runRecheck(s),
+                                },
+                              ]
+                            : []),
                         ]}
                         onEdit={() => setEditingSession(s)}
                         onDelete={() => setDeletingSession(s)}

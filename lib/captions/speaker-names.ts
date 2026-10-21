@@ -349,15 +349,27 @@ export function useRecheckNames(sessionId: string | undefined) {
         demoSet(sessionId!, applyNamed(demoList(sessionId!), found));
         return { added: had ? 0 : 1, changed: 0 };
       }
-      const { jobId } = await api.post<{ jobId: string }>(`/sessions/${sessionId}/speaker-names/review`);
-      for (let i = 0; i < MAX_POLLS; i++) {
-        await wait(POLL_MS);
-        const job = await api.get<ReviewJob>(`/speaker-names/review/${jobId}`);
-        if (job.state === 'completed') return { added: job.added ?? 0, changed: job.changed ?? 0 };
-        if (job.state === 'failed') throw new Error(job.error || 'The recheck failed.');
-      }
-      throw new Error('The recheck is still running. Check back in a few minutes.');
+      return recheckNames(sessionId!);
     },
     onSettled: () => void client.invalidateQueries({ queryKey: key(sessionId) }),
   });
+}
+
+/**
+ * The review itself, for pages that run it outside the Captions page (Programme): starts it and
+ * follows the job every 3 s until it is done.
+ */
+export async function recheckNames(sessionId: string): Promise<{ added: number; changed: number }> {
+  if (DEMO_MODE) {
+    await wait(1500);
+    return { added: 1, changed: 0 };
+  }
+  const { jobId } = await api.post<{ jobId: string }>(`/sessions/${sessionId}/speaker-names/review`);
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await wait(POLL_MS);
+    const job = await api.get<ReviewJob>(`/speaker-names/review/${jobId}`);
+    if (job.state === 'completed') return { added: job.added ?? 0, changed: job.changed ?? 0 };
+    if (job.state === 'failed') throw new Error(job.error || 'The recheck failed.');
+  }
+  throw new Error('The recheck is still running. Check back in a few minutes.');
 }

@@ -90,21 +90,27 @@ export function useCaptionFeed(sessionId: string) {
   return feed;
 }
 
+/**
+ * Downloads a session's whole transcript (`GET /captions/:id/transcript/export`), live or finished:
+ * after a session ends it is the re-transcribed one, with its voices told apart.
+ */
+export async function downloadTranscript(sessionId: string, title: string, format: 'csv' | 'txt'): Promise<void> {
+  const text = DEMO_MODE ? DEMO_LINES.join('\n') : await api.getText(`/captions/${sessionId}/transcript/export`, { format });
+  const url = URL.createObjectURL(new Blob([text], { type: format === 'csv' ? 'text/csv;charset=utf-8' : 'text/plain;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${title.replace(/[^\w-]+/g, '-').slice(0, 60)}-transcript.${format}`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Clears a session's captions for everyone (the transcript is kept), and downloads the transcript. */
 export function useCaptionActions(sessionId: string) {
   const clear = useMutation({
     mutationFn: () => (DEMO_MODE ? Promise.resolve({ deleted: 0 }) : api.delete<{ deleted: number }>(`/captions/${sessionId}/captions`)),
   });
   const exportTranscript = useMutation({
-    mutationFn: async ({ format, title }: { format: 'csv' | 'txt'; title: string }) => {
-      const text = DEMO_MODE ? DEMO_LINES.join('\n') : await api.getText(`/captions/${sessionId}/transcript/export`, { format });
-      const url = URL.createObjectURL(new Blob([text], { type: format === 'csv' ? 'text/csv;charset=utf-8' : 'text/plain;charset=utf-8' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${title.replace(/[^\w-]+/g, '-').slice(0, 60)}-transcript.${format}`;
-      link.click();
-      URL.revokeObjectURL(url);
-    },
+    mutationFn: ({ format, title }: { format: 'csv' | 'txt'; title: string }) => downloadTranscript(sessionId, title, format),
   });
   return { clear, exportTranscript };
 }
