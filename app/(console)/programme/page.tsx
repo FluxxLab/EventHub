@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowDownTrayIcon, ArrowPathIcon, ArrowUpTrayIcon, CalendarDaysIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArrowPathIcon, ArrowRightCircleIcon, ArrowUpTrayIcon, CalendarDaysIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { CreateSessionDialog } from '@/components/programme/create-session-dialog';
 import { ImportSessionsDialog } from '@/components/programme/import-sessions-dialog';
+import { MoveCaptionsDialog } from '@/components/programme/move-captions-dialog';
 import { SessionBriefDialog } from '@/components/programme/session-brief-dialog';
 import { UploadBriefsDialog } from '@/components/programme/upload-briefs-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
@@ -83,6 +84,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   const auth = useSession();
   const isAdmin = auth.status === 'signed-in' && auth.user.tier === 'admin';
   const [rechecking, setRechecking] = useState<Set<string>>(new Set());
+  const [movingFrom, setMovingFrom] = useState<Session | null>(null);
   const getTranscript = (s: Session, format: 'csv' | 'txt') =>
     void downloadTranscript(s.id, s.title, format).catch((e: Error) => toast.push({ title: 'Transcript not downloaded', body: e.message }));
   const runRecheck = (s: Session) => {
@@ -361,6 +363,8 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                                 },
                               ]
                             : []),
+                          // the wrong session was left live: hand its lines to the one they belong to
+                          ...(s.status !== 'scheduled' && isAdmin ? [{ label: 'Move captions to…', icon: ArrowRightCircleIcon, onSelect: () => setMovingFrom(s) }] : []),
                         ]}
                         onEdit={() => setEditingSession(s)}
                         onDelete={() => setDeletingSession(s)}
@@ -383,6 +387,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
       <UploadBriefsDialog key={uploadingBriefs ? 'briefs-open' : 'briefs-closed'} open={uploadingBriefs} edition={edition} onClose={() => setUploadingBriefs(false)} />
       <CreateSessionDialog open={editingSession !== null} session={editingSession} onClose={() => setEditingSession(null)} edition={edition} day={editingSession?.day ?? day} />
       <DeleteSessionDialog editionId={edition.id} session={deletingSession} onClose={() => setDeletingSession(null)} />
+      <MoveCaptionsDialog session={movingFrom} sessions={all} onClose={() => setMovingFrom(null)} />
     </div>
   );
 }
