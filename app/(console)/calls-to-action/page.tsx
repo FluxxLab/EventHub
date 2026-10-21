@@ -77,6 +77,7 @@ function Board({ edition }: { edition: Edition }) {
   const [editing, setEditing] = useState<{ call: CallToAction | null } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [whoDone, setWhoDone] = useState(0);
   const [keep, setKeep] = useState('');
   const [deckOpen, setDeckOpen] = useState(false);
   const [deckStyle, setDeckStyle] = useState<DeckStyle>('designed');
@@ -108,6 +109,24 @@ function Board({ edition }: { edition: Edition }) {
   const targetOptions = [...new Set(items.map((c) => c.directedAt))].sort();
   const chosen = selected.filter((id) => shown.some((c) => c.id === id && c.status !== 'merged'));
   const selectable = shown.filter((c) => c.status !== 'merged');
+  // calls nobody is named for, and the sessions they are in
+  const unnamed = items.filter((c) => c.sessionId && c.status !== 'merged' && c.status !== 'rejected' && !c.proposedBy?.trim());
+  const unnamedCount = unnamed.length;
+  const unnamedSessions = [...new Set(unnamed.map((c) => c.sessionId!))];
+  const findWhoSaid = () => {
+    setWhoDone(0);
+    actions.whoSaid.mutate(
+      { sessionIds: unnamedSessions, onProgress: setWhoDone },
+      {
+        onSuccess: ({ filled, missing, failed }) =>
+          toast.push({
+            title: filled ? 'Speakers found' : 'No more speakers found',
+            body: `${filled} named from the transcripts.${missing ? ` ${missing} could not be told from what was said; name them by hand with Edit.` : ''}${failed ? ` ${failed} session(s) could not be read; try again.` : ''}`,
+            leading: { kind: 'icon', icon: SparklesIcon, tone: filled ? 'success' : undefined },
+          }),
+      },
+    );
+  };
   const analysing = actions.analyse.isPending;
   const removeChosen = () =>
     actions.remove.mutate(chosen, {
@@ -183,6 +202,15 @@ function Board({ edition }: { edition: Edition }) {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={findWhoSaid}
+              disabled={!aiReady || actions.whoSaid.isPending || unnamedSessions.length === 0}
+              title={unnamedSessions.length ? `${unnamedCount} call(s) with nobody named, in ${unnamedSessions.length} session(s)` : 'Every call has a name'}
+              className={buttonClass({ style: 'outline', color: 'gray' })}
+            >
+              {actions.whoSaid.isPending ? `Finding who said it… ${whoDone} of ${unnamedSessions.length}` : `Find who said it${unnamedCount ? ` (${unnamedCount})` : ''}`}
+            </button>
             <button type="button" onClick={() => setManyOpen(true)} disabled={!aiReady || sessionList.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
               Analyse several
             </button>

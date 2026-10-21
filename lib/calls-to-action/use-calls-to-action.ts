@@ -197,5 +197,28 @@ export function useCallActions(editionId: string) {
       void client.invalidateQueries({ queryKey: stakeholdersKey(editionId) });
     },
   });
-  return { analyse, create, update, merge, remove };
+  /**
+   * Fills in who said the calls where nobody is named, session by session, from each transcript.
+   * `onProgress` hears each session as it finishes.
+   */
+  const whoSaid = useMutation({
+    mutationFn: async ({ sessionIds, onProgress }: { sessionIds: string[]; onProgress?: (done: number) => void }) => {
+      let filled = 0;
+      let missing = 0;
+      let failed = 0;
+      for (let i = 0; i < sessionIds.length; i++) {
+        try {
+          const r = DEMO_MODE ? { filled: 1, missing: 0 } : await api.postSlow<{ filled: number; missing: number }>(`/sessions/${sessionIds[i]}/who-said-it`);
+          filled += r.filled;
+          missing += r.missing;
+        } catch {
+          failed++;
+        }
+        onProgress?.(i + 1);
+      }
+      return { filled, missing, failed };
+    },
+    onSuccess: refresh,
+  });
+  return { analyse, create, update, merge, remove, whoSaid };
 }
