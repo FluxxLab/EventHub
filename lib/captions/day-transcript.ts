@@ -22,7 +22,11 @@ export function dayText(heading: string, parts: SessionTranscript[]): string {
   for (const { session, lines } of parts) {
     out.push(`=== ${session.room} · ${clock(session.startsAt)}–${clock(session.endsAt)} · ${session.title} ===`);
     if (!lines.length) out.push('(no captions)');
-    for (const l of lines) out.push(`[${Number.isNaN(l.at) ? '' : clock(new Date(l.at).toISOString())}]${l.name ? ` ${l.name}:` : ''} ${l.text}`);
+    for (const l of lines) {
+      // the name heard for the voice, else the voice itself
+      const who = l.name ?? l.voice;
+      out.push(`[${Number.isNaN(l.at) ? '' : clock(new Date(l.at).toISOString())}]${who ? ` ${who}:` : ''} ${l.text}`);
+    }
     out.push('');
   }
   return out.join('\n');
@@ -33,7 +37,7 @@ export function dayCsv(parts: SessionTranscript[]): string {
   const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const rows = ['time,room,session,speaker,text'];
   for (const { session, lines } of parts)
-    for (const l of lines) rows.push([Number.isNaN(l.at) ? '' : new Date(l.at).toISOString(), cell(session.room), cell(session.title), cell(l.name ?? ''), cell(l.text)].join(','));
+    for (const l of lines) rows.push([Number.isNaN(l.at) ? '' : new Date(l.at).toISOString(), cell(session.room), cell(session.title), cell(l.name ?? l.voice ?? ''), cell(l.text)].join(','));
   return rows.join('\n');
 }
 

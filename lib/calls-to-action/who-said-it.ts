@@ -3,7 +3,7 @@ import type { CallToAction } from '@/lib/calls-to-action/calls-to-action';
 import { DEMO_MODE } from '@/lib/demo';
 
 /** One transcript line: when it was said, who said it (a name, or null), what was said. */
-export type NamedLine = { at: number; name: string | null; text: string };
+export type NamedLine = { at: number; name: string | null; text: string; voice?: string | null };
 
 /** The rows of a CSV file (quoted fields, doubled quotes, newlines inside quotes). */
 export function parseCsv(csv: string): string[][] {
@@ -49,9 +49,11 @@ export function transcriptLines(csv: string): NamedLine[] {
   const [head, ...rows] = parseCsv(csv);
   if (!head) return [];
   const col = (name: string) => head.indexOf(name);
-  const [at, name, text] = [col('createdAt'), col('name'), col('text')];
+  const [at, name, text, speaker, mic] = [col('createdAt'), col('name'), col('text'), col('speaker'), col('mic')];
   if (at < 0 || text < 0) return [];
-  return rows.filter((r) => r[text]?.trim()).map((r) => ({ at: Date.parse(r[at] ?? ''), name: realName(name >= 0 ? r[name] : undefined), text: r[text]! }));
+  // the voice or mic, for when nobody has been named for it yet
+  const voiceOf = (r: string[]) => (mic >= 0 && r[mic]?.trim() ? `Mic ${r[mic]!.trim()}` : speaker >= 0 && r[speaker]?.trim() ? `Speaker ${r[speaker]!.trim()}` : null);
+  return rows.filter((r) => r[text]?.trim()).map((r) => ({ at: Date.parse(r[at] ?? ''), name: realName(name >= 0 ? r[name] : undefined), text: r[text]!, voice: voiceOf(r) }));
 }
 
 const words = (s: string) =>
