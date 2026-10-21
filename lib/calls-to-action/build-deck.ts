@@ -239,33 +239,36 @@ function cardsSlide(pres: PptxGenJS, look: Look, session: BuildSession, kind: Ki
   const { w, h } = grid[0] ?? { w: 0, h: 0 };
   const pad = 0.2;
   const inner = w - pad * 2;
-  const headW = inner - 0.4; // beside the number
+  const headW = inner; // the full width: the number sits in the bottom corner
+  // one row of tall cards, or two rows where the headline has to leave room for the details
+  const tall = h > 3;
+  const whoW = inner - 0.55; // beside the number
   const lineH = (pt: number, lines: number) => (lines * pt * 1.2) / 72;
   // one size for every card on the slide, the one the fullest card needs, so the cards read as a set
-  const headPt = Math.min(...calls.map((c) => fitText(commitmentOf(c), headW, Math.min(1.2, h * 0.32), [18, 17, 16, 15, 14, 13, 12, 11], 1, 0.62, 4).pt));
+  const headPt = Math.min(...calls.map((c) => fitText(commitmentOf(c), headW, tall ? Math.min(1.4, h * 0.38) : h * 0.26, tall ? [18, 17, 16, 15, 14, 13, 12, 11] : [14, 13, 12, 11, 10.5], 1, 0.62, tall ? 5 : 3).pt));
   const whoPt = h > 3 ? 11 : 10;
   const parts = calls.map((call) => {
     const head = commitmentOf(call);
     const headH = Math.max(lineH(headPt, linesAt(head, headW, headPt, 0.62)), 0.3);
     const who = whoOf(call);
-    const whoH = who ? lineH(whoPt, linesAt(who, inner, whoPt)) : 0;
-    const room = h - pad * 2 - headH - 0.14 - whoH - (who ? 0.16 : 0);
+    const whoH = Math.max(who ? lineH(whoPt, linesAt(who, whoW, whoPt)) : 0, 0.28);
+    const room = h - pad * 2 - headH - 0.14 - whoH - 0.16;
     return { head, headH, who, whoH, room, details: detailsOf(call) };
   });
   // the body stays a step under the headline
-  const bodySizes = [14, 13, 12, 11, 10.5, 10, 9.5, 9, 8.5, 8].filter((pt) => pt <= headPt - 2);
+  const bodySizes = [16, 15, 14, 13, 12, 11, 10.5, 10, 9.5, 9, 8.5, 8].filter((pt) => pt <= headPt - 1);
   const detailsPt = Math.min(...parts.map((p) => fitText(p.details, inner, p.room, bodySizes.length ? bodySizes : [8], 1.2, 0.56).pt));
 
   calls.forEach((_, i) => {
     const { x, y } = grid[i]!;
     const p = parts[i]!;
     s.addShape(pres.ShapeType.roundRect, { x, y, w, h, rectRadius: 0.15, fill: { color: look.cardTints[i]! }, line: { type: 'none' } });
-    s.addText(two(first + i + 1), { x: x + w - pad - 0.45, y: y + pad - 0.02, w: 0.45, h: 0.28, fontFace: FONT, fontSize: 13, bold: true, color: NUMBER_GREY, align: 'right', margin: 0, isTextBox: true });
+    s.addText(two(first + i + 1), { x: x + w - pad - 0.45, y: y + h - pad - 0.28, w: 0.45, h: 0.28, fontFace: FONT, fontSize: 13, bold: true, color: NUMBER_GREY, align: 'right', margin: 0, isTextBox: true });
     // the headline beside the number; the details take the room left above the byline
     s.addText(p.head, { x: x + pad, y: y + pad, w: headW, h: p.headH + 0.04, fontFace: FONT, fontSize: headPt, bold: true, color: look.accent, valign: 'top', margin: 0, isTextBox: true });
     const detailsTop = y + pad + p.headH + 0.14;
     s.addText(p.details, { x: x + pad, y: detailsTop, w: inner, h: Math.max(p.room, 0.3), fontFace: FONT, fontSize: detailsPt, color: INK, valign: 'top', lineSpacingMultiple: 1.2, margin: 0, isTextBox: true });
-    if (p.who) s.addText(p.who, { x: x + pad, y: y + h - pad - p.whoH, w: inner, h: p.whoH + 0.02, fontFace: FONT, fontSize: whoPt, italic: true, color: look.accent, valign: 'bottom', margin: 0, isTextBox: true });
+    if (p.who) s.addText(p.who, { x: x + pad, y: y + h - pad - p.whoH, w: whoW, h: p.whoH + 0.02, fontFace: FONT, fontSize: whoPt, italic: true, color: look.accent, valign: 'bottom', margin: 0, isTextBox: true });
   });
 }
 
