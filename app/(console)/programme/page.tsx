@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowDownTrayIcon, ArrowPathIcon, ArrowRightCircleIcon, ArrowUpTrayIcon, CalendarDaysIcon, ClipboardDocumentCheckIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArrowPathIcon, ArrowRightCircleIcon, ArrowUpTrayIcon, CalendarDaysIcon, ClipboardDocumentCheckIcon, FilmIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, SparklesIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -13,6 +13,7 @@ import { DayTranscriptDialog } from '@/components/programme/day-transcript-dialo
 import { AgendaCheckDialog } from '@/components/programme/agenda-check-dialog';
 import { PrepareDayDialog } from '@/components/programme/prepare-day-dialog';
 import { NightlyTidyBanner } from '@/components/programme/nightly-tidy-banner';
+import { RecaptionDialog } from '@/components/programme/recaption-dialog';
 import { SessionBriefDialog } from '@/components/programme/session-brief-dialog';
 import { UploadBriefsDialog } from '@/components/programme/upload-briefs-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
@@ -95,6 +96,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   const [dayTranscript, setDayTranscript] = useState(false);
   const [agendaCheck, setAgendaCheck] = useState(false);
   const [preparing, setPreparing] = useState(false);
+  const [recaptioning, setRecaptioning] = useState(false);
   const getTranscript = (s: Session, format: 'csv' | 'txt') =>
     void downloadTranscript(s.id, s.title, format).catch((e: Error) => toast.push({ title: 'Transcript not downloaded', body: e.message }));
   const runRecheck = (s: Session) => {
@@ -169,6 +171,12 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
               <button type="button" onClick={() => setPreparing(true)} className={buttonClass()}>
                 <SparklesIcon className="size-4" />
                 Prepare day {day}
+              </button>
+            )}
+            {isAdmin && all.some((s) => s.day === day) && (
+              <button type="button" onClick={() => setRecaptioning(true)} className={buttonClass({ style: 'soft', color: 'gray' })}>
+                <FilmIcon className="size-4" />
+                Re-caption from YouTube
               </button>
             )}
             {isAdmin && all.some((s) => s.day === day && s.status !== 'scheduled') && (
@@ -424,6 +432,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
       <DeleteSessionDialog editionId={edition.id} session={deletingSession} onClose={() => setDeletingSession(null)} />
       <MoveCaptionsDialog session={movingFrom} sessions={all} onClose={() => setMovingFrom(null)} />
       {/* remounted on each open, so it starts fresh */}
+      <RecaptionDialog key={recaptioning ? 'recap-open' : 'recap-closed'} open={recaptioning} day={day} sessions={all} onClose={() => setRecaptioning(false)} />
       <PrepareDayDialog key={preparing ? 'prep-open' : 'prep-closed'} open={preparing} day={day} editionId={edition.id} sessions={all} onClose={() => setPreparing(false)} />
       <AgendaCheckDialog key={agendaCheck ? 'agenda-open' : 'agenda-closed'} open={agendaCheck} day={day} editionId={edition.id} sessions={all} onClose={() => setAgendaCheck(false)} />
       {/* remounted on each open, so it starts on all rooms */}
