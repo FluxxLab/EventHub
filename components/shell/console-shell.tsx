@@ -6,6 +6,7 @@ import { BreadcrumbProvider, Breadcrumbs } from '@/components/shell/breadcrumbs'
 import { usePathname } from 'next/navigation';
 import { NavMenu } from '@/components/shell/nav-menu';
 import { OpsAlerts } from '@/components/shell/ops-alerts';
+import { SwitchAlerts } from '@/components/live/switch-alerts';
 import { Sidebar } from '@/components/shell/sidebar';
 import { TopBar } from '@/components/shell/top-bar';
 import type { StaffUser } from '@/lib/auth/session';
@@ -63,6 +64,7 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar user={user} onMenu={() => setMenuOpen(true)} />
           <OpsAlerts />
+          <SwitchAlerts tier={user.tier} />
           {/* the page: a PIC event photo held still behind it, washed pale so the white panels and text read */}
           <main id="content" tabIndex={-1} className="min-w-0 flex-1 page-photo px-4 py-6 focus:outline-none sm:px-7">
             {/* where the page sits, above its content rather than in the navbar */}
