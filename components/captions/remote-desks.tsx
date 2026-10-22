@@ -24,9 +24,14 @@ const STATUS: Record<string, { label: string; tone: string }> = {
  */
 export function RemoteDesks() {
   const desks = useRemoteDesks();
-  if (!desks.data?.length) return null;
+  if (desks.isPending || desks.isError) return null;
   return (
     <Panel title="Remote desks" description="Sound desks at the venue, run from here. Changes happen on the desk as if clicked there; it reports back within seconds.">
+      {!desks.data?.length && (
+        <p className="px-6 py-4 text-sm text-ink-soft">
+          No other desk is online. On the laptop at the mixer, open Captions › Sound desk, reload it once (Ctrl+Shift+R) and click Connect; it then appears here and can be run from this screen. A laptop that is off or asleep cannot appear.
+        </p>
+      )}
       <div className="flex flex-col divide-y divide-border">
         {desks.data.map((d) => (
           <DeskCard key={d.deskId} desk={d} />
