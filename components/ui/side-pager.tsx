@@ -1,22 +1,58 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
+
+import { Select } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
 
 export const PAGE_SIZE = 5;
+export const PAGE_SIZES = [5, 10, 15, 20] as const;
+
+const SIZE_EVENT = 'rows-per-page';
+const onSizeChange = (notify: () => void) => {
+  window.addEventListener(SIZE_EVENT, notify);
+  window.addEventListener('storage', notify);
+  return () => {
+    window.removeEventListener(SIZE_EVENT, notify);
+    window.removeEventListener('storage', notify);
+  };
+};
+
+const readSize = (key: string) => {
+  try {
+    const n = Number(window.localStorage.getItem(`rows-per-page:${key}`));
+    return (PAGE_SIZES as readonly number[]).includes(n) ? n : PAGE_SIZE;
+  } catch {
+    return PAGE_SIZE;
+  }
+};
 
 /**
  * A list shown a page at a time. `resetKey` sends it back to the first page when the list itself
- * changes (another day, tab or filter); the page also stays in range when items go.
+ * changes (another day, tab or filter); the page also stays in range when items go. How many rows
+ * a page holds is chosen per list (`sizeKey`) and remembered in this browser.
  */
-export function usePaged<T>(items: T[], resetKey: string, size = PAGE_SIZE) {
+export function usePaged<T>(items: T[], resetKey: string, sizeKey = 'list') {
   const [state, setState] = useState({ key: resetKey, page: 0 });
+  // the remembered choice: the default while the page is drawn on the server, then this browser's
+  const size = useSyncExternalStore(onSizeChange, () => readSize(sizeKey), () => PAGE_SIZE);
   const pages = Math.max(1, Math.ceil(items.length / size));
   const page = state.key === resetKey ? Math.min(state.page, pages - 1) : 0;
   const setPage = (p: number) => setState({ key: resetKey, page: Math.max(0, Math.min(p, pages - 1)) });
-  return { page, pages, size, total: items.length, slice: items.slice(page * size, (page + 1) * size), setPage };
+  const setSize = (n: number) => {
+    // keep the first row on screen in view when the page grows or shrinks
+    const first = page * size;
+    setState({ key: resetKey, page: Math.floor(first / n) });
+    try {
+      window.localStorage.setItem(`rows-per-page:${sizeKey}`, String(n));
+    } catch {
+      // not remembered; this browser keeps nothing
+    }
+    window.dispatchEvent(new Event(SIZE_EVENT));
+  };
+  return { page, pages, size, total: items.length, slice: items.slice(page * size, (page + 1) * size), setPage, setSize };
 }
 
 /** The page numbers to show (0-based), with null for a gap: the first, the last, and the current one's neighbours. */
@@ -40,17 +76,27 @@ const pageButton = 'inline-flex h-9 min-w-9 items-center justify-center gap-1 ro
  * Rows a page at a time, with the pagination bar under them: "Showing 6–10 of 32" on the left;
  * Previous, the page numbers and Next on the right.
  */
-export function SidePager({ page, pages, total, size, onPage, label, children }: { page: number; pages: number; total: number; size: number; onPage: (page: number) => void; label: string; children: ReactNode }) {
-  if (pages <= 1) return <>{children}</>;
+export function SidePager({ page, pages, total, size, onPage, onSize, label, children }: { page: number; pages: number; total: number; size: number; onPage: (page: number) => void; onSize?: (size: number) => void; label: string; children: ReactNode }) {
+  const sizeId = useId();
+  // the bar stays while the list is longer than the smallest page, so a bigger page can be undone
+  if (total <= PAGE_SIZES[0]) return <>{children}</>;
   const from = page * size + 1;
   const to = Math.min(total, (page + 1) * size);
   return (
     <>
       {children}
       <nav aria-label={`${label} pages`} className="flex flex-col items-center justify-between gap-3 border-t border-border px-6 py-3 sm:flex-row">
-        <p className="text-sm text-ink-soft" aria-live="polite">
-          Showing <span className="font-medium text-ink">{from}</span>–<span className="font-medium text-ink">{to}</span> of <span className="font-medium text-ink">{total}</span>
-        </p>
+        <div className="flex flex-wrap items-center gap-4">
+          {onSize && (
+            <div className="flex items-center gap-2 text-sm text-ink-soft">
+              <label htmlFor={sizeId}>Rows per page</label>
+              <Select id={sizeId} value={String(size)} options={PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => onSize(Number(v))} className="w-20" />
+            </div>
+          )}
+          <p className="text-sm text-ink-soft" aria-live="polite">
+            Showing <span className="font-medium text-ink">{from}</span>–<span className="font-medium text-ink">{to}</span> of <span className="font-medium text-ink">{total}</span>
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <button type="button" aria-label="Previous page" disabled={page === 0} onClick={() => onPage(page - 1)} className={cn(pageButton, 'border-border bg-surface text-ink hover:bg-canvas')}>
             <ChevronLeftIcon className="size-4" />

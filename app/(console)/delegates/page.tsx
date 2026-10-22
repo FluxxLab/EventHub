@@ -17,6 +17,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag, type TagTone } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import {
   countByStatus,
@@ -301,6 +302,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
           )
         ) : (
           <div {...tableScroll} className={cn('relative overflow-x-auto transition-opacity', tableScrollFocus, delegates.isFetching && delegates.data && 'opacity-60')}>
+            <ScrollHints />
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
                 <tr>

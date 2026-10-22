@@ -28,6 +28,7 @@ import { RowActions } from '@/components/ui/row-actions';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toaster';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { runsEvents, useSession } from '@/lib/auth/session';
 import { useWorkingEdition } from '@/lib/events/working-edition';
@@ -241,6 +242,7 @@ export default function PassportPage() {
             <EmptyState icon={QrCodeIcon} title="No stands yet" body="Each stand gets a code and a sign delegates scan to stamp their passport." action={addStand} />
           ) : (
             <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+              <ScrollHints />
               <table className="w-full min-w-[46rem] border-collapse">
                 <thead>
                   <tr>

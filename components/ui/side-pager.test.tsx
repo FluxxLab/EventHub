@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { pageNumbers, SidePager, usePaged } from '@/components/ui/side-pager';
 
@@ -7,7 +7,7 @@ function List({ n, filter = 'a' }: { n: number; filter?: string }) {
   const items = Array.from({ length: n }, (_, i) => `Row ${i + 1}`);
   const paged = usePaged(items, filter);
   return (
-    <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="Rows">
+    <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} onSize={paged.setSize} label="Rows">
       <ul>
         {paged.slice.map((r) => (
           <li key={r}>{r}</li>
@@ -18,6 +18,11 @@ function List({ n, filter = 'a' }: { n: number; filter?: string }) {
 }
 
 afterEach(cleanup);
+beforeEach(() => {
+  window.localStorage.clear();
+  // jsdom has no scrolling; the dropdown scrolls its chosen option into view
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 describe('side pager', () => {
   it('shows five at a time with a pagination bar under them', () => {
@@ -52,5 +57,16 @@ describe('side pager', () => {
     expect(pageNumbers(0, 20)).toEqual([0, 1, 2, 3, null, 19]);
     expect(pageNumbers(10, 20)).toEqual([0, null, 9, 10, 11, null, 19]);
     expect(pageNumbers(19, 20)).toEqual([0, null, 16, 17, 18, 19]);
+  });
+
+  it('shows more rows a page when asked, keeping the first row in view', () => {
+    render(<List n={23} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Page 3' }));
+    expect(screen.getAllByRole('listitem')[0]!.textContent).toBe('Row 11');
+    fireEvent.click(screen.getByRole('button', { name: 'Rows per page' }));
+    fireEvent.click(screen.getByRole('option', { name: '10' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(10);
+    expect(screen.getAllByRole('listitem')[0]!.textContent).toBe('Row 11');
+    expect(screen.getByRole('navigation').textContent).toContain('Showing 11–20 of 23');
   });
 });

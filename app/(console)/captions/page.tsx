@@ -54,6 +54,7 @@ import { BackupPanel } from '@/components/captions/backup-panel';
 import { MicsPanel } from '@/components/captions/mics-panel';
 import { HeardTag, RecheckNamesButton, SuggestionsStrip } from '@/components/captions/speaker-names';
 import { VocabularyPanel } from '@/components/captions/vocabulary-panel';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 
 const TABS = [
@@ -674,6 +675,7 @@ function SoundDesk({ live }: { live: Session[] }) {
           />
         ) : (
           <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+            <ScrollHints />
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr>

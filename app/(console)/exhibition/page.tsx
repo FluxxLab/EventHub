@@ -13,6 +13,7 @@ import { Panel } from '@/components/ui/panel';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { SegmentedTabs } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toaster';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { badgeLogo, printHtml } from '@/lib/badges/print';
 import type { Edition } from '@/lib/events/events';
@@ -184,6 +185,7 @@ function Report({ edition }: { edition: Edition }) {
         }
       >
         <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+          <ScrollHints />
           <table className="w-full min-w-[52rem] border-collapse">
             <thead>
               <tr>

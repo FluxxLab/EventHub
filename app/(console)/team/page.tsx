@@ -15,6 +15,7 @@ import { Panel } from '@/components/ui/panel';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { useSession } from '@/lib/auth/session';
 import { dateRange } from '@/lib/events/events';
@@ -316,6 +317,7 @@ export default function TeamPage() {
           <EmptyState icon={UserGroupIcon} title="No staff yet" body="Add the people who run your events." action={addButton} />
         ) : (
           <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+            <ScrollHints />
             <table className="w-full min-w-[44rem] border-collapse">
               <thead>
                 <tr>

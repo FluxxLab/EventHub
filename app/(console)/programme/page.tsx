@@ -27,6 +27,7 @@ import { SegmentedTabs } from '@/components/ui/tabs';
 import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { sessionTrackOptions, trackLabel } from '@/lib/catalog/topics';
 import { useTrackLibrary } from '@/lib/catalog/use-topics';
@@ -130,7 +131,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   );
   const countByDay = (n: number) => all.filter((s) => s.day === n).length;
   // five sessions at a time; another day, track or search starts again at the first page
-  const paged = usePaged(rows, `${day}|${track}|${query}`);
+  const paged = usePaged(rows, `${day}|${track}|${query}`, 'programme');
 
   if (editions.isPending) return <Skeleton className="h-96 rounded-xl" />;
   if (!edition) {
@@ -265,8 +266,9 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
             />
           )
         ) : (
-          <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="Sessions">
+          <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} onSize={paged.setSize} label="Sessions">
           <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+            <ScrollHints />
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
                 <tr>

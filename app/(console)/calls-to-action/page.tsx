@@ -103,7 +103,7 @@ function Board({ edition }: { edition: Edition }) {
   });
 
   // five calls at a time; another tab or filter starts again at the first page
-  const paged = usePaged(board.data ? filterCalls(board.data.items, tab, sessionFilter, targetFilter) : [], `${tab}|${sessionFilter}|${targetFilter}`);
+  const paged = usePaged(board.data ? filterCalls(board.data.items, tab, sessionFilter, targetFilter) : [], `${tab}|${sessionFilter}|${targetFilter}`, 'calls-to-action');
 
   if (board.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (board.isError) return <ErrorState framed title="Calls to action could not load" error={board.error} onRetry={() => void board.refetch()} />;
@@ -404,7 +404,7 @@ function Board({ edition }: { edition: Edition }) {
             )
           ) : (
             // keyed by tab, so switching tabs swaps the list rather than fading the old one out
-            <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="Calls to action">
+            <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} onSize={paged.setSize} label="Calls to action">
             <ul key={tab} ref={listRef} className="divide-y divide-border">
               {paged.slice.map((c) => (
                 <li key={c.id} className={cn('flex gap-4 px-6 py-4', c.status === 'merged' && 'opacity-60')}>

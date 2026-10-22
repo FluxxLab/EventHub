@@ -15,6 +15,7 @@ import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { useSession } from '@/lib/auth/session';
 import { useWorkingEdition } from '@/lib/events/working-edition';
@@ -144,6 +145,7 @@ function SpeakersView({ initialQuery }: { initialQuery: string }) {
           )
         ) : (
           <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+            <ScrollHints />
             <table className="w-full min-w-[48rem] border-collapse">
               <thead>
                 <tr>

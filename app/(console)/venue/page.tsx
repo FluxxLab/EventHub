@@ -17,6 +17,7 @@ import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { RoomDialog } from '@/components/venue/room-dialog';
 import { StreamDialog } from '@/components/venue/stream-dialog';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { runsEvents, useSession } from '@/lib/auth/session';
 import type { Edition } from '@/lib/events/events';
@@ -230,6 +231,7 @@ function RoomsCard({ edition }: { edition: Edition }) {
         />
       ) : (
         <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+          <ScrollHints />
           <table className="w-full min-w-[40rem] border-collapse">
             <thead>
               <tr>
@@ -449,6 +451,7 @@ function AudioStreamsCard({ edition, onAddRooms }: { edition: Edition; onAddRoom
         />
       ) : (
         <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+          <ScrollHints />
           <table className="w-full min-w-176 border-collapse">
             <thead>
               <tr>

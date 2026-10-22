@@ -14,6 +14,7 @@ import { RowActions } from '@/components/ui/row-actions';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag } from '@/components/ui/tag';
+import { ScrollHints } from '@/components/ui/scroll-hints';
 import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { useDashboard } from '@/lib/dashboard/use-dashboard';
 import type { Edition } from '@/lib/events/events';
@@ -103,6 +104,7 @@ function TiersPanel({ edition }: { edition: Edition }) {
         />
       ) : (
         <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
+          <ScrollHints />
           <table className="w-full min-w-[52rem] border-collapse">
             <thead>
               <tr>
