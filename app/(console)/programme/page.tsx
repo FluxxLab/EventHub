@@ -10,6 +10,7 @@ import { ImportSessionsDialog } from '@/components/programme/import-sessions-dia
 import { MoveCaptionsDialog } from '@/components/programme/move-captions-dialog';
 import { DayTranscriptDialog } from '@/components/programme/day-transcript-dialog';
 import { AgendaCheckDialog } from '@/components/programme/agenda-check-dialog';
+import { PrepareDayDialog } from '@/components/programme/prepare-day-dialog';
 import { SessionBriefDialog } from '@/components/programme/session-brief-dialog';
 import { UploadBriefsDialog } from '@/components/programme/upload-briefs-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
@@ -89,6 +90,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
   const [movingFrom, setMovingFrom] = useState<Session | null>(null);
   const [dayTranscript, setDayTranscript] = useState(false);
   const [agendaCheck, setAgendaCheck] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const getTranscript = (s: Session, format: 'csv' | 'txt') =>
     void downloadTranscript(s.id, s.title, format).catch((e: Error) => toast.push({ title: 'Transcript not downloaded', body: e.message }));
   const runRecheck = (s: Session) => {
@@ -155,6 +157,12 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
         description={edition.name}
         actions={
           <>
+            {isAdmin && all.some((s) => s.day === day && s.status === 'completed') && (
+              <button type="button" onClick={() => setPreparing(true)} className={buttonClass()}>
+                <SparklesIcon className="size-4" />
+                Prepare day {day}
+              </button>
+            )}
             {isAdmin && all.some((s) => s.day === day && s.status !== 'scheduled') && (
               <button type="button" onClick={() => setAgendaCheck(true)} className={buttonClass({ style: 'soft', color: 'gray' })}>
                 <ClipboardDocumentCheckIcon className="size-4" />
@@ -405,6 +413,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
       <DeleteSessionDialog editionId={edition.id} session={deletingSession} onClose={() => setDeletingSession(null)} />
       <MoveCaptionsDialog session={movingFrom} sessions={all} onClose={() => setMovingFrom(null)} />
       {/* remounted on each open, so it starts fresh */}
+      <PrepareDayDialog key={preparing ? 'prep-open' : 'prep-closed'} open={preparing} day={day} editionId={edition.id} sessions={all} onClose={() => setPreparing(false)} />
       <AgendaCheckDialog key={agendaCheck ? 'agenda-open' : 'agenda-closed'} open={agendaCheck} day={day} editionId={edition.id} sessions={all} onClose={() => setAgendaCheck(false)} />
       {/* remounted on each open, so it starts on all rooms */}
       <DayTranscriptDialog key={dayTranscript ? 'day-open' : 'day-closed'} open={dayTranscript} day={day} sessions={all} eventName={edition.shortName ?? edition.name} onClose={() => setDayTranscript(false)} />
