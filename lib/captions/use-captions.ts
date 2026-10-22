@@ -117,6 +117,16 @@ export function useCaptionActions(sessionId: string) {
 
 /* -------------------------------------------------------------- sound desk */
 
+/** A shared tab's input id, from its title, so the same tab shared again keeps its patches. */
+export function tabInputId(label: string): string {
+  let h = 5381;
+  for (let i = 0; i < label.length; i++) h = ((h << 5) + h + label.charCodeAt(i)) >>> 0;
+  return `tab-${h.toString(36)}`;
+}
+
+/** Whether a source is a shared tab rather than the interface. */
+export const isTabSource = (source: string) => source.startsWith('tab-');
+
 type OpenInput = { input: DeskInput; stream: MediaStream; splitter: ChannelSplitterNode; analysers: AnalyserNode[] };
 type Running = { capture: RoomCapture; release: () => void; devices: string[] };
 
@@ -413,7 +423,7 @@ export function useSoundDesk() {
    * for when the mixer cannot be reached. Mixed to one channel; it appears in the patch with a
    * meter like any other, and goes (with any room on it) when the sharing stops.
    */
-  const shareTab = useCallback(async () => {
+  const shareTab = useCallback(async (): Promise<DeskInput | null> => {
     setError(null);
     try {
       if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('This browser cannot share a tab’s sound. Use Chrome or Edge on a computer.');
@@ -444,7 +454,9 @@ export function useSoundDesk() {
       const analyser = audio.createAnalyser();
       analyser.fftSize = 512;
       splitter.connect(analyser, 0);
-      const deviceId = `tab-${Date.now().toString(36)}`;
+      // the same tab shared again (after a reload) is the same input, so its rooms stay patched to it
+      let deviceId = tabInputId(track.label || 'shared tab');
+      while (opened.current.has(deviceId)) deviceId = `${deviceId}x`;
       const input: DeskInput = { deviceId, label: `Browser tab${track.label ? ` · ${track.label}` : ''}`, channels: 1 };
       opened.current.set(deviceId, { input, stream, splitter, analysers: [analyser] });
       setInputs((was) => [...(was ?? []), input]);
@@ -459,9 +471,11 @@ export function useSoundDesk() {
           return next.length ? next : null;
         });
       });
+      return input;
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'NotAllowedError') return; // closed the picker
+      if (e instanceof DOMException && e.name === 'NotAllowedError') return null; // closed the picker
       setError(e instanceof Error ? e.message : 'The tab’s sound could not be shared.');
+      return null;
     }
   }, [startMeters, stop]);
 

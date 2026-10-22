@@ -43,7 +43,7 @@ import { micLabelsOf, namedParagraphs, useSpeakerNames } from '@/lib/captions/sp
 import type { RoomState } from '@/lib/captions/room-capture';
 import { SOURCE_LABEL, type CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
-import { useCaptionActions, useCaptionFeed, useLiveSessions, useSoundDesk, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
+import { isTabSource, useCaptionActions, useCaptionFeed, useLiveSessions, useSoundDesk, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
 import { thisDeskId, useDeskReporting, useWakeLock } from '@/lib/captions/desk-remote';
 import { RemoteDesks } from '@/components/captions/remote-desks';
 import { useWorkingEdition } from '@/lib/events/working-edition';
@@ -404,6 +404,45 @@ const SETUP_STEPS = [
   { title: 'Here', body: 'Connect the interface, check each channel moves, and patch it to its room.' },
 ];
 
+const RESUME_KEY = 'pic.admin.desk-resume';
+type ResumeRoom = { room: string; tab: string | null };
+
+/** The rooms on air when this page last ran (from the last twelve hours), with the tab each took its sound from. */
+function readResume(): ResumeRoom[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(RESUME_KEY) ?? 'null') as { at: number; rooms: ResumeRoom[] } | null;
+    return saved && Date.now() - saved.at < 12 * 3600_000 ? saved.rooms : [];
+  } catch {
+    return [];
+  }
+}
+function writeResume(rooms: ResumeRoom[]) {
+  try {
+    localStorage.setItem(RESUME_KEY, JSON.stringify({ at: Date.now(), rooms }));
+  } catch {
+    // not remembered; a reload then starts afresh
+  }
+}
+
+/** After a reload: the rooms that were on air, put back with one click. */
+function ResumeBanner({ rooms, working, onResume, onDismiss }: { rooms: string[]; working: boolean; onResume: () => void; onDismiss: () => void }) {
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/50 bg-warning-soft px-5 py-4">
+      <ExclamationTriangleIcon className="size-5 shrink-0 text-warning" />
+      <p className="min-w-0 flex-1 text-sm text-ink">
+        <strong>Captioning stopped when this page reloaded:</strong> {rooms.join(', ')}. Resume reconnects the interface, asks you to pick any YouTube tab again, and starts each room.
+      </p>
+      <button type="button" onClick={onResume} disabled={working} className={buttonClass()}>
+        <ArrowPathIcon className="size-4" />
+        {working ? 'Resuming…' : 'Resume'}
+      </button>
+      <button type="button" onClick={onDismiss} disabled={working} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+        Not now
+      </button>
+    </div>
+  );
+}
+
 /** Before any audio: what the desk needs, and the browser permission, explained before it is asked. */
 function DeskSetup({
   permission,
@@ -590,11 +629,57 @@ function SoundDesk({ live }: { live: Session[] }) {
   // a desk on air must not sleep: that silences every room on it
   useWakeLock(running.length > 0);
 
+  // What was on air, kept on this computer, so a reload can put it back with one click
+  const [saved] = useState(readResume);
+  const tabOf = (room: string) => {
+    const source = patchedSource(room);
+    return source && isTabSource(source) ? (desk.inputs?.find((i) => source.startsWith(`${i.deviceId}#`))?.label ?? null) : null;
+  };
+  // a reload starts with nothing connected: what was saved is kept until the desk is back
+  const onAirNow = desk.inputs ? JSON.stringify(Object.keys(desk.rooms).filter((room) => desk.rooms[room]?.status !== 'error').map((room) => ({ room, tab: tabOf(room) }))) : null;
+  useEffect(() => {
+    if (onAirNow !== null) writeResume(JSON.parse(onAirNow) as ResumeRoom[]);
+  }, [onAirNow]);
+  const latest = useRef({ startRoom, ready, rooms: desk.rooms, inputs: desk.inputs });
+  useEffect(() => {
+    latest.current = { startRoom, ready, rooms: desk.rooms, inputs: desk.inputs };
+  });
+  const [resumeState, setResumeState] = useState<'offer' | 'working' | 'done'>('offer');
+  const resumable = saved.filter((r) => !desk.rooms[r.room]);
+  const resume = async () => {
+    setResumeState('working');
+    const needsInterface = saved.some((r) => !r.tab);
+    if (needsInterface && !latest.current.inputs?.some((i) => !isTabSource(i.deviceId))) await desk.connect();
+    for (const label of [...new Set(saved.map((r) => r.tab).filter((t): t is string => !!t))]) {
+      if (latest.current.inputs?.some((i) => i.label === label)) continue;
+      const rooms = saved.filter((r) => r.tab === label).map((r) => r.room).join(', ');
+      toast.push({ title: `Share the tab for ${rooms}`, body: `Pick “${label.replace(/^Browser tab · /, '')}” and turn on “Also share tab audio”.`, duration: 15000 });
+      await desk.shareTab();
+    }
+    // the inputs are in; start each room once the page has caught up with them
+    await new Promise((r) => setTimeout(r, 400));
+    const { startRoom: go, ready: isReady, rooms: onAir } = latest.current;
+    const left: string[] = [];
+    for (const r of saved) {
+      if (onAir[r.room]) continue;
+      if (isReady(r.room)) go(r.room);
+      else left.push(r.room);
+    }
+    setResumeState('done');
+    toast.push({
+      title: left.length ? 'Some rooms could not resume' : 'Captioning resumed',
+      body: left.length ? `${left.join(', ')}: their channel or tab is not here. Patch them and press Start.` : `${saved.length} room(s) back on air.`,
+    });
+  };
+
   const confirmNow = () => {
     if (!confirm) return;
     if (confirm.kind === 'room') void desk.stop(confirm.room);
     else if (confirm.kind === 'all') running.forEach((room) => void desk.stop(room));
-    else void desk.disconnect();
+    else {
+      writeResume([]); // put away on purpose: nothing to resume
+      void desk.disconnect();
+    }
     setConfirm(null);
   };
 
@@ -602,6 +687,7 @@ function SoundDesk({ live }: { live: Session[] }) {
     return (
       <div className="flex flex-col gap-5">
         <SuggestionsStrip sessions={live} />
+        {resumeState !== 'done' && resumable.length > 0 && <ResumeBanner rooms={resumable.map((r) => r.room)} working={resumeState === 'working'} onResume={() => void resume()} onDismiss={() => setResumeState('done')} />}
         <RemoteDesks />
         <DeskSetup permission={desk.permission} connecting={desk.connecting} error={desk.error} streamed={streamed} onConnect={() => void desk.connect()} onShareTab={() => void desk.shareTab()} />
         {/* recordings kept from earlier, still uploading or to download */}
@@ -614,6 +700,7 @@ function SoundDesk({ live }: { live: Session[] }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {resumeState !== 'done' && resumable.length > 0 && <ResumeBanner rooms={resumable.map((r) => r.room)} working={resumeState === 'working'} onResume={() => void resume()} onDismiss={() => setResumeState('done')} />}
       <RemoteDesks />
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         <FigureCard

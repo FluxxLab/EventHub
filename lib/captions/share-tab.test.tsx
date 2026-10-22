@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useSoundDesk } from '@/lib/captions/use-captions';
+import { isTabSource, tabInputId, useSoundDesk } from '@/lib/captions/use-captions';
 
 const node = () => ({ connect: vi.fn(), disconnect: vi.fn(), channelCount: 2, channelCountMode: 'max', fftSize: 0, getByteTimeDomainData: vi.fn() });
 class FakeAudioContext {
@@ -66,5 +66,12 @@ describe('captioning from a browser tab', () => {
     await act(() => result.current.shareTab());
     expect(result.current.inputs).toBeNull();
     expect(result.current.error).toMatch(/Also share tab audio/);
+  });
+
+  it('knows the same tab again after a reload, so its rooms stay patched', () => {
+    expect(tabInputId('Build 2026 Main Hall - YouTube')).toBe(tabInputId('Build 2026 Main Hall - YouTube'));
+    expect(tabInputId('Build 2026 Main Hall - YouTube')).not.toBe(tabInputId('Build 2026 Tamarind A - YouTube'));
+    expect(isTabSource(`${tabInputId('x')}#0`)).toBe(true);
+    expect(isTabSource('abc123#0')).toBe(false);
   });
 });

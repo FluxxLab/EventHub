@@ -98,5 +98,6 @@ describe('end of day report', () => {
       const { writeFileSync } = await import('node:fs');
       writeFileSync(process.env.DAY_REPORT_OUT, await zip.generateAsync({ type: 'nodebuffer' }));
     }
-  });
+    // builds a real Word file from the template: slower than the rest when the whole suite runs at once
+  }, 30_000);
 });
