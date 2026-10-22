@@ -118,7 +118,7 @@ export function useCaptionActions(sessionId: string) {
 /* -------------------------------------------------------------- sound desk */
 
 type OpenInput = { input: DeskInput; stream: MediaStream; splitter: ChannelSplitterNode; analysers: AnalyserNode[] };
-type Running = { capture: RoomCapture; release: () => void };
+type Running = { capture: RoomCapture; release: () => void; devices: string[] };
 
 /** A channel on the meter: the current peak and the highest in the last moment, both in dBFS. */
 export type ChannelLevel = { db: number; hold: number };
@@ -170,6 +170,7 @@ export function useSoundDesk() {
   const running = useRef(new Map<string, Running>());
   const frame = useRef(0);
   const worklet = useRef(false);
+  const metering = useRef(false);
 
   const setRoom = useCallback((room: string, state: RoomState | null) => {
     // the backup counts time spent reconnecting as time offline
@@ -202,6 +203,7 @@ export function useSoundDesk() {
   const disconnect = useCallback(async () => {
     await Promise.all([...running.current.keys()].map(stop));
     cancelAnimationFrame(frame.current);
+    metering.current = false;
     opened.current.forEach((o) => o.stream.getTracks().forEach((t) => t.stop()));
     opened.current.clear();
     void ctx.current?.close();
@@ -211,6 +213,34 @@ export function useSoundDesk() {
     holds.current.clear();
   }, [stop]);
 
+  /** The meters' loop, started once, reading every open input (the interface's and any shared tab's). */
+  const startMeters = useCallback(() => {
+    if (metering.current) return;
+    metering.current = true;
+    const buffer = new Uint8Array(512);
+    let last = 0;
+    const tick = (t: number) => {
+      if (t - last > 100) {
+        last = t;
+        const next: Record<string, ChannelLevel> = {};
+        opened.current.forEach((o) =>
+          o.analysers.forEach((a, channel) => {
+            a.getByteTimeDomainData(buffer);
+            const key = sourceKey(o.input.deviceId, channel);
+            const db = peakDb(buffer);
+            const held = holds.current.get(key);
+            const hold = held && t - held.at < HOLD_MS && held.db >= db ? held : { db, at: t };
+            holds.current.set(key, hold);
+            next[key] = { db, hold: hold.db };
+          }),
+        );
+        setLevels(next);
+      }
+      frame.current = requestAnimationFrame(tick);
+    };
+    frame.current = requestAnimationFrame(tick);
+  }, []);
+
   const connect = useCallback(async () => {
     setConnecting(true);
     setError(null);
@@ -219,7 +249,8 @@ export function useSoundDesk() {
       // Asking once reveals the devices' names, which the list needs.
       (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach((t) => t.stop());
       const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput' && !ALIASES.has(d.deviceId));
-      const audio = new AudioContext();
+      // the one already running when a tab was shared first, so every input shares it
+      const audio = ctx.current ?? new AudioContext();
       ctx.current = audio;
       const found: DeskInput[] = [];
       for (const [i, device] of devices.entries()) {
@@ -252,31 +283,10 @@ export function useSoundDesk() {
         }
       }
       if (found.length === 0) throw new Error('No audio input could be opened. Check the interface is plugged in and not in use by another app.');
-      setInputs(found);
+      // any shared tab stays listed after the interface's channels
+      setInputs((was) => [...found, ...(was ?? []).filter((i) => i.deviceId.startsWith('tab-'))]);
       setPermission('granted');
-
-      const buffer = new Uint8Array(512);
-      let last = 0;
-      const tick = (t: number) => {
-        if (t - last > 100) {
-          last = t;
-          const next: Record<string, ChannelLevel> = {};
-          opened.current.forEach((o) =>
-            o.analysers.forEach((a, channel) => {
-              a.getByteTimeDomainData(buffer);
-              const key = sourceKey(o.input.deviceId, channel);
-              const db = peakDb(buffer);
-              const held = holds.current.get(key);
-              const hold = held && t - held.at < HOLD_MS && held.db >= db ? held : { db, at: t };
-              holds.current.set(key, hold);
-              next[key] = { db, hold: hold.db };
-            }),
-          );
-          setLevels(next);
-        }
-        frame.current = requestAnimationFrame(tick);
-      };
-      frame.current = requestAnimationFrame(tick);
+      startMeters();
     } catch (e) {
       await disconnect();
       if (e instanceof DOMException && e.name === 'NotAllowedError') {
@@ -287,7 +297,7 @@ export function useSoundDesk() {
     } finally {
       setConnecting(false);
     }
-  }, [disconnect, setPermission]);
+  }, [disconnect, setPermission, startMeters]);
 
   const start = useCallback(
     async (room: string, source: string, diarise: boolean) => {
@@ -309,6 +319,7 @@ export function useSoundDesk() {
       backup?.startRoom(room, out.stream);
       running.current.set(room, {
         capture,
+        devices: [key.deviceId],
         release: () => {
           backup?.stopRoom(room);
           tap.disconnect();
@@ -391,14 +402,71 @@ export function useSoundDesk() {
         node.disconnect();
         mute.disconnect();
       };
-      running.current.set(room, { capture, release });
+      running.current.set(room, { capture, release, devices: sources.map((s) => parseSourceKey(s)?.deviceId ?? '') });
       await capture.start();
     },
     [setRoom],
   );
 
+  /**
+   * Another tab's sound as one more input: the room's YouTube stream playing in Chrome or Edge,
+   * for when the mixer cannot be reached. Mixed to one channel; it appears in the patch with a
+   * meter like any other, and goes (with any room on it) when the sharing stops.
+   */
+  const shareTab = useCallback(async () => {
+    setError(null);
+    try {
+      if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('This browser cannot share a tab’s sound. Use Chrome or Edge on a computer.');
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        // offered as tab sharing, the one that carries sound
+        preferCurrentTab: false,
+        selfBrowserSurface: 'exclude',
+        systemAudio: 'exclude',
+      } as DisplayMediaStreamOptions);
+      const track = stream.getAudioTracks()[0];
+      if (!track) {
+        stream.getTracks().forEach((t) => t.stop());
+        throw new Error('No sound came with that tab. Share it again, choose the tab playing the stream, and turn on “Also share tab audio”.');
+      }
+      const audio = ctx.current ?? new AudioContext();
+      ctx.current = audio;
+      await audio.resume().catch(() => undefined);
+      const source = audio.createMediaStreamSource(new MediaStream([track]));
+      // left and right summed to one channel, the way speech is captioned
+      const mono = audio.createGain();
+      mono.channelCount = 1;
+      mono.channelCountMode = 'explicit';
+      source.connect(mono);
+      const splitter = audio.createChannelSplitter(1);
+      mono.connect(splitter);
+      const analyser = audio.createAnalyser();
+      analyser.fftSize = 512;
+      splitter.connect(analyser, 0);
+      const deviceId = `tab-${Date.now().toString(36)}`;
+      const input: DeskInput = { deviceId, label: `Browser tab${track.label ? ` · ${track.label}` : ''}`, channels: 1 };
+      opened.current.set(deviceId, { input, stream, splitter, analysers: [analyser] });
+      setInputs((was) => [...(was ?? []), input]);
+      startMeters();
+      // the sharing stopped (the browser's Stop sharing, or the tab closed): the input and its rooms go
+      track.addEventListener('ended', () => {
+        for (const [room, r] of running.current) if (r.devices.includes(deviceId)) void stop(room);
+        stream.getTracks().forEach((t) => t.stop());
+        opened.current.delete(deviceId);
+        setInputs((was) => {
+          const next = (was ?? []).filter((i) => i.deviceId !== deviceId);
+          return next.length ? next : null;
+        });
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'NotAllowedError') return; // closed the picker
+      setError(e instanceof Error ? e.message : 'The tab’s sound could not be shared.');
+    }
+  }, [startMeters, stop]);
+
   // Leaving the page releases the interface and every room (the server lets a room go after 15 s).
   useEffect(() => () => void disconnect(), [disconnect]);
 
-  return { permission, inputs, connecting, error, levels, rooms, connect, disconnect, start, startMulti, stop };
+  return { permission, inputs, connecting, error, levels, rooms, connect, disconnect, start, startMulti, stop, shareTab };
 }

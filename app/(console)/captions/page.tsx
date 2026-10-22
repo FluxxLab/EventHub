@@ -8,6 +8,7 @@ import {
   BuildingOffice2Icon,
   CheckCircleIcon,
   CloudIcon,
+  ComputerDesktopIcon,
   ExclamationTriangleIcon,
   MicrophoneIcon,
   NoSymbolIcon,
@@ -410,6 +411,7 @@ function DeskSetup({
   error,
   streamed,
   onConnect,
+  onShareTab,
 }: {
   permission: MicPermission;
   connecting: boolean;
@@ -417,6 +419,8 @@ function DeskSetup({
   /** Rooms captioned from venue streams right now; the desk is then their backup. */
   streamed: string[];
   onConnect: () => void;
+  /** Caption from another tab's sound instead, such as the room's YouTube stream. */
+  onShareTab: () => void;
 }) {
   return (
     <section aria-labelledby="desk-setup" className="card-art rounded-xl border border-border bg-surface p-6 md:p-8">
@@ -463,6 +467,10 @@ function DeskSetup({
           <button type="button" onClick={onConnect} disabled={connecting} className={buttonClass()}>
             <AdjustmentsVerticalIcon className="size-4" />
             {connecting ? 'Connecting…' : 'Connect audio interface'}
+          </button>
+          <button type="button" onClick={onShareTab} className={buttonClass({ style: 'outline', color: 'gray' })}>
+            <ComputerDesktopIcon className="size-4" />
+            Use a browser tab’s sound (YouTube)
           </button>
           {permission !== 'granted' && <p className="max-w-md text-xs text-hint">Choose Allow when the browser asks for the microphone; audio goes only to the caption service.</p>}
         </div>
@@ -595,7 +603,7 @@ function SoundDesk({ live }: { live: Session[] }) {
       <div className="flex flex-col gap-5">
         <SuggestionsStrip sessions={live} />
         <RemoteDesks />
-        <DeskSetup permission={desk.permission} connecting={desk.connecting} error={desk.error} streamed={streamed} onConnect={() => void desk.connect()} />
+        <DeskSetup permission={desk.permission} connecting={desk.connecting} error={desk.error} streamed={streamed} onConnect={() => void desk.connect()} onShareTab={() => void desk.shareTab()} />
         {/* recordings kept from earlier, still uploading or to download */}
         <BackupPanel hideWhenEmpty />
       </div>
@@ -640,6 +648,16 @@ function SoundDesk({ live }: { live: Session[] }) {
             >
               Disconnect interface
             </button>
+            <button
+              type="button"
+              onClick={() => void desk.shareTab()}
+              title="Caption a room from another tab's sound, such as its YouTube stream. Choose the tab and turn on “Also share tab audio”."
+              className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9 self-start' })}
+            >
+              <ComputerDesktopIcon className="size-4" />
+              Add a browser tab
+            </button>
+            {desk.error && <p className="max-w-56 text-xs text-danger">{desk.error}</p>}
           </div>
         </FigureCard>
       </div>
