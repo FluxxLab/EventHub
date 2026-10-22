@@ -8,6 +8,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { CreateSessionDialog } from '@/components/programme/create-session-dialog';
 import { ImportSessionsDialog } from '@/components/programme/import-sessions-dialog';
 import { MoveCaptionsDialog } from '@/components/programme/move-captions-dialog';
+import { SidePager, usePaged } from '@/components/ui/side-pager';
 import { DayTranscriptDialog } from '@/components/programme/day-transcript-dialog';
 import { AgendaCheckDialog } from '@/components/programme/agenda-check-dialog';
 import { PrepareDayDialog } from '@/components/programme/prepare-day-dialog';
@@ -127,6 +128,8 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
     [all, track, query, day],
   );
   const countByDay = (n: number) => all.filter((s) => s.day === n).length;
+  // five sessions at a time; another day, track or search starts again at the first page
+  const paged = usePaged(rows, `${day}|${track}|${query}`);
 
   if (editions.isPending) return <Skeleton className="h-96 rounded-xl" />;
   if (!edition) {
@@ -261,6 +264,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
             />
           )
         ) : (
+          <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="Sessions">
           <div className="relative overflow-x-auto">
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
@@ -289,7 +293,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
                 </tr>
               </thead>
               <tbody>
-                {rows.map((s) => (
+                {paged.slice.map((s) => (
                   <tr key={s.id} className="even:bg-surface-soft last:[&>td]:border-b-0">
                     <td className={cn(td, 'whitespace-nowrap')}>
                       <p className="tabular-nums text-ink">{timeRange(s.startsAt, s.endsAt)}</p>
@@ -399,6 +403,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
               </tbody>
             </table>
           </div>
+          </SidePager>
         )}
       </Panel>
 

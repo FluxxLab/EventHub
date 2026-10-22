@@ -47,16 +47,16 @@ describe('Build template columns', () => {
 });
 
 describe('Build template pages', () => {
-  it('fits up to twelve short rows on a table slide', () => {
-    expect(tablePages(Array.from({ length: 12 }, () => call())).map((p) => p.length)).toEqual([MAX_ROWS]);
-    expect(tablePages(Array.from({ length: 13 }, () => call())).map((p) => p.length)).toEqual([12, 1]);
+  it('puts five rows on a table slide', () => {
+    expect(tablePages(Array.from({ length: 5 }, () => call())).map((p) => p.length)).toEqual([MAX_ROWS]);
+    expect(tablePages(Array.from({ length: 12 }, () => call())).map((p) => p.length)).toEqual([5, 5, 2]);
   });
 
   it('moves rows to the next slide when long details would overflow it', () => {
     const long = call({ action: 'A commitment explained at length. '.repeat(12) });
-    const pages = tablePages(Array.from({ length: 12 }, () => long));
+    const pages = tablePages(Array.from({ length: 5 }, () => long));
     expect(pages.length).toBeGreaterThan(1);
-    expect(pages.flat()).toEqual(Array.from({ length: 12 }, (_, i) => i));
+    expect(pages.flat()).toEqual(Array.from({ length: 5 }, (_, i) => i));
   });
 
   it('puts six cards to a slide and counts only approved calls', () => {

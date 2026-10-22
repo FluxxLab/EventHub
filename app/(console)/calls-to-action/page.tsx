@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/card';
 import { MenuButton } from '@/components/ui/menu-button';
 import { Panel } from '@/components/ui/panel';
 import { DeleteDialog } from '@/components/ui/row-actions';
+import { SidePager, usePaged } from '@/components/ui/side-pager';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { SegmentedTabs, tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
@@ -100,6 +101,9 @@ function Board({ edition }: { edition: Edition }) {
     const runs = runsOf(s.id)?.runs ?? 0;
     return { value: s.id, label: `Day ${s.day} · ${timeRange(s.startsAt, s.endsAt)} · ${s.title}${s.status === 'live' ? ' · live' : ''}${runs ? ` · analysed ${runs}×` : ''}` };
   });
+
+  // five calls at a time; another tab or filter starts again at the first page
+  const paged = usePaged(board.data ? filterCalls(board.data.items, tab, sessionFilter, targetFilter) : [], `${tab}|${sessionFilter}|${targetFilter}`);
 
   if (board.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (board.isError) return <ErrorState framed title="Calls to action could not load" error={board.error} onRetry={() => void board.refetch()} />;
@@ -400,8 +404,9 @@ function Board({ edition }: { edition: Edition }) {
             )
           ) : (
             // keyed by tab, so switching tabs swaps the list rather than fading the old one out
+            <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="Calls to action">
             <ul key={tab} ref={listRef} className="divide-y divide-border">
-              {shown.map((c) => (
+              {paged.slice.map((c) => (
                 <li key={c.id} className={cn('flex gap-4 px-6 py-4', c.status === 'merged' && 'opacity-60')}>
                   {c.status !== 'merged' && (
                     <input
@@ -469,6 +474,7 @@ function Board({ edition }: { edition: Edition }) {
                 </li>
               ))}
             </ul>
+            </SidePager>
           )}
         </Panel>
         ) : (

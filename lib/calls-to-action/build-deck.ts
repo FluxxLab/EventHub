@@ -95,7 +95,8 @@ const TABLE_TOP = 1.1;
 const HEADER_H = 0.44;
 const ROW_H = 0.44;
 const TABLE_ROOM = 6.85 - TABLE_TOP - HEADER_H;
-export const MAX_ROWS = 12;
+/** Five commitments to a table slide, so each row has room to read. */
+export const MAX_ROWS = 5;
 
 /** "Commitment", the headline of a call. */
 export const commitmentOf = (call: Pick<CallToAction, 'shortText' | 'action'>) => call.shortText.trim() || call.action.trim();
@@ -112,7 +113,7 @@ export function detailsOf(call: Pick<CallToAction, 'action' | 'deadline' | 'amou
 export const whoOf = (call: Pick<CallToAction, 'proposedBy' | 'proposedByOrganisation' | 'alsoProposedBy'>) => byline(call) ?? '';
 
 /**
- * A table's rows split into slides: at most twelve rows, fewer when long details would push the
+ * A table's rows split into slides: at most five rows, fewer when long details would push the
  * table past the footer (about 100 characters to a line in the Details column, 0.17 in a line).
  */
 export function tablePages(calls: Pick<CallToAction, 'action' | 'deadline' | 'amount' | 'shortText' | 'present'>[]): number[][] {
@@ -120,8 +121,8 @@ export function tablePages(calls: Pick<CallToAction, 'action' | 'deadline' | 'am
   let page: number[] = [];
   let used = 0;
   calls.forEach((call, i) => {
-    const lines = Math.max(Math.ceil(detailsOf(call).length / 100), Math.ceil(commitmentOf(call).length / 42), 1);
-    const h = Math.max(ROW_H, 0.14 + lines * 0.17);
+    const lines = Math.max(Math.ceil(detailsOf(call).length / 75), Math.ceil(commitmentOf(call).length / 30), 1);
+    const h = Math.max(ROW_H, 0.16 + lines * 0.22);
     if (page.length && (page.length === MAX_ROWS || used + h > TABLE_ROOM)) {
       pages.push(page);
       page = [];
@@ -279,7 +280,7 @@ function tableSlide(pres: PptxGenJS, look: Look, session: BuildSession, kind: Ki
   const border = { type: 'solid' as const, color: 'FFFFFF', pt: 1 };
   const cell = {
     fontFace: FONT,
-    fontSize: 9,
+    fontSize: 12,
     color: INK,
     valign: 'middle' as const,
     margin: [0.04, 0.08, 0.04, 0.08] as [number, number, number, number],
@@ -296,7 +297,9 @@ function tableSlide(pres: PptxGenJS, look: Look, session: BuildSession, kind: Ki
       { text: whoOf(call), options: { ...cell, fill } },
     ]);
   });
-  s.addTable(rows, { x: 0.28, y: TABLE_TOP, w: 12.77, colW: [0.54, 2.77, 6.17, 3.29], rowH: [HEADER_H, ...calls.map(() => ROW_H)] });
+  // five rows share the slide's height, so short ones are not squeezed to the top
+  const rowH = Math.min(1.05, TABLE_ROOM / Math.max(calls.length, 1));
+  s.addTable(rows, { x: 0.28, y: TABLE_TOP, w: 12.77, colW: [0.54, 2.77, 6.17, 3.29], rowH: [HEADER_H, ...calls.map(() => rowH)] });
 }
 
 /** A session's slides in the chosen layout, its commitments and then its recommendations; returns how many it added. */

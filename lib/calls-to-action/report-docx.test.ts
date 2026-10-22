@@ -76,6 +76,19 @@ describe('rapporteur report in the Word template', () => {
   });
 });
 
+describe('five rows to a table', () => {
+  it('continues a long section in a new table, numbering on', async () => {
+    const xml = await template();
+    const seven = Array.from({ length: 7 }, (_, i) => ({ recommendation: `Recommendation ${i + 1}`, owner: 'NITDA', nextStep: 'Draft', timeframe: '2027' }));
+    const short = tableRows(fillReportXml(xml, header, report()));
+    const long = tableRows(fillReportXml(xml, header, report({ recommendations: seven })));
+    expect(long.length).toBe(short.length + 1);
+    const recs = long.filter((t) => t.some((r) => r.includes('Recommendation ')));
+    expect(recs.map((t) => t.length - 1)).toEqual([5, 2]);
+    expect(recs[1]![1]).toContain('6 | Recommendation 6');
+  });
+});
+
 describe('end of day report', () => {
   it('puts each session’s guide after a contents page, in one document', async () => {
     const xml = await template();

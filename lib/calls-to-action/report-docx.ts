@@ -85,16 +85,32 @@ function fillTable(doc: Document, tbl: Element, items: string[][]) {
   if (!kids(trPr, 'tblHeader').length) trPr.appendChild(doc.createElementNS(W, 'w:tblHeader'));
   for (const row of templates) tbl.removeChild(row);
   const list = items.length ? items : [[NONE]];
+  // an empty copy (header only) to carry rows past the fifth
+  const blank = cloneClean(tbl);
+  for (const row of kids(blank, 'tr').slice(1)) blank.removeChild(row);
+  let current = tbl;
   list.forEach((cells, i) => {
+    if (i > 0 && i % ROWS_PER_TABLE === 0) {
+      // the next five go in a new table straight after, its header repeated; an empty paragraph
+      // between them stops Word joining the two back into one
+      const spacer = doc.createElementNS(W, 'w:p');
+      current.parentNode!.insertBefore(spacer, current.nextSibling);
+      const next = cloneClean(blank);
+      spacer.parentNode!.insertBefore(next, spacer.nextSibling);
+      current = next;
+    }
     const tr = cloneClean(templates[i % Math.min(2, templates.length)]!);
     const tcs = kids(tr, 'tc');
     const numbered = tcs.length > 1 && /^\d*$/.test(textOf(tcs[0]!).trim());
     if (numbered) setCell(doc, tcs[0]!, items.length ? String(i + 1) : '');
     const body = numbered ? tcs.slice(1) : tcs;
     body.forEach((tc, c) => setCell(doc, tc, cells[c] ?? ''));
-    tbl.appendChild(tr);
+    current.appendChild(tr);
   });
 }
+
+/** At most this many rows to a table in the report; more continue in a new table under it. */
+export const ROWS_PER_TABLE = 5;
 
 /** Replaces a "Label: ______" line's blank with the value, in the blank's (unbolded) style. */
 function fillLine(p: Element, value: string) {
