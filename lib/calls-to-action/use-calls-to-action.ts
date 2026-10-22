@@ -188,6 +188,34 @@ export function useCallActions(editionId: string) {
     mutationFn: ({ into, ids }: { into: string; ids: string[] }) => api.post<CallToAction>('/calls-to-action/merge', { into, ids }),
     onSuccess: refresh,
   });
+  /**
+   * Approves, rejects or returns many calls at once: each saved as one person's review would be,
+   * a few at a time. Resolves with how many were changed and how many were not.
+   */
+  const setMany = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: 'suggested' | 'approved' | 'rejected' }) => {
+      let changed = 0;
+      let failed = 0;
+      let next = 0;
+      const worker = async () => {
+        while (next < ids.length) {
+          const id = ids[next++]!;
+          try {
+            if (!DEMO_MODE) await api.patch<CallToAction>(`/calls-to-action/${id}`, { status });
+            changed++;
+          } catch {
+            failed++;
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(6, ids.length) }, worker));
+      return { changed, failed };
+    },
+    onSuccess: () => {
+      refresh();
+      void client.invalidateQueries({ queryKey: stakeholdersKey(editionId) });
+    },
+  });
   /** Deletes calls (and any merged into them), e.g. before analysing a session again. */
   const remove = useMutation({
     mutationFn: (ids: string[]) =>
@@ -220,5 +248,5 @@ export function useCallActions(editionId: string) {
     },
     onSuccess: refresh,
   });
-  return { analyse, create, update, merge, remove, whoSaid };
+  return { analyse, create, update, merge, remove, whoSaid, setMany };
 }

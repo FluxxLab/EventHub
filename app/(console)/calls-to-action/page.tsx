@@ -132,6 +132,24 @@ function Board({ edition }: { edition: Edition }) {
     );
   };
   const analysing = actions.analyse.isPending;
+  // the chosen calls a status would change (those already at it are left alone)
+  const chosenFor = (status: 'approved' | 'rejected') => chosen.filter((id) => items.find((c) => c.id === id)?.status !== status);
+  const setStatusMany = (status: 'approved' | 'rejected') => {
+    const ids = chosenFor(status);
+    actions.setMany.mutate(
+      { ids, status },
+      {
+        onSuccess: ({ changed, failed }) => {
+          toast.push({
+            title: status === 'approved' ? `${changed} approved` : `${changed} rejected`,
+            body: failed ? `${failed} could not be saved; try those again.` : status === 'approved' ? 'They go into the deck, the report and the stakeholders view.' : 'They stay on record under Rejected.',
+            leading: { kind: 'icon', icon: status === 'approved' ? CheckIcon : XMarkIcon, tone: status === 'approved' && !failed ? 'success' : undefined },
+          });
+          setSelected([]);
+        },
+      },
+    );
+  };
   const removeChosen = () =>
     actions.remove.mutate(chosen, {
       onSuccess: ({ deleted }) => {
@@ -320,12 +338,24 @@ function Board({ edition }: { edition: Edition }) {
         >
           {selectable.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-2.5 text-sm">
-              <span className="text-ink-soft">{chosen.length ? `${chosen.length} selected` : 'Tick calls to merge or delete them'}</span>
+              <span className="text-ink-soft">{chosen.length ? `${chosen.length} selected` : 'Tick calls to approve, reject, merge or delete them'}</span>
               <button type="button" onClick={() => setSelected(selectable.map((c) => c.id))} className={buttonClass({ style: 'borderless', color: 'gray' })}>
                 Select all {selectable.length} shown
               </button>
               {chosen.length > 0 && (
                 <>
+                  {chosenFor('approved').length > 0 && (
+                    <button type="button" disabled={actions.setMany.isPending} onClick={() => setStatusMany('approved')} className={buttonClass({ style: 'soft', color: 'green' })}>
+                      <CheckIcon className="size-4" />
+                      {actions.setMany.isPending ? 'Saving…' : `Approve ${chosenFor('approved').length}`}
+                    </button>
+                  )}
+                  {chosenFor('rejected').length > 0 && (
+                    <button type="button" disabled={actions.setMany.isPending} onClick={() => setStatusMany('rejected')} className={buttonClass({ style: 'borderless', color: 'gray' })}>
+                      <XMarkIcon className="size-4" />
+                      Reject {chosenFor('rejected').length}
+                    </button>
+                  )}
                   <button type="button" onClick={() => setDeleting(true)} className={buttonClass({ style: 'soft', color: 'danger' })}>
                     <TrashIcon className="size-4" />
                     Delete {chosen.length}
