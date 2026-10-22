@@ -193,29 +193,36 @@ export function useCallActions(editionId: string) {
    * a few at a time. Resolves with how many were changed and how many were not.
    */
   const setMany = useMutation({
-    mutationFn: async ({ ids, status }: { ids: string[]; status: 'suggested' | 'approved' | 'rejected' }) => {
-      let changed = 0;
-      let failed = 0;
-      let next = 0;
-      const worker = async () => {
-        while (next < ids.length) {
-          const id = ids[next++]!;
-          try {
-            if (!DEMO_MODE) await api.patch<CallToAction>(`/calls-to-action/${id}`, { status });
-            changed++;
-          } catch {
-            failed++;
-          }
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(6, ids.length) }, worker));
-      return { changed, failed };
-    },
+    mutationFn: ({ ids, status }: { ids: string[]; status: 'suggested' | 'approved' | 'rejected' }) => patchAll(ids, { status }),
     onSuccess: () => {
       refresh();
       void client.invalidateQueries({ queryKey: stakeholdersKey(editionId) });
     },
   });
+  /** The same change to many calls, e.g. one speaker's name spelled right on every card. */
+  const patchMany = useMutation({
+    mutationFn: ({ ids, body }: { ids: string[]; body: Partial<Body> }) => patchAll(ids, body),
+    onSuccess: refresh,
+  });
+  /** Saves the same change to each call, six at a time; how many were saved and how many were not. */
+  async function patchAll(ids: string[], body: Partial<Body> & { status?: 'suggested' | 'approved' | 'rejected' }) {
+    let changed = 0;
+    let failed = 0;
+    let next = 0;
+    const worker = async () => {
+      while (next < ids.length) {
+        const id = ids[next++]!;
+        try {
+          if (!DEMO_MODE) await api.patch<CallToAction>(`/calls-to-action/${id}`, body);
+          changed++;
+        } catch {
+          failed++;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(6, ids.length) }, worker));
+    return { changed, failed };
+  }
   /** Deletes calls (and any merged into them), e.g. before analysing a session again. */
   const remove = useMutation({
     mutationFn: (ids: string[]) =>
@@ -248,5 +255,5 @@ export function useCallActions(editionId: string) {
     },
     onSuccess: refresh,
   });
-  return { analyse, create, update, merge, remove, whoSaid, setMany };
+  return { analyse, create, update, merge, remove, whoSaid, setMany, patchMany };
 }

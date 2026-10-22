@@ -5,6 +5,7 @@ import {
   ArrowUturnLeftIcon,
   BuildingOffice2Icon,
   CheckIcon,
+  DocumentDuplicateIcon,
   DocumentTextIcon,
   MegaphoneIcon,
   PencilSquareIcon,
@@ -14,6 +15,7 @@ import {
   Squares2X2Icon,
   TableCellsIcon,
   TrashIcon,
+  UserGroupIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useMemo, useState } from 'react';
@@ -21,6 +23,8 @@ import { useMemo, useState } from 'react';
 import { CallDialog } from '@/components/calls-to-action/call-dialog';
 import { AnalyseManyDialog } from '@/components/calls-to-action/analyse-many-dialog';
 import { DeckDialog, type DeckStyle } from '@/components/calls-to-action/deck-dialog';
+import { NamesDialog } from '@/components/calls-to-action/names-dialog';
+import { RepeatsDialog } from '@/components/calls-to-action/repeats-dialog';
 import { ReportDialog } from '@/components/calls-to-action/report-dialog';
 import { StakeholdersPanel } from '@/components/calls-to-action/stakeholders-panel';
 import { EventBar } from '@/components/events/event-bar';
@@ -37,6 +41,8 @@ import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { callsCsv, countByStatus, filterCalls, hereFor, STATUS_LABEL, STATUS_TABS, TYPE_LABEL, voices, type CallToAction, type StatusTab } from '@/lib/calls-to-action/calls-to-action';
 import { useAnalyseQueue } from '@/lib/calls-to-action/analyse-queue';
+import { peopleOf } from '@/lib/calls-to-action/names';
+import { findRepeats, loadDismissed, saveDismissed } from '@/lib/calls-to-action/repeats';
 import { useCallActions, useCallsToAction, useCallTargets, useStakeholders } from '@/lib/calls-to-action/use-calls-to-action';
 import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
@@ -88,6 +94,9 @@ function Board({ edition }: { edition: Edition }) {
   };
   const [reportOpen, setReportOpen] = useState(false);
   const [manyOpen, setManyOpen] = useState(false);
+  const [namesOpen, setNamesOpen] = useState(false);
+  const [repeatsOpen, setRepeatsOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(() => loadDismissed(edition.id));
   const queue = useAnalyseQueue(edition.id);
   const queued = Object.values(queue.runs);
   const queueDone = queued.filter((r) => r.status === 'done' || r.status === 'failed').length;
@@ -101,6 +110,9 @@ function Board({ edition }: { edition: Edition }) {
     const runs = runsOf(s.id)?.runs ?? 0;
     return { value: s.id, label: `Day ${s.day} · ${timeRange(s.startsAt, s.endsAt)} · ${s.title}${s.status === 'live' ? ' · live' : ''}${runs ? ` · analysed ${runs}×` : ''}` };
   });
+
+  const people = useMemo(() => peopleOf(board.data?.items ?? []), [board.data]);
+  const repeats = useMemo(() => findRepeats(board.data?.items ?? [], dismissed), [board.data, dismissed]);
 
   // five calls at a time; another tab or filter starts again at the first page
   const paged = usePaged(board.data ? filterCalls(board.data.items, tab, sessionFilter, targetFilter) : [], `${tab}|${sessionFilter}|${targetFilter}`, 'calls-to-action');
@@ -157,6 +169,26 @@ function Board({ edition }: { edition: Edition }) {
         setSelected([]);
         setDeleting(false);
       },
+    });
+
+  const rename = (ids: string[], name: string, organisation: string | null) =>
+    actions.patchMany.mutateAsync({ ids, body: { proposedBy: name, proposedByOrganisation: organisation } }).then(({ changed, failed }) => {
+      toast.push({
+        title: `${name} on ${changed} card${changed === 1 ? '' : 's'}`,
+        body: failed ? `${failed} could not be saved; try again.` : 'Download the deck and report again to use the new spelling.',
+        leading: { kind: 'icon', icon: CheckIcon, tone: failed ? undefined : 'success' },
+      });
+      if (failed) throw new Error(`${failed} card(s) not saved; try again.`);
+    });
+  const mergeRepeat = (keepCall: CallToAction, other: CallToAction) =>
+    actions.merge.mutateAsync({ into: keepCall.id, ids: [other.id] }).then(() => {
+      toast.push({ title: 'Merged', body: `Kept under “${titleOf(keepCall.sessionId)}”.`, leading: { kind: 'icon', icon: CheckIcon, tone: 'success' } });
+    });
+  const dismissRepeat = (pair: string) =>
+    setDismissed((was) => {
+      const next = new Set(was).add(pair);
+      saveDismissed(edition.id, next);
+      return next;
     });
 
   const analyse = () => {
@@ -277,6 +309,16 @@ function Board({ edition }: { edition: Edition }) {
           description="Only approved ones go into the deck."
           actions={
             <>
+              <button type="button" onClick={() => setNamesOpen(true)} disabled={people.length === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <UserGroupIcon className="size-4" />
+                Names
+                {people.some((p) => p.spellings.length > 1) && <span className="rounded-full bg-warning-soft px-1.5 text-xs text-warning">{people.filter((p) => p.spellings.length > 1).length}</span>}
+              </button>
+              <button type="button" onClick={() => setRepeatsOpen(true)} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <DocumentDuplicateIcon className="size-4" />
+                Repeats
+                {repeats.length > 0 && <span className="rounded-full bg-warning-soft px-1.5 text-xs text-warning">{repeats.length}</span>}
+              </button>
               <button type="button" onClick={exportCsv} disabled={counts.approved === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
                 <ArrowDownTrayIcon className="size-4" />
                 Export approved
@@ -515,6 +557,8 @@ function Board({ edition }: { edition: Edition }) {
       {(manyOpen || queued.length > 0) && (
         <AnalyseManyDialog open={manyOpen} sessions={sessionList} analysedTimes={(id) => runsOf(id)?.runs ?? 0} queue={queue} onReview={() => setTab('suggested')} onClose={() => setManyOpen(false)} />
       )}
+      {namesOpen && <NamesDialog open people={people} onRename={rename} onClose={() => setNamesOpen(false)} />}
+      {repeatsOpen && <RepeatsDialog open repeats={repeats} titleOf={titleOf} onMerge={mergeRepeat} onDismiss={dismissRepeat} onClose={() => setRepeatsOpen(false)} />}
       {reportOpen && <ReportDialog open edition={edition} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setReportOpen(false)} />}
       {deckOpen && (
         <DeckDialog
