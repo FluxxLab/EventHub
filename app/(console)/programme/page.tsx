@@ -12,6 +12,7 @@ import { SidePager, usePaged } from '@/components/ui/side-pager';
 import { DayTranscriptDialog } from '@/components/programme/day-transcript-dialog';
 import { AgendaCheckDialog } from '@/components/programme/agenda-check-dialog';
 import { PrepareDayDialog } from '@/components/programme/prepare-day-dialog';
+import { NightlyTidyBanner } from '@/components/programme/nightly-tidy-banner';
 import { SessionBriefDialog } from '@/components/programme/session-brief-dialog';
 import { UploadBriefsDialog } from '@/components/programme/upload-briefs-dialog';
 import { SessionSpeakersDialog } from '@/components/programme/session-speakers-dialog';
@@ -157,6 +158,8 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
     <div className="flex flex-col gap-4">
       <h1 className="sr-only">Programme: {edition.name}</h1>
 
+      {/* what the server's overnight tidy did to this day, or is doing */}
+      <NightlyTidyBanner editionId={edition.id} day={day} sessions={all} isAdmin={isAdmin} />
       <Panel
         title="Programme"
         description={edition.name}
