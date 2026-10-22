@@ -43,6 +43,8 @@ import type { RoomState } from '@/lib/captions/room-capture';
 import { SOURCE_LABEL, type CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
 import { useCaptionActions, useCaptionFeed, useLiveSessions, useSoundDesk, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
+import { thisDeskId, useDeskReporting, useWakeLock } from '@/lib/captions/desk-remote';
+import { RemoteDesks } from '@/components/captions/remote-desks';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import { currentDay } from '@/lib/live/live';
 import { useBoard, useLiveOverview } from '@/lib/live/use-live';
@@ -559,6 +561,27 @@ function SoundDesk({ live }: { live: Session[] }) {
     const source = patchedSource(room);
     if (source) void desk.start(room, source, !!patch[room]?.diarise);
   };
+  // Run from another computer: report this desk, and carry out what is asked of it
+  const toast = useToast();
+  useDeskReporting({
+    connected: !!desk.inputs,
+    name: `${desk.inputs?.[0]?.label ?? 'Sound desk'} · ${thisDeskId().slice(0, 4)}`,
+    channels,
+    rooms,
+    sourceOf: (room) => (isMulti(room) ? null : patchedSource(room)),
+    states: desk.rooms,
+    onCommand: (c) => {
+      const onAirHere = !!desk.rooms[c.room] && desk.rooms[c.room]?.status !== 'error';
+      if (c.action === 'patch' && !onAirHere && !isMulti(c.room)) updatePatch(c.room, { source: c.source ?? '' });
+      else if (c.action === 'start' && !desk.rooms[c.room]) startRoom(c.room);
+      else if (c.action === 'stop') void desk.stop(c.room);
+      else return;
+      toast.push({ title: `${c.room}: ${c.action === 'patch' ? (c.source ? 'patched' : 'unpatched') : c.action === 'start' ? 'started' : 'stopped'} from another computer` });
+    },
+  });
+  // a desk on air must not sleep: that silences every room on it
+  useWakeLock(running.length > 0);
+
   const confirmNow = () => {
     if (!confirm) return;
     if (confirm.kind === 'room') void desk.stop(confirm.room);
@@ -571,6 +594,7 @@ function SoundDesk({ live }: { live: Session[] }) {
     return (
       <div className="flex flex-col gap-5">
         <SuggestionsStrip sessions={live} />
+        <RemoteDesks />
         <DeskSetup permission={desk.permission} connecting={desk.connecting} error={desk.error} streamed={streamed} onConnect={() => void desk.connect()} />
         {/* recordings kept from earlier, still uploading or to download */}
         <BackupPanel hideWhenEmpty />
@@ -582,6 +606,7 @@ function SoundDesk({ live }: { live: Session[] }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <RemoteDesks />
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         <FigureCard
           label="Live without captions"
