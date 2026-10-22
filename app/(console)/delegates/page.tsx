@@ -17,6 +17,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { SegmentedTabs } from '@/components/ui/tabs';
 import { Tag, type TagTone } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import {
   countByStatus,
   delegatesCsv,
@@ -299,7 +300,7 @@ function DelegatesView({ initialQuery }: { initialQuery: string }) {
             />
           )
         ) : (
-          <div className={cn('relative overflow-x-auto transition-opacity', delegates.isFetching && delegates.data && 'opacity-60')}>
+          <div {...tableScroll} className={cn('relative overflow-x-auto transition-opacity', tableScrollFocus, delegates.isFetching && delegates.data && 'opacity-60')}>
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
                 <tr>

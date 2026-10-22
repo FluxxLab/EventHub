@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
 import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toaster';
+import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import {
   artworkMismatch,
   artworkPixels,
@@ -865,7 +866,7 @@ function BadgeBoard({ edition }: { edition: Edition }) {
                 }
               />
             ) : (
-              <div className="relative overflow-x-auto">
+              <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
                 <table className="w-full min-w-[44rem] border-collapse">
                   <thead>
                     <tr>

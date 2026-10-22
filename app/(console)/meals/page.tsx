@@ -14,6 +14,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
 import { Tag, type TagTone } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { QUARTER_HOURS } from '@/lib/calendar';
 import type { Edition } from '@/lib/events/events';
 import { usePageEdition } from '@/lib/events/use-page-edition';
@@ -90,7 +91,7 @@ function Board({ edition }: { edition: Edition }) {
             {meals.length === 0 ? (
               <EmptyState icon={CakeIcon} title="No meals yet" body="Add each meal the event serves, with its serving window." action={addMeal} />
             ) : (
-              <div className="relative overflow-x-auto">
+              <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
                 <table className="w-full min-w-[44rem] border-collapse">
                   <thead>
                     <tr>

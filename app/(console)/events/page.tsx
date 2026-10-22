@@ -13,6 +13,7 @@ import { Panel } from '@/components/ui/panel';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { Tag, type TagTone } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { categoryLabel, dateRange, editionsCsv, placeOf, sortEditions, STATUS_LABEL, type Edition, type EditionStatus, type Sort, type SortKey } from '@/lib/events/events';
 import { useSession } from '@/lib/auth/session';
 import { useEditions, useDeleteEdition, useMakeCurrent } from '@/lib/events/use-editions';
@@ -166,7 +167,7 @@ export default function EventsPage() {
             }
           />
         ) : (
-          <div className="relative overflow-x-auto">
+          <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
             <table className="w-full min-w-[40rem] border-collapse">
               <thead>
                 <tr>

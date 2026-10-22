@@ -27,6 +27,7 @@ import { SegmentedTabs } from '@/components/ui/tabs';
 import { DeleteDialog, RowActions } from '@/components/ui/row-actions';
 import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
+import { tableScroll, tableScrollFocus } from '@/components/ui/table-scroll';
 import { sessionTrackOptions, trackLabel } from '@/lib/catalog/topics';
 import { useTrackLibrary } from '@/lib/catalog/use-topics';
 import { useWorkingEdition } from '@/lib/events/working-edition';
@@ -265,7 +266,7 @@ function ProgrammeView({ initial }: { initial: { edition: string | null; q: stri
           )
         ) : (
           <SidePager page={paged.page} pages={paged.pages} total={paged.total} size={paged.size} onPage={paged.setPage} label="Sessions">
-          <div className="relative overflow-x-auto">
+          <div {...tableScroll} className={`relative overflow-x-auto ${tableScrollFocus}`}>
             <table className="w-full min-w-[60rem] border-collapse">
               <thead>
                 <tr>
