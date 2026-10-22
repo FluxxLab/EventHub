@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SidePager, usePaged } from '@/components/ui/side-pager';
+import { pageNumbers, SidePager, usePaged } from '@/components/ui/side-pager';
 
 function List({ n, filter = 'a' }: { n: number; filter?: string }) {
   const items = Array.from({ length: n }, (_, i) => `Row ${i + 1}`);
@@ -20,17 +20,21 @@ function List({ n, filter = 'a' }: { n: number; filter?: string }) {
 afterEach(cleanup);
 
 describe('side pager', () => {
-  it('shows five at a time and moves on with the side arrows', () => {
+  it('shows five at a time with a pagination bar under them', () => {
     render(<List n={12} />);
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Row 1', 'Row 2', 'Row 3', 'Row 4', 'Row 5']);
     expect(screen.getByRole('button', { name: 'Previous page' })).toHaveProperty('disabled', true);
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(screen.getAllByRole('listitem')[0]!.textContent).toBe('Row 6');
-    expect(screen.getByText('6–10 of 12 · page 2 of 3')).toBeTruthy();
+    expect(screen.getByRole('navigation').textContent).toContain('Showing 6–10 of 12');
+    expect(screen.getByRole('button', { name: 'Page 2' }).getAttribute('aria-current')).toBe('page');
+    fireEvent.click(screen.getByRole('button', { name: 'Page 1' }));
+    expect(screen.getAllByRole('listitem')[0]!.textContent).toBe('Row 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Page 2' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Row 11', 'Row 12']);
     expect(screen.getByRole('button', { name: 'Next page' })).toHaveProperty('disabled', true);
-    fireEvent.keyDown(screen.getByRole('group'), { key: 'ArrowLeft' });
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));
     expect(screen.getAllByRole('listitem')[0]!.textContent).toBe('Row 6');
   });
 
@@ -41,5 +45,12 @@ describe('side pager', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     rerender(<List n={12} filter="b" />);
     expect(screen.getAllByRole('listitem')[0]!.textContent).toBe('Row 1');
+  });
+
+  it('numbers the pages with gaps on a long list', () => {
+    expect(pageNumbers(0, 3)).toEqual([0, 1, 2]);
+    expect(pageNumbers(0, 20)).toEqual([0, 1, 2, 3, null, 19]);
+    expect(pageNumbers(10, 20)).toEqual([0, null, 9, 10, 11, null, 19]);
+    expect(pageNumbers(19, 20)).toEqual([0, null, 16, 17, 18, 19]);
   });
 });
