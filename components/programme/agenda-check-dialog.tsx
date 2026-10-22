@@ -9,6 +9,7 @@ import { Field } from '@/components/ui/field';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
+import { AgendaArt, WorkCard } from '@/components/ui/work-art';
 import { applyAgendaFix, checkRoomAgainstAgenda, type AgendaCheckResult, type AgendaFix } from '@/lib/captions/agenda-check';
 import { recheckNames } from '@/lib/captions/speaker-names';
 import { clock } from '@/lib/format';
@@ -111,6 +112,9 @@ export function AgendaCheckDialog({ open, day, editionId, sessions, onClose }: {
         <p className="text-sm text-ink-soft">
           AI reads each room’s captions beside the agenda, using the names called and what was discussed, and lists any stretch filed under the wrong session. Nothing moves until you click Move. Do this before analysing the day or making its deck.
         </p>
+        <WorkCard progress={runs.length ? Math.round((runs.filter((r) => r.state === 'done' || r.state === 'failed').length / runs.length) * 100) : undefined} label="Checking the rooms">
+          <AgendaArt current={!runs.length ? 0 : running ? 0 : 4} />
+        </WorkCard>
         <div className="flex flex-wrap items-end gap-3">
           <Field id={`${baseId}-room`} label="Room" className="min-w-56">
             <Select id={`${baseId}-room`} value={room} onChange={setRoom} options={[{ value: ALL, label: `All rooms (${rooms.length})` }, ...rooms.map((r) => ({ value: r, label: r }))]} />

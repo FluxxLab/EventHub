@@ -7,6 +7,7 @@ import { Field, TextInput } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
+import { MoveArt, WorkCard } from '@/components/ui/work-art';
 import { api } from '@/lib/api/client';
 import { DEMO_MODE } from '@/lib/demo';
 import { clock } from '@/lib/format';
@@ -98,6 +99,9 @@ export function MoveCaptionsDialog({ session, sessions, onClose }: { session: Se
       onClose={close}
       onSubmit={submit}
     >
+      <WorkCard>
+        <MoveArt />
+      </WorkCard>
       <p className="text-sm text-ink-soft">
         For when the wrong session was left live. The calls to action found in those lines move with them. End this session first, and give it a few minutes to be re-transcribed before moving.
       </p>

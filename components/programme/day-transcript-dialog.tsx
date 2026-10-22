@@ -7,6 +7,7 @@ import { Field } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
+import { PagesArt, WorkCard } from '@/components/ui/work-art';
 import { daySessions, downloadDayTranscript } from '@/lib/captions/day-transcript';
 import type { Session } from '@/lib/programme/programme';
 
@@ -51,6 +52,9 @@ export function DayTranscriptDialog({ open, day, sessions, eventName, onClose }:
       onClose={onClose}
       onSubmit={submit}
     >
+      <WorkCard>
+        <PagesArt moving={pending} />
+      </WorkCard>
       <p className="text-sm text-ink-soft">
         Every session that has started, each under its own heading with the time and who spoke. {count ? `${count} session${count === 1 ? '' : 's'} so far.` : 'Nothing has run yet.'}
       </p>

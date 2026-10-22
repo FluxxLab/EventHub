@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRightCircleIcon, CheckCircleIcon, ExclamationTriangleIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { ArrowRightCircleIcon, ExclamationTriangleIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
@@ -8,6 +8,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { buttonClass } from '@/components/ui/button';
 import { cancelClass, ModalActions, ModalHeader, modalClass } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toaster';
+import { AgendaArt, WorkCard, WorkSteps } from '@/components/ui/work-art';
 import { applyAgendaFix, type AgendaFix } from '@/lib/captions/agenda-check';
 import { clock } from '@/lib/format';
 import { prepareDay, type PrepProgress, type PrepResult, type PrepStep } from '@/lib/programme/prepare-day';
@@ -82,19 +83,10 @@ export function PrepareDayDialog({ open, day, editionId, sessions, onClose }: { 
           <ModalHeader icon={SparklesIcon} title={`Prepare day ${day}`} titleId={titleId} subtitle="The day’s wrap-up in one go, before the report and the deck" />
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-3 scrollbar-thin">
-          <ol className="flex flex-col gap-2">
-            {STEPS.map((s, i) => {
-              const doneStep = result !== null || i < stepIndex;
-              const current = !result && i === stepIndex;
-              return (
-                <li key={s.step} className={cn('flex items-center gap-3 text-sm', doneStep ? 'text-ink' : current ? 'font-medium text-ink' : 'text-hint')}>
-                  {doneStep ? <CheckCircleIcon className="size-5 text-success" /> : <span className={cn('flex size-5 items-center justify-center rounded-full border text-xs', current ? 'border-primary text-primary' : 'border-border')}>{i + 1}</span>}
-                  {s.label}
-                  {current && progress && progress.of > 0 && <span className="text-hint">· {progress.done} of {progress.of}</span>}
-                </li>
-              );
-            })}
-          </ol>
+          <WorkCard progress={result ? 100 : progress && progress.of ? Math.round(((stepIndex + progress.done / progress.of) / STEPS.length) * 100) : progress ? Math.round((stepIndex / STEPS.length) * 100) : undefined} label="Preparing the day">
+            <AgendaArt current={result ? STEPS.length : Math.max(stepIndex, 0)} />
+          </WorkCard>
+          <WorkSteps steps={STEPS.map((s) => s.label)} current={result ? STEPS.length : progress ? stepIndex : -1} detail={progress && progress.of > 0 ? `${progress.done} of ${progress.of}` : undefined} />
 
           {!progress && (
             <p className="text-sm text-ink-soft">

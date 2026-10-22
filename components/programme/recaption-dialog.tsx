@@ -7,6 +7,7 @@ import { Field, TextInput } from '@/components/ui/field';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
+import { RecaptionArt, WorkCard, WorkSteps } from '@/components/ui/work-art';
 import { contentTypeOf, durationOf, recaption, startInstant, ytDlpCommand, type RecaptionResult } from '@/lib/captions/recaption';
 import type { Session } from '@/lib/programme/programme';
 
@@ -69,7 +70,22 @@ export function RecaptionDialog({ open, day, sessions, onClose }: { open: boolea
       onSubmit={submit}
       onClose={onClose}
     >
-      {result ? (
+      {(pending || result) && (
+        <>
+          <WorkCard
+            progress={result ? 100 : stage?.kind === 'uploading' ? Math.round(stage.percent * 0.5) : 75}
+            label="Re-captioning"
+          >
+            <RecaptionArt current={result ? 3 : stage?.kind === 'uploading' ? 0 : 1} />
+          </WorkCard>
+          <WorkSteps
+            steps={['Uploading the audio', 'Transcribing it, voices told apart', 'Putting the lines in the sessions']}
+            current={result ? 3 : stage?.kind === 'uploading' ? 0 : 1}
+            detail={stage?.kind === 'uploading' ? `${stage.percent}%` : stage ? 'a few minutes' : undefined}
+          />
+        </>
+      )}
+      {pending ? null : result ? (
         <div className="flex flex-col gap-2 text-sm">
           <p className="text-ink">
             <strong>{result.inserted}</strong> lines now in place of the live captions{result.skipped ? `; ${result.skipped} fell outside any session (breaks)` : ''}:

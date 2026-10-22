@@ -378,6 +378,61 @@ th {
   opacity: 0.1;
   transition: opacity var(--motion-slow) var(--ease-standard);
 }
+/* a block of captions sliding from where it was filed to where it belongs (--gx, --gy) */
+@keyframes deck-glide {
+  0%,
+  15% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  55%,
+  85% {
+    transform: translate(var(--gx, 0), var(--gy, 0));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--gx, 0), var(--gy, 0));
+    opacity: 0;
+  }
+}
+.deck-art .deck-glide {
+  animation: deck-glide 3.6s var(--ease-standard) infinite both;
+}
+/* sound: bars rising and falling in turn */
+@keyframes deck-wave {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.deck-art .deck-wave {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: deck-wave 1.1s ease-in-out infinite both;
+}
+/* night: stars coming and going */
+@keyframes deck-twinkle {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.deck-art .deck-twinkle {
+  animation: deck-twinkle 2.4s ease-in-out infinite both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-art .deck-glide,
+  .deck-art .deck-wave,
+  .deck-art .deck-twinkle {
+    animation: none;
+  }
+}
 /* the steps beneath arrive in turn when the wait begins */
 .deck-step {
   animation: rise-in var(--motion-slow) var(--ease-enter) both;

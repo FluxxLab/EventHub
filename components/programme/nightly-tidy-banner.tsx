@@ -1,12 +1,13 @@
 'use client';
 
-import { ArrowRightCircleIcon, ExclamationTriangleIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { ArrowRightCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toaster';
+import { MoonArt } from '@/components/ui/work-art';
 import { api } from '@/lib/api/client';
 import { applyAgendaFix, type AgendaFix } from '@/lib/captions/agenda-check';
 import { DEMO_MODE } from '@/lib/demo';
@@ -61,7 +62,7 @@ export function NightlyTidyBanner({ editionId, day, sessions, isAdmin }: { editi
     if (!isAdmin || result.isPending) return null;
     return (
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface px-5 py-3 text-sm text-ink-soft">
-        <MoonIcon className="size-5 text-hint" />
+        <MoonArt className="size-9" />
         <span className="min-w-0 flex-1">Day {day} is tidied on the server at 11pm: captions put under the right sessions, speakers named, analysed. No need to keep a page open.</span>
         <button type="button" onClick={() => void runNow()} className={buttonClass({ style: 'outline', color: 'gray', className: 'h-8' })}>
           Tidy day {day} now
@@ -75,7 +76,7 @@ export function NightlyTidyBanner({ editionId, day, sessions, isAdmin }: { editi
   return (
     <section className={cn('rounded-xl border px-5 py-4', left.length ? 'border-warning/50 bg-warning-soft/40' : 'border-border bg-surface')}>
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <MoonIcon className="size-5 text-primary" />
+        <MoonArt className="size-9" />
         <p className="min-w-0 flex-1 text-ink">
           {running ? (
             <>
