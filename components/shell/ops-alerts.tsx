@@ -1,9 +1,10 @@
 'use client';
 
 import { ClockIcon, SignalSlashIcon } from '@heroicons/react/24/outline';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
 
+import { useDesk } from '@/components/captions/desk-provider';
 import { useToast } from '@/components/ui/toaster';
 import { useLiveSessions } from '@/lib/captions/use-captions';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
@@ -38,8 +39,13 @@ export function OpsAlerts() {
   const toast = useToast();
   const router = useRouter();
   const announced = useRef(new Set<string>());
+  // on the connected sound desk its own alert strip says the same, without covering the rooms
+  const pathname = usePathname();
+  const { desk } = useDesk();
+  const quiet = !!desk.inputs && pathname.startsWith('/captions');
 
   useEffect(() => {
+    if (quiet) return;
     const current = new Set(problems.map((p) => p.key));
     for (const problem of problems) {
       if (announced.current.has(problem.key)) continue;
@@ -54,7 +60,7 @@ export function OpsAlerts() {
     }
     // A problem that clears can alert again if it comes back.
     for (const key of announced.current) if (!current.has(key)) announced.current.delete(key);
-  }, [problems, toast, router]);
+  }, [problems, toast, router, quiet]);
 
   return null;
 }

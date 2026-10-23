@@ -18,6 +18,7 @@ import {
   SignalIcon,
   SignalSlashIcon,
   StopCircleIcon,
+  TagIcon,
   TrashIcon,
   TvIcon,
 } from '@heroicons/react/24/outline';
@@ -34,17 +35,17 @@ import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Switch } from '@/components/ui/switch';
 import { SegmentedTabs, tabId, tabPanelId, UnderlineTabs } from '@/components/ui/tabs';
-import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
 import { canControlLive, useSession } from '@/lib/auth/session';
 import { FLOOR_DB, meterFraction, meterZone, parseSourceKey, sameRoom, sourceKey } from '@/lib/captions/captions';
 import { micLabelsOf, namedParagraphs, useSpeakerNames } from '@/lib/captions/speaker-names';
-import type { RoomState } from '@/lib/captions/room-capture';
-import { SOURCE_LABEL, type CaptureSource } from '@/lib/ingest/ingest';
+import { SOURCE_LABEL } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
 import { useCaptionActions, useCaptionFeed, useLiveSessions, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
 import { useDesk } from '@/components/captions/desk-provider';
+import { ChannelNamesDialog, RoomBoard, RoomStatusTag } from '@/components/captions/room-board';
+import { channelLabel, useChannelNames } from '@/lib/captions/channel-names';
 import { RemoteDesks } from '@/components/captions/remote-desks';
 import { useLiveOverview } from '@/lib/live/use-live';
 import type { Session } from '@/lib/programme/programme';
@@ -363,36 +364,6 @@ function ChannelMeter({ level, label }: { level: ChannelLevel | undefined; label
   );
 }
 
-function RoomStatusTag({ state, patched, elsewhere }: { state: RoomState | undefined; patched: boolean; elsewhere: CaptureSource | null }) {
-  if (!state && elsewhere) {
-    return (
-      <Tag tone="green" dot>
-        {elsewhere === 'ingest' ? 'Venue stream' : 'Other desk'}
-      </Tag>
-    );
-  }
-  if (!state) return patched ? <Tag>Ready</Tag> : <span className="text-xs text-hint">Not patched</span>;
-  if (state.status === 'capturing') {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-danger px-2 text-xs leading-5 text-on-primary">
-        <span className="size-1.5 animate-pulse rounded-full bg-on-primary" aria-hidden />
-        On air
-      </span>
-    );
-  }
-  if (state.status === 'error')
-    return (
-      <Tag tone="danger" dot>
-        Stopped
-      </Tag>
-    );
-  return (
-    <Tag tone="gold" dot>
-      {{ starting: 'Starting…', waiting: elsewhere === 'ingest' ? 'Standing by' : 'Waiting', reconnecting: 'Reconnecting' }[state.status]}
-    </Tag>
-  );
-}
-
 const SETUP_STEPS = [
   { title: 'At the mixer', body: 'Send each room to its own output: an aux, matrix or direct out, speech only.' },
   { title: 'Into this computer', body: 'Cable those outputs into a USB audio interface, one input per room.' },
@@ -536,6 +507,10 @@ function SoundDesk() {
     stopDesk,
   } = useDesk();
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // the day's view (each room at a glance) or the morning's patching
+  const [view, setView] = useUrlParam<'rooms' | 'patch'>('view', 'rooms', ['rooms', 'patch']);
+  const [naming, setNaming] = useState(false);
+  const names = useChannelNames();
 
   const confirmNow = () => {
     if (!confirm) return;
@@ -614,6 +589,26 @@ function SoundDesk() {
       {/* voices heard introducing themselves in a live room, for the desk to name or not */}
       <SuggestionsStrip sessions={live} />
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedTabs
+          label="Sound desk view"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'rooms', label: 'Rooms' },
+            { value: 'patch', label: 'Patch' },
+          ]}
+        />
+        <button type="button" onClick={() => setNaming(true)} className={buttonClass({ style: 'outline', color: 'gray' })}>
+          <TagIcon className="size-4" />
+          Name channels
+        </button>
+      </div>
+      {naming && <ChannelNamesDialog open onClose={() => setNaming(false)} />}
+
+      {view === 'rooms' ? (
+        <RoomBoard onPatch={() => setView('patch')} />
+      ) : (
       <Panel
         title="Patch"
         description="Click where a room meets its channel; captions go to the session live in that room."
@@ -698,9 +693,10 @@ function SoundDesk() {
                     Array.from({ length: input.channels }, (_, channel) => {
                       const key = sourceKey(input.deviceId, channel);
                       return (
-                        <th key={key} scope="col" className={cn('w-11 border-b border-border px-1 pt-1 pb-2 text-center font-normal', channel === 0 && 'border-l')}>
+                        <th key={key} scope="col" title={names[key] ?? undefined} className={cn('w-11 border-b border-border px-1 pt-1 pb-2 text-center font-normal', channel === 0 && 'border-l')}>
                           <ChannelMeter level={desk.levels[key]} label={`${input.label} channel ${channel + 1}`} />
                           <span className="mt-1 block text-[0.6875rem] tabular-nums text-hint">{channel + 1}</span>
+                          {names[key] && <span className="mx-auto block max-w-11 truncate text-[0.625rem] leading-tight text-ink-soft">{names[key]}</span>}
                         </th>
                       );
                     }),
@@ -740,8 +736,8 @@ function SoundDesk() {
                             <button
                               type="button"
                               aria-pressed={patched}
-                              aria-label={`${patched ? 'Unpatch' : 'Patch'} ${room} ${patched ? 'from' : 'to'} ${c.label}`}
-                              title={busy ? 'Stop this room to change its channel' : c.label}
+                              aria-label={`${patched ? 'Unpatch' : 'Patch'} ${room} ${patched ? 'from' : 'to'} ${channelLabel(c.value, c.label, names)}`}
+                              title={busy ? 'Stop this room to change its channel' : channelLabel(c.value, c.label, names)}
                               disabled={busy}
                               onClick={() =>
                                 isMulti(room)
@@ -828,6 +824,7 @@ function SoundDesk() {
           </div>
         )}
       </Panel>
+      )}
 
       <BackupPanel />
 

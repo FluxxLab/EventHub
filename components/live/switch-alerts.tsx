@@ -11,7 +11,7 @@ import { useSwitchDecision, useSwitchSuggestions, type SwitchSuggestion } from '
 const SEEN_KEY = 'switch-alerts-seen';
 
 /** Two soft rising notes, so a suggestion is heard by whoever is at the desk. Silent if the browser blocks sound. */
-function chime() {
+export function chime() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
