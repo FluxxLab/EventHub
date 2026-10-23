@@ -22,7 +22,7 @@ import {
   TvIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
@@ -38,19 +38,16 @@ import { Tag } from '@/components/ui/tag';
 import { useToast } from '@/components/ui/toaster';
 import { useRealtimeStatus } from '@/lib/api/realtime';
 import { canControlLive, useSession } from '@/lib/auth/session';
-import { deskRooms, FLOOR_DB, meterFraction, meterZone, parseSourceKey, readPatch, sameRoom, sourceKey, sourceOptions, uncaptioned, type DeskPatch } from '@/lib/captions/captions';
+import { FLOOR_DB, meterFraction, meterZone, parseSourceKey, sameRoom, sourceKey } from '@/lib/captions/captions';
 import { micLabelsOf, namedParagraphs, useSpeakerNames } from '@/lib/captions/speaker-names';
 import type { RoomState } from '@/lib/captions/room-capture';
 import { SOURCE_LABEL, type CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
-import { isTabSource, useCaptionActions, useCaptionFeed, useLiveSessions, useSoundDesk, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
-import { thisDeskId, useDeskReporting, useWakeLock } from '@/lib/captions/desk-remote';
+import { useCaptionActions, useCaptionFeed, useLiveSessions, type ChannelLevel, type MicPermission } from '@/lib/captions/use-captions';
+import { useDesk } from '@/components/captions/desk-provider';
 import { RemoteDesks } from '@/components/captions/remote-desks';
-import { useWorkingEdition } from '@/lib/events/working-edition';
-import { currentDay } from '@/lib/live/live';
-import { useBoard, useLiveOverview } from '@/lib/live/use-live';
+import { useLiveOverview } from '@/lib/live/use-live';
 import type { Session } from '@/lib/programme/programme';
-import { useRooms } from '@/lib/venue/use-venue';
 import { useUrlParam } from '@/lib/use-url-state';
 import { cn } from '@/lib/utils';
 import { BackupPanel } from '@/components/captions/backup-panel';
@@ -344,8 +341,6 @@ function Monitor({ sessions }: { sessions: Session[] }) {
 
 /* -------------------------------------------------------------- sound desk */
 
-const PATCH_KEY = 'pic.admin.sound-desk-patch';
-
 const ZONE_BG = { ok: 'bg-success', hot: 'bg-gold', clip: 'bg-danger' } as const;
 
 /** A vertical peak meter on the broadcast scale (-60 to 0 dBFS), with a peak-hold line. */
@@ -404,33 +399,13 @@ const SETUP_STEPS = [
   { title: 'Here', body: 'Connect the interface, check each channel moves, and patch it to its room.' },
 ];
 
-const RESUME_KEY = 'pic.admin.desk-resume';
-type ResumeRoom = { room: string; tab: string | null };
-
-/** The rooms on air when this page last ran (from the last twelve hours), with the tab each took its sound from. */
-function readResume(): ResumeRoom[] {
-  try {
-    const saved = JSON.parse(localStorage.getItem(RESUME_KEY) ?? 'null') as { at: number; rooms: ResumeRoom[] } | null;
-    return saved && Date.now() - saved.at < 12 * 3600_000 ? saved.rooms : [];
-  } catch {
-    return [];
-  }
-}
-function writeResume(rooms: ResumeRoom[]) {
-  try {
-    localStorage.setItem(RESUME_KEY, JSON.stringify({ at: Date.now(), rooms }));
-  } catch {
-    // not remembered; a reload then starts afresh
-  }
-}
-
 /** After a reload: the rooms that were on air, put back with one click. */
 function ResumeBanner({ rooms, working, onResume, onDismiss }: { rooms: string[]; working: boolean; onResume: () => void; onDismiss: () => void }) {
   return (
     <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/50 bg-warning-soft px-5 py-4">
       <ExclamationTriangleIcon className="size-5 shrink-0 text-warning" />
       <p className="min-w-0 flex-1 text-sm text-ink">
-        <strong>Captioning stopped when this page reloaded:</strong> {rooms.join(', ')}. Resume reconnects the interface, asks you to pick any YouTube tab again, and starts each room.
+        <strong>Captioning stopped when the page reloaded:</strong> {rooms.join(', ')}. Resume puts them back on air; for a room on a YouTube tab, pick the tab again when asked.
       </p>
       <button type="button" onClick={onResume} disabled={working} className={buttonClass()}>
         <ArrowPathIcon className="size-4" />
@@ -532,154 +507,41 @@ type Confirm = { kind: 'room'; room: string } | { kind: 'all' } | { kind: 'disco
  * rooms and the programme) run down the side, the interface's channels across the top with their
  * meters, and a room is patched to a channel by clicking where they cross, as in a routing matrix.
  */
-function SoundDesk({ live }: { live: Session[] }) {
-  const desk = useSoundDesk();
-  const board = useBoard();
-  const working = useWorkingEdition();
-  const edition = working.edition;
-  const venueRooms = useRooms(edition);
-  // What the server sees: which rooms a venue stream or another desk is captioning.
-  const server = useIngestRooms();
-  const elsewhere = (room: string): CaptureSource | null => (server.disabled ? null : (server.data?.find((r) => sameRoom(r.room, room))?.captioning ?? null));
-  // Remembered on this computer, so the desk is ready the next morning. (The desk renders only
-  // once live sessions have loaded in the browser, so reading storage here is safe.)
-  const [patch, setPatch] = useState<DeskPatch>(() => {
-    try {
-      return readPatch(localStorage.getItem(PATCH_KEY));
-    } catch {
-      return {};
-    }
-  });
-  const [confirm, setConfirm] = useState<Confirm | null>(null);
-
-  const updatePatch = (room: string, change: Partial<DeskPatch[string]>) =>
-    setPatch((all) => {
-      const next = { ...all, [room]: { ...(all[room] ?? { source: '', diarise: false }), ...change } };
-      try {
-        localStorage.setItem(PATCH_KEY, JSON.stringify(next));
-      } catch {
-        // Not remembered, but still used for this visit.
-      }
-      return next;
-    });
-
-  const programmeRooms = useMemo(() => {
-    const sessions = board.data ?? [];
-    const { day } = currentDay(sessions);
-    return sessions.filter((s) => s.day === day).map((s) => s.room);
-  }, [board.data]);
-  const rooms = deskRooms(
-    (venueRooms.data ?? []).map((r) => r.name),
-    programmeRooms,
-    live.map((s) => s.room),
-  );
-  const channels = useMemo(() => sourceOptions(desk.inputs ?? []), [desk.inputs]);
-  const patchedSource = (room: string) => {
-    const source = patch[room]?.source;
-    return source && channels.some((c) => c.value === source) ? source : null;
-  };
-  const running = Object.keys(desk.rooms).filter((room) => desk.rooms[room]?.status !== 'error');
-  const captioning = running.filter((room) => desk.rooms[room]?.status === 'capturing');
-  /** A multi-mic room's channels in matrix order (Mic 1 first), those still on the interface. */
-  const patchedMics = (room: string) => channels.filter((c) => patch[room]?.mics?.includes(c.value)).map((c) => c.value);
-  const isMulti = (room: string) => !!patch[room]?.multi;
-  const ready = (room: string) => (isMulti(room) ? patchedMics(room).length >= 2 : !!patchedSource(room));
-  const startable = rooms.filter((room) => !desk.rooms[room] && ready(room));
-  const captionedAnywhere = rooms.filter((room) => captioning.some((r) => sameRoom(r, room)) || !!elsewhere(room));
-  const missing = uncaptioned(live, [...captioning, ...captionedAnywhere]);
-  const streamed = rooms.filter((room) => elsewhere(room) === 'ingest');
-  const onAir = (room: string) => live.find((s) => sameRoom(s.room, room));
-  const liveRunning = running.filter((room) => onAir(room));
-
-  // Closing the tab mid-session silences every room: ask first.
-  useEffect(() => {
-    if (running.length === 0) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [running.length]);
-
-  const startRoom = (room: string) => {
-    if (isMulti(room)) {
-      const mics = patchedMics(room);
-      if (mics.length >= 2) void desk.startMulti(room, mics);
-      return;
-    }
-    const source = patchedSource(room);
-    if (source) void desk.start(room, source, !!patch[room]?.diarise);
-  };
-  // Run from another computer: report this desk, and carry out what is asked of it
-  const toast = useToast();
-  useDeskReporting({
-    connected: !!desk.inputs,
-    name: `${desk.inputs?.[0]?.label ?? 'Sound desk'} · ${thisDeskId().slice(0, 4)}`,
-    channels,
+function SoundDesk() {
+  const {
+    desk,
+    live,
     rooms,
-    sourceOf: (room) => (isMulti(room) ? null : patchedSource(room)),
-    states: desk.rooms,
-    onCommand: (c) => {
-      const onAirHere = !!desk.rooms[c.room] && desk.rooms[c.room]?.status !== 'error';
-      if (c.action === 'patch' && !onAirHere && !isMulti(c.room)) updatePatch(c.room, { source: c.source ?? '' });
-      else if (c.action === 'start' && !desk.rooms[c.room]) startRoom(c.room);
-      else if (c.action === 'stop') void desk.stop(c.room);
-      else return;
-      toast.push({ title: `${c.room}: ${c.action === 'patch' ? (c.source ? 'patched' : 'unpatched') : c.action === 'start' ? 'started' : 'stopped'} from another computer` });
-    },
-  });
-  // a desk on air must not sleep: that silences every room on it
-  useWakeLock(running.length > 0);
-
-  // What was on air, kept on this computer, so a reload can put it back with one click
-  const [saved] = useState(readResume);
-  const tabOf = (room: string) => {
-    const source = patchedSource(room);
-    return source && isTabSource(source) ? (desk.inputs?.find((i) => source.startsWith(`${i.deviceId}#`))?.label ?? null) : null;
-  };
-  // a reload starts with nothing connected: what was saved is kept until the desk is back
-  const onAirNow = desk.inputs ? JSON.stringify(Object.keys(desk.rooms).filter((room) => desk.rooms[room]?.status !== 'error').map((room) => ({ room, tab: tabOf(room) }))) : null;
-  useEffect(() => {
-    if (onAirNow !== null) writeResume(JSON.parse(onAirNow) as ResumeRoom[]);
-  }, [onAirNow]);
-  const latest = useRef({ startRoom, ready, rooms: desk.rooms, inputs: desk.inputs });
-  useEffect(() => {
-    latest.current = { startRoom, ready, rooms: desk.rooms, inputs: desk.inputs };
-  });
-  const [resumeState, setResumeState] = useState<'offer' | 'working' | 'done'>('offer');
-  const resumable = saved.filter((r) => !desk.rooms[r.room]);
-  const resume = async () => {
-    setResumeState('working');
-    const needsInterface = saved.some((r) => !r.tab);
-    if (needsInterface && !latest.current.inputs?.some((i) => !isTabSource(i.deviceId))) await desk.connect();
-    for (const label of [...new Set(saved.map((r) => r.tab).filter((t): t is string => !!t))]) {
-      if (latest.current.inputs?.some((i) => i.label === label)) continue;
-      const rooms = saved.filter((r) => r.tab === label).map((r) => r.room).join(', ');
-      toast.push({ title: `Share the tab for ${rooms}`, body: `Pick “${label.replace(/^Browser tab · /, '')}” and turn on “Also share tab audio”.`, duration: 15000 });
-      await desk.shareTab();
-    }
-    // the inputs are in; start each room once the page has caught up with them
-    await new Promise((r) => setTimeout(r, 400));
-    const { startRoom: go, ready: isReady, rooms: onAir } = latest.current;
-    const left: string[] = [];
-    for (const r of saved) {
-      if (onAir[r.room]) continue;
-      if (isReady(r.room)) go(r.room);
-      else left.push(r.room);
-    }
-    setResumeState('done');
-    toast.push({
-      title: left.length ? 'Some rooms could not resume' : 'Captioning resumed',
-      body: left.length ? `${left.join(', ')}: their channel or tab is not here. Patch them and press Start.` : `${saved.length} room(s) back on air.`,
-    });
-  };
+    channels,
+    patch,
+    updatePatch,
+    patchedSource,
+    patchedMics,
+    isMulti,
+    ready,
+    startable,
+    running,
+    captioning,
+    captionedAnywhere,
+    missing,
+    streamed,
+    elsewhere,
+    onAir,
+    liveRunning,
+    startRoom,
+    resumable,
+    resumeState,
+    resume,
+    dismissResume,
+    stopDesk,
+  } = useDesk();
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
 
   const confirmNow = () => {
     if (!confirm) return;
     if (confirm.kind === 'room') void desk.stop(confirm.room);
     else if (confirm.kind === 'all') running.forEach((room) => void desk.stop(room));
-    else {
-      writeResume([]); // put away on purpose: nothing to resume
-      void desk.disconnect();
-    }
+    else stopDesk();
     setConfirm(null);
   };
 
@@ -687,7 +549,7 @@ function SoundDesk({ live }: { live: Session[] }) {
     return (
       <div className="flex flex-col gap-5">
         <SuggestionsStrip sessions={live} />
-        {resumeState !== 'done' && resumable.length > 0 && <ResumeBanner rooms={resumable.map((r) => r.room)} working={resumeState === 'working'} onResume={() => void resume()} onDismiss={() => setResumeState('done')} />}
+        {resumeState !== 'done' && resumable.length > 0 && <ResumeBanner rooms={resumable.map((r) => r.room)} working={resumeState === 'working'} onResume={resume} onDismiss={dismissResume} />}
         <RemoteDesks />
         <DeskSetup permission={desk.permission} connecting={desk.connecting} error={desk.error} streamed={streamed} onConnect={() => void desk.connect()} onShareTab={() => void desk.shareTab()} />
         {/* recordings kept from earlier, still uploading or to download */}
@@ -700,7 +562,7 @@ function SoundDesk({ live }: { live: Session[] }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {resumeState !== 'done' && resumable.length > 0 && <ResumeBanner rooms={resumable.map((r) => r.room)} working={resumeState === 'working'} onResume={() => void resume()} onDismiss={() => setResumeState('done')} />}
+      {resumeState !== 'done' && resumable.length > 0 && <ResumeBanner rooms={resumable.map((r) => r.room)} working={resumeState === 'working'} onResume={resume} onDismiss={dismissResume} />}
       <RemoteDesks />
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         <FigureCard
@@ -1008,7 +870,7 @@ export default function CaptionsPage() {
             <Monitor sessions={sessions} />
           </div>
           <div id={tabPanelId('captions', 'desk')} role="tabpanel" aria-labelledby={tabId('captions', 'desk')} hidden={tab !== 'desk'}>
-            <SoundDesk live={sessions} />
+            <SoundDesk />
           </div>
         </>
       )}

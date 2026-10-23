@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { BreadcrumbProvider, Breadcrumbs } from '@/components/shell/breadcrumbs';
+import { DeskBar } from '@/components/captions/desk-bar';
+import { DeskProvider } from '@/components/captions/desk-provider';
 import { usePathname } from 'next/navigation';
 import { NavMenu } from '@/components/shell/nav-menu';
 import { OpsAlerts } from '@/components/shell/ops-alerts';
@@ -52,6 +54,8 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
     });
 
   return (
+    // the sound desk lives above every page, so captioning carries on while staff move around
+    <DeskProvider>
     <BreadcrumbProvider>
       <div data-console className="flex min-h-screen bg-canvas">
         <a href="#content" className="skip-link">
@@ -63,6 +67,7 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar user={user} onMenu={() => setMenuOpen(true)} />
+          <DeskBar />
           <OpsAlerts />
           <SwitchAlerts tier={user.tier} />
           {/* the page: a PIC event photo held still behind it, washed pale so the white panels and text read */}
@@ -85,6 +90,7 @@ export function ConsoleShell({ user, children }: { user: StaffUser; children: Re
         <NavMenu groups={groups} open={menuOpen} onClose={closeMenu} />
       </div>
     </BreadcrumbProvider>
+    </DeskProvider>
   );
 }
 

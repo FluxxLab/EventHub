@@ -181,6 +181,28 @@ export function useSoundDesk() {
   const frame = useRef(0);
   const worklet = useRef(false);
   const metering = useRef(false);
+  // A reload can open the audio before anyone clicks; the browser may then hold it paused until a click or key.
+  const [audioBlocked, setAudioBlocked] = useState(false);
+
+  /** Runs the audio engine, or waits for the first click or key press when the browser holds it. */
+  const wake = useCallback(async (audio: AudioContext) => {
+    await audio.resume().catch(() => undefined);
+    if (audio.state === 'running') {
+      setAudioBlocked(false);
+      return;
+    }
+    setAudioBlocked(true);
+    const go = () => {
+      void audio.resume().then(() => {
+        if (audio.state !== 'running') return;
+        setAudioBlocked(false);
+        window.removeEventListener('pointerdown', go, true);
+        window.removeEventListener('keydown', go, true);
+      });
+    };
+    window.addEventListener('pointerdown', go, true);
+    window.addEventListener('keydown', go, true);
+  }, []);
 
   const setRoom = useCallback((room: string, state: RoomState | null) => {
     // the backup counts time spent reconnecting as time offline
@@ -218,6 +240,7 @@ export function useSoundDesk() {
     opened.current.clear();
     void ctx.current?.close();
     ctx.current = null;
+    setAudioBlocked(false);
     setInputs(null);
     setLevels({});
     holds.current.clear();
@@ -296,6 +319,7 @@ export function useSoundDesk() {
       // any shared tab stays listed after the interface's channels
       setInputs((was) => [...found, ...(was ?? []).filter((i) => i.deviceId.startsWith('tab-'))]);
       setPermission('granted');
+      await wake(audio);
       startMeters();
     } catch (e) {
       await disconnect();
@@ -307,7 +331,7 @@ export function useSoundDesk() {
     } finally {
       setConnecting(false);
     }
-  }, [disconnect, setPermission, startMeters]);
+  }, [disconnect, setPermission, startMeters, wake]);
 
   const start = useCallback(
     async (room: string, source: string, diarise: boolean) => {
@@ -479,8 +503,8 @@ export function useSoundDesk() {
     }
   }, [startMeters, stop]);
 
-  // Leaving the page releases the interface and every room (the server lets a room go after 15 s).
+  // Signing out (the console closing) releases the interface and every room (the server lets a room go after 15 s).
   useEffect(() => () => void disconnect(), [disconnect]);
 
-  return { permission, inputs, connecting, error, levels, rooms, connect, disconnect, start, startMulti, stop, shareTab };
+  return { permission, inputs, connecting, error, levels, rooms, audioBlocked, connect, disconnect, start, startMulti, stop, shareTab };
 }
