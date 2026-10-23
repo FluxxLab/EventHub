@@ -183,7 +183,7 @@ export function ChannelNamesDialog({ open, onClose }: { open: boolean; onClose: 
  */
 export function RoomBoard({ onPatch }: { onPatch: () => void }) {
   const control = useDesk();
-  const { desk, rooms, channels, patchedSource, patchedMics, isMulti, ready, elsewhere, onAir, startRoom } = control;
+  const { desk, rooms, channels, patchedSource, patchedMics, isMulti, ready, elsewhere, onAir, startRoom, stopRoom } = control;
   const names = useChannelNames();
   const toast = useToast();
   const board = useBoard();
@@ -342,7 +342,7 @@ export function RoomBoard({ onPatch }: { onPatch: () => void }) {
                 {state?.message && <p className={cn('text-xs', state.status === 'error' ? 'text-danger' : 'text-warning')}>{state.message}</p>}
                 <div className="mt-auto flex flex-wrap gap-2 pt-1">
                   {busy ? (
-                    <button type="button" onClick={() => (r.live ? setStopping(r.room) : void desk.stop(r.room))} className={buttonClass({ style: 'outline', color: 'danger', className: 'h-8' })}>
+                    <button type="button" onClick={() => (r.live ? setStopping(r.room) : void stopRoom(r.room))} className={buttonClass({ style: 'outline', color: 'danger', className: 'h-8' })}>
                       <StopCircleIcon className="size-4" />
                       Stop
                     </button>
@@ -387,7 +387,7 @@ export function RoomBoard({ onPatch }: { onPatch: () => void }) {
         tone="danger"
         onCancel={() => setStopping(null)}
         onConfirm={() => {
-          if (stopping) void desk.stop(stopping);
+          if (stopping) void stopRoom(stopping);
           setStopping(null);
         }}
       >

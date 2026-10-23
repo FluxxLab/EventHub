@@ -7,7 +7,6 @@ import {
   BookOpenIcon,
   BuildingOffice2Icon,
   CheckCircleIcon,
-  CloudIcon,
   ComputerDesktopIcon,
   ExclamationTriangleIcon,
   MicrophoneIcon,
@@ -25,7 +24,6 @@ import {
 import Link from 'next/link';
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 
-import { FigureCard } from '@/components/dashboard/stat-card';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -494,12 +492,12 @@ function SoundDesk() {
     running,
     captioning,
     captionedAnywhere,
-    missing,
     streamed,
     elsewhere,
     onAir,
     liveRunning,
     startRoom,
+    stopRoom,
     resumable,
     resumeState,
     resume,
@@ -514,8 +512,8 @@ function SoundDesk() {
 
   const confirmNow = () => {
     if (!confirm) return;
-    if (confirm.kind === 'room') void desk.stop(confirm.room);
-    else if (confirm.kind === 'all') running.forEach((room) => void desk.stop(room));
+    if (confirm.kind === 'room') void stopRoom(confirm.room);
+    else if (confirm.kind === 'all') running.forEach((room) => void stopRoom(room));
     else stopDesk();
     setConfirm(null);
   };
@@ -533,57 +531,33 @@ function SoundDesk() {
     );
   }
   const inputs = desk.inputs;
-  const channelCount = channels.length;
 
   return (
     <div className="flex flex-col gap-5">
       {resumeState !== 'done' && resumable.length > 0 && <ResumeBanner rooms={resumable.map((r) => r.room)} working={resumeState === 'working'} onResume={resume} onDismiss={dismissResume} />}
-      <RemoteDesks />
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-        <FigureCard
-          label="Live without captions"
-          icon={SignalSlashIcon}
-          value={String(missing.length)}
-          note={missing.length ? missing.map((s) => s.room).join(', ') : live.length ? 'Every live room is captioned' : 'Nothing live right now'}
-          tone={missing.length ? 'danger' : live.length ? 'success' : undefined}
-        />
-        <FigureCard
-          label="Rooms captioned"
-          icon={BuildingOffice2Icon}
-          value={`${captionedAnywhere.length} of ${rooms.length}`}
-          note={
-            [
-              captioning.length ? `${captioning.length} from this desk` : '',
-              streamed.length ? `${streamed.length} from venue streams` : '',
-              running.length > captioning.length ? `${running.length - captioning.length} standing by or reconnecting` : '',
-            ]
-              .filter(Boolean)
-              .join(' · ') || undefined
-          }
-        />
-        <FigureCard label="Channels" icon={AdjustmentsVerticalIcon} value={String(channelCount)} note={inputs.map((i) => i.label).join(', ')} />
-        <FigureCard label="Caption service" icon={CloudIcon} hint="The link from this desk to the caption service">
-          <div className="flex flex-col gap-2">
-            <ConnectionDot />
-            <button
-              type="button"
-              onClick={() => (running.length ? setConfirm({ kind: 'disconnect' }) : void desk.disconnect())}
-              className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9 self-start' })}
-            >
-              Disconnect interface
-            </button>
-            <button
-              type="button"
-              onClick={() => void desk.shareTab()}
-              title="Caption a room from another tab's sound, such as its YouTube stream. Choose the tab and turn on “Also share tab audio”."
-              className={buttonClass({ style: 'outline', color: 'gray', className: 'h-9 self-start' })}
-            >
-              <ComputerDesktopIcon className="size-4" />
-              Add a browser tab
-            </button>
-            {desk.error && <p className="max-w-56 text-xs text-danger">{desk.error}</p>}
-          </div>
-        </FigureCard>
+      {/* one quiet line about the desk itself; the rooms below are what matters */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm">
+        <ConnectionDot />
+        <span className="min-w-0 flex-1 truncate text-ink-soft" title={inputs.map((i) => i.label).join(', ')}>
+          This computer is the sound desk · {captioning.length ? `${captioning.length} room${captioning.length === 1 ? '' : 's'} on air` : 'no room on air yet'}. Rooms with a mic start by themselves.
+        </span>
+        <button
+          type="button"
+          onClick={() => void desk.shareTab()}
+          title="Caption a room from another tab's sound, such as its YouTube stream. Choose the tab and turn on “Also share tab audio”."
+          className={buttonClass({ style: 'outline', color: 'gray', className: 'h-8' })}
+        >
+          <ComputerDesktopIcon className="size-4" />
+          Add a YouTube tab
+        </button>
+        <button
+          type="button"
+          onClick={() => (running.length ? setConfirm({ kind: 'disconnect' }) : void desk.disconnect())}
+          className={buttonClass({ style: 'borderless', color: 'gray', className: 'h-8' })}
+        >
+          Disconnect
+        </button>
+        {desk.error && <p className="w-full text-xs text-danger">{desk.error}</p>}
       </div>
 
       {/* voices heard introducing themselves in a live room, for the desk to name or not */}
@@ -596,13 +570,15 @@ function SoundDesk() {
           onChange={setView}
           options={[
             { value: 'rooms', label: 'Rooms' },
-            { value: 'patch', label: 'Patch' },
+            { value: 'patch', label: 'Set up mics' },
           ]}
         />
-        <button type="button" onClick={() => setNaming(true)} className={buttonClass({ style: 'outline', color: 'gray' })}>
-          <TagIcon className="size-4" />
-          Name channels
-        </button>
+        {view === 'patch' && (
+          <button type="button" onClick={() => setNaming(true)} className={buttonClass({ style: 'outline', color: 'gray' })}>
+            <TagIcon className="size-4" />
+            Name channels
+          </button>
+        )}
       </div>
       {naming && <ChannelNamesDialog open onClose={() => setNaming(false)} />}
 
@@ -798,7 +774,7 @@ function SoundDesk() {
                             {busy ? (
                               <button
                                 type="button"
-                                onClick={() => (session ? setConfirm({ kind: 'room', room }) : void desk.stop(room))}
+                                onClick={() => (session ? setConfirm({ kind: 'room', room }) : void stopRoom(room))}
                                 className={buttonClass({ style: 'outline', color: 'danger', className: 'h-8 w-16' })}
                               >
                                 Stop

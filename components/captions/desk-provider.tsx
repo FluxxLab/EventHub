@@ -4,14 +4,16 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 
 import { useToast } from '@/components/ui/toaster';
 import { deskRooms, readPatch, sameRoom, sourceOptions, uncaptioned, type DeskPatch } from '@/lib/captions/captions';
+import { deskAlerts } from '@/lib/captions/desk-alerts';
 import { thisDeskId, useDeskReporting, useWakeLock } from '@/lib/captions/desk-remote';
 import { isTabSource, useLiveSessions, useSoundDesk } from '@/lib/captions/use-captions';
 import { useWorkingEdition } from '@/lib/events/working-edition';
 import type { CaptureSource } from '@/lib/ingest/ingest';
 import { useIngestRooms } from '@/lib/ingest/use-ingest';
-import { currentDay } from '@/lib/live/live';
+import { currentDay, roomStates } from '@/lib/live/live';
 import { useBoard } from '@/lib/live/use-live';
 import type { Session } from '@/lib/programme/programme';
+import { useNow } from '@/lib/use-now';
 import { useRooms } from '@/lib/venue/use-venue';
 
 export const PATCH_KEY = 'pic.admin.sound-desk-patch';
@@ -102,7 +104,14 @@ function useDeskControl() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [running.length]);
 
+  // Rooms someone stopped on purpose stay stopped; everything else patched is kept on air.
+  const held = useRef(new Set<string>());
+  const stopRoom = (room: string) => {
+    held.current.add(room);
+    return desk.stop(room);
+  };
   const startRoom = (room: string) => {
+    held.current.delete(room);
     if (isMulti(room)) {
       const mics = patchedMics(room);
       if (mics.length >= 2) void desk.startMulti(room, mics);
@@ -124,11 +133,60 @@ function useDeskControl() {
       const onAirHere = !!desk.rooms[c.room] && desk.rooms[c.room]?.status !== 'error';
       if (c.action === 'patch' && !onAirHere && !isMulti(c.room)) updatePatch(c.room, { source: c.source ?? '' });
       else if (c.action === 'start' && !desk.rooms[c.room]) startRoom(c.room);
-      else if (c.action === 'stop') void desk.stop(c.room);
+      else if (c.action === 'stop') void stopRoom(c.room);
       else return;
       toast.push({ title: `${c.room}: ${c.action === 'patch' ? (c.source ? 'patched' : 'unpatched') : c.action === 'start' ? 'started' : 'stopped'} from another computer` });
     },
   });
+  // Hands-off: with the interface connected, every patched room goes on air by itself, and one
+  // that stopped with an error is tried again every 20 s, until someone stops it on purpose.
+  const keepOn = useRef({ rooms, ready, startRoom, states: desk.rooms, connected: !!desk.inputs, stop: desk.stop });
+  useEffect(() => {
+    keepOn.current = { rooms, ready, startRoom, states: desk.rooms, connected: !!desk.inputs, stop: desk.stop };
+  });
+  useEffect(() => {
+    const lastTry = new Map<string, number>();
+    const timer = setInterval(() => {
+      const k = keepOn.current;
+      if (!k.connected) return;
+      const t = Date.now();
+      for (const room of k.rooms) {
+        if (held.current.has(room) || !k.ready(room)) continue;
+        const state = k.states[room];
+        if (!state) k.startRoom(room);
+        else if (state.status === 'error' && t - (lastTry.get(room) ?? 0) > 20_000) {
+          lastTry.set(room, t);
+          void k.stop(room).then(() => k.startRoom(room));
+        }
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // the problems any page can show: no captions, stopped, run over (silence needs the room's feed, on the desk)
+  const states = useMemo(() => {
+    const sessions = board.data ?? [];
+    return roomStates(sessions, [], currentDay(sessions).day);
+  }, [board.data]);
+  const alertNow = useNow(30_000).getTime();
+  const alerts = deskAlerts(
+    rooms.map((room) => {
+      const l = onAir(room);
+      const s = states.find((x) => sameRoom(x.room, room));
+      const state = desk.rooms[room];
+      return {
+        room,
+        live: l ? { id: l.id, title: l.title, endsAt: s?.live?.endsAt ?? '' } : null,
+        next: s?.next ? { id: s.next.id, title: s.next.title, startsAt: s.next.startsAt } : null,
+        desk: state ? { status: state.status, message: state.message } : null,
+        elsewhere: !!elsewhere(room),
+        ready: ready(room),
+        silence: { level: 'ok' as const, seconds: 0 },
+      };
+    }),
+    alertNow,
+  );
+
   // a desk on air must not sleep: that silences every room on it
   useWakeLock(running.length > 0);
 
@@ -206,6 +264,7 @@ function useDeskControl() {
   });
 
   const stopDesk = () => {
+    held.current.clear();
     writeResume([]); // put away on purpose: nothing to resume
     void desk.disconnect();
   };
@@ -232,6 +291,8 @@ function useDeskControl() {
     onAir,
     liveRunning,
     startRoom,
+    stopRoom,
+    alerts,
     resumable,
     resumeState,
     resume: () => void resume(false),

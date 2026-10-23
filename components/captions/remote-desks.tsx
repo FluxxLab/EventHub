@@ -22,9 +22,11 @@ const STATUS: Record<string, { label: string; tone: string }> = {
  * The sound desks at the venue, run from here: each desk's rooms with the channel they are patched
  * to, what is on air, and Start or Stop. Nothing to do with this computer's own audio.
  */
-export function RemoteDesks() {
+export function RemoteDesks({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean }) {
   const desks = useRemoteDesks();
   if (desks.isPending || desks.isError) return null;
+  // on the desk itself, an empty list is only noise
+  if (hideWhenEmpty && !desks.data?.length) return null;
   return (
     <Panel title="Remote desks" description="Sound desks at the venue, run from here. Changes happen on the desk as if clicked there; it reports back within seconds.">
       {!desks.data?.length && (
