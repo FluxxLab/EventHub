@@ -32,3 +32,11 @@ describe('start-time correction text', () => {
     expect(shiftText(null)).toBeNull();
   });
 });
+
+describe('a start time typed alone', () => {
+  it('is taken on the day being re-captioned', () => {
+    expect(startInstant('09:05:54', 'utc', '2026-10-22')).toBe('2026-10-22T09:05:54.000Z');
+    expect(startInstant('9:05', 'abuja', '2026-10-22')).toBe('2026-10-22T08:05:00.000Z');
+    expect(startInstant('09:05:54', 'utc')).toBeNull();
+  });
+});

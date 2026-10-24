@@ -40,8 +40,11 @@ export function RecaptionDialog({ open, day, sessions, onClose }: { open: boolea
     if (!file) return setError('Choose the audio file.');
     const type = contentTypeOf(file);
     if (!type) return setError('That file type is not taken. Use the .m4a the command saves (or .mp3, .mp4, .wav).');
-    const startedAt = startInstant(started, zone);
-    if (!startedAt) return setError('Enter when the stream started: the number after “Started” the command printed, or a date and time such as 2026-10-21 08:47:12.');
+    // a time alone is taken on the day being re-captioned (its date in Abuja)
+    const first = sessions.find((s) => s.day === day);
+    const onDay = first ? new Date(Date.parse(first.startsAt) + 3_600_000).toISOString().slice(0, 10) : undefined;
+    const startedAt = startInstant(started, zone, onDay);
+    if (!startedAt) return setError('Enter when the stream started: the number after “Started” the command printed, a time such as 09:05:54, or a date and time such as 2026-10-21 08:47:12.');
     setStage({ kind: 'uploading', percent: 0 });
     void (async () => {
       try {
@@ -136,7 +139,7 @@ export function RecaptionDialog({ open, day, sessions, onClose }: { open: boolea
             <input id={`${id}-file`} type="file" accept=".m4a,.mp4,.mp3,.aac,.wav,.webm,.ogg,.opus,audio/*,video/mp4" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-sm" />
           </Field>
           <div className="flex flex-wrap items-end gap-3">
-            <Field id={`${id}-start`} label="Stream started at" hint="The number after “Started” the command printed (e.g. 1792572432), or a date and time." className="min-w-56 flex-1">
+            <Field id={`${id}-start`} label="Stream started at" hint="The number after “Started” the command printed (e.g. 1792572432), or a time. A rough time is fine: it is checked against the live captions." className="min-w-56 flex-1">
               <TextInput id={`${id}-start`} value={started} onChange={(e) => setStarted(e.target.value.replace(/^Started\s+/i, '').replace(/\s*\|.*$/, ''))} placeholder="1792572432" />
             </Field>
             <Field id={`${id}-zone`} label="Time is in" className="w-44">

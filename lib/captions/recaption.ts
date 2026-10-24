@@ -26,12 +26,15 @@ export function ytDlpCommand(link: string): string {
 
 /**
  * When the stream started, as an instant: the number the command prints (seconds since 1970), or a
- * date and time ("2026-10-21 08:47:12") in UTC or Abuja (UTC+1). Null when unreadable.
+ * date and time ("2026-10-21 08:47:12") in UTC or Abuja (UTC+1), or a time alone ("09:05:54") on
+ * `onDay` (YYYY-MM-DD), the programme day being re-captioned. Null when unreadable.
  */
-export function startInstant(text: string, zone: 'utc' | 'abuja'): string | null {
+export function startInstant(text: string, zone: 'utc' | 'abuja', onDay?: string): string | null {
   const seconds = /^\d{9,11}$/.exec(text.trim());
   if (seconds) return new Date(Number(seconds[0]) * 1000).toISOString();
-  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(text.trim());
+  const timeOnly = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(text.trim());
+  const input = timeOnly && onDay ? `${onDay} ${text.trim()}` : text.trim();
+  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(input);
   if (!m) return null;
   const iso = `${m[1]}T${m[2]!.padStart(2, '0')}:${m[3]}:${m[4] ?? '00'}${zone === 'utc' ? 'Z' : '+01:00'}`;
   const t = Date.parse(iso);
