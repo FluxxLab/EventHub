@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { contentTypeOf, startInstant, ytDlpCommand } from '@/lib/captions/recaption';
+import { contentTypeOf, shiftText, startInstant, ytDlpCommand } from '@/lib/captions/recaption';
 
 describe('re-caption from YouTube', () => {
   it('knows the audio by its extension', () => {
@@ -20,5 +20,15 @@ describe('re-caption from YouTube', () => {
   it('builds the laptop command around the link', () => {
     expect(ytDlpCommand('https://youtu.be/abc')).toContain('"https://youtu.be/abc"');
     expect(ytDlpCommand('')).toContain('PASTE-YOUTUBE-LINK');
+  });
+});
+
+describe('start-time correction text', () => {
+  it('reads hours and minutes, and says nothing under a minute', () => {
+    expect(shiftText(6 * 3_600_000 + 29 * 60_000)).toBe('6 h 29 min later');
+    expect(shiftText(-45 * 60_000)).toBe('45 min earlier');
+    expect(shiftText(2 * 3_600_000)).toBe('2 h later');
+    expect(shiftText(30_000)).toBeNull();
+    expect(shiftText(null)).toBeNull();
   });
 });

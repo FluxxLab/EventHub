@@ -54,7 +54,24 @@ export function durationOf(file: File): Promise<number | null> {
   });
 }
 
-export type RecaptionResult = { inserted: number; skipped: number; sessions: { id: string; title: string; inserted: number }[] };
+export type RecaptionResult = {
+  inserted: number;
+  skipped: number;
+  sessions: { id: string; title: string; inserted: number }[];
+  /** How far the server corrected the start time from the live captions, ms; null when it could not check. */
+  shiftedMs?: number | null;
+  /** Lines from an earlier, misplaced run of the same recording that were removed. */
+  staleRemoved?: number;
+};
+
+/** "6 h 29 min later", for a correction worth mentioning (over a minute), else null. */
+export function shiftText(ms: number | null | undefined): string | null {
+  if (ms == null || Math.abs(ms) < 60_000) return null;
+  const mins = Math.round(Math.abs(ms) / 60_000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h ? `${h} h ` : ''}${m ? `${m} min` : ''}`.trim() + (ms > 0 ? ' later' : ' earlier');
+}
 
 /**
  * Sends a stream's recording to be transcribed in place of the room's live captions over its hours:
@@ -88,7 +105,7 @@ export async function recaption(
     await new Promise((r) => setTimeout(r, 10_000));
     const job = await api.get<{ state: string; error?: string } & Partial<RecaptionResult>>(`/captions/backfill/${jobId}`).catch(() => null);
     if (!job) continue;
-    if (job.state === 'completed') return { inserted: job.inserted ?? 0, skipped: job.skipped ?? 0, sessions: job.sessions ?? [] };
+    if (job.state === 'completed') return { inserted: job.inserted ?? 0, skipped: job.skipped ?? 0, sessions: job.sessions ?? [], shiftedMs: job.shiftedMs ?? null, staleRemoved: job.staleRemoved ?? 0 };
     if (job.state === 'failed') throw new Error(job.error || 'The recording could not be transcribed.');
   }
   throw new Error('Still transcribing after an hour; check back later.');

@@ -8,7 +8,7 @@ import { FormDialog } from '@/components/ui/form-dialog';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toaster';
 import { RecaptionArt, WorkCard, WorkSteps } from '@/components/ui/work-art';
-import { contentTypeOf, durationOf, recaption, startInstant, ytDlpCommand, type RecaptionResult } from '@/lib/captions/recaption';
+import { contentTypeOf, durationOf, recaption, shiftText, startInstant, ytDlpCommand, type RecaptionResult } from '@/lib/captions/recaption';
 import type { Session } from '@/lib/programme/programme';
 
 type Stage = { kind: 'uploading'; percent: number } | { kind: 'transcribing' } | null;
@@ -90,6 +90,13 @@ export function RecaptionDialog({ open, day, sessions, onClose }: { open: boolea
           <p className="text-ink">
             <strong>{result.inserted}</strong> lines now in place of the live captions{result.skipped ? `; ${result.skipped} fell outside any session (breaks)` : ''}:
           </p>
+          {shiftText(result.shiftedMs) && (
+            <p className="rounded-lg bg-primary-soft px-3 py-2 text-ink">
+              The recording actually started <strong>{shiftText(result.shiftedMs)}</strong> than the time given. It was matched to the live captions and placed at the right time.
+            </p>
+          )}
+          {!!result.staleRemoved && <p className="text-ink-soft">{result.staleRemoved} lines left at the wrong time by an earlier run were removed.</p>}
+          {result.shiftedMs === null && <p className="text-ink-soft">The start time could not be checked against the live captions, so the time given was used.</p>}
           <ul className="list-disc pl-5 text-ink-soft">
             {result.sessions.map((s) => (
               <li key={s.id}>
