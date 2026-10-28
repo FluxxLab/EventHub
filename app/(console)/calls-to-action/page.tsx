@@ -15,6 +15,7 @@ import {
   Squares2X2Icon,
   TableCellsIcon,
   TrashIcon,
+  TrophyIcon,
   UserGroupIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -27,6 +28,7 @@ import { NamesDialog } from '@/components/calls-to-action/names-dialog';
 import { RepeatsDialog } from '@/components/calls-to-action/repeats-dialog';
 import { ReportDialog } from '@/components/calls-to-action/report-dialog';
 import { StakeholdersPanel } from '@/components/calls-to-action/stakeholders-panel';
+import { TopBriefDialog } from '@/components/calls-to-action/top-brief-dialog';
 import { EventBar } from '@/components/events/event-bar';
 import { buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/card';
@@ -93,6 +95,7 @@ function Board({ edition }: { edition: Edition }) {
     setDeckOpen(true);
   };
   const [reportOpen, setReportOpen] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
   const [manyOpen, setManyOpen] = useState(false);
   const [namesOpen, setNamesOpen] = useState(false);
   const [repeatsOpen, setRepeatsOpen] = useState(false);
@@ -343,6 +346,10 @@ function Board({ edition }: { edition: Edition }) {
                 <DocumentTextIcon className="size-4" />
                 Rapporteur report
               </button>
+              <button type="button" onClick={() => setBriefOpen(true)} disabled={counts.approved + counts.suggested === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
+                <TrophyIcon className="size-4" />
+                Top 5 brief
+              </button>
               {/* with nothing listed, the empty state below offers it instead */}
               {items.length > 0 && (
                 <button type="button" onClick={() => setEditing({ call: null })} className={buttonClass()}>
@@ -559,6 +566,7 @@ function Board({ edition }: { edition: Edition }) {
       )}
       {namesOpen && <NamesDialog open people={people} onRename={rename} onClose={() => setNamesOpen(false)} />}
       {repeatsOpen && <RepeatsDialog open repeats={repeats} titleOf={titleOf} onMerge={mergeRepeat} onDismiss={dismissRepeat} onClose={() => setRepeatsOpen(false)} />}
+      {briefOpen && <TopBriefDialog open edition={edition} approved={counts.approved} pending={counts.suggested} onClose={() => setBriefOpen(false)} />}
       {reportOpen && <ReportDialog open edition={edition} sessions={sessionList} initialSessionId={sessionFilter === 'all' ? null : sessionFilter} onClose={() => setReportOpen(false)} />}
       {deckOpen && (
         <DeckDialog
