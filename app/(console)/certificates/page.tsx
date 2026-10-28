@@ -18,7 +18,6 @@ import { fileProblem, formatBytes } from '@/lib/materials/materials';
 import { useNow } from '@/lib/use-now';
 import { cn } from '@/lib/utils';
 
-
 const cardClass = 'overflow-hidden rounded-xl border border-border bg-surface';
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -59,8 +58,6 @@ function PublishDialog({ open, current, onClose }: { open: boolean; current: Pur
     publish.reset();
     onClose();
   };
-
-  
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim()) return setProblem('Give it a title.');
