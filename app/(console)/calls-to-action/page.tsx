@@ -348,7 +348,7 @@ function Board({ edition }: { edition: Edition }) {
               </button>
               <button type="button" onClick={() => setBriefOpen(true)} disabled={counts.approved + counts.suggested === 0} className={buttonClass({ style: 'outline', color: 'gray' })}>
                 <TrophyIcon className="size-4" />
-                Top 5 brief
+                Top picks brief
               </button>
               {/* with nothing listed, the empty state below offers it instead */}
               {items.length > 0 && (

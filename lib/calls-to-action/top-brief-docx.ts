@@ -1,6 +1,6 @@
 /**
- * The event's abridged brief as a Word file: the top recommendations and commitments for its
- * theme, each with who it is for, who raised it, their words and why it ranks. Built on the
+ * The event's abridged brief as a Word file: the top recommendations and commitments from across
+ * all its sessions, each with who it is for, who raised it, their words and why it ranks. Built on the
  * Rapporteur Session Guide (public/report/rapporteur-guide.docx) so it keeps the event's page
  * setup and fonts; the guide's own content is replaced.
  */
@@ -22,7 +22,6 @@ export type BriefItem = {
 
 export type TopBrief = {
   event: string;
-  theme: string;
   read: { approved: number; pending: number };
   summary: string;
   recommendations: BriefItem[];
@@ -47,6 +46,9 @@ const field = (label: string, value: string, italic = false) => para([{ text: `$
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** A target the captions left open ("Not specified", "—"): not worth a line. */
+const named = (s: string) => !!s.trim() && !/^(not specified|unspecified|unknown|none|n\/a|-|—)$/i.test(s.trim());
+
 /** One pick's paragraphs: its headline, then what it involves and who said it. */
 function itemXml(item: BriefItem, kind: 'recommendation' | 'commitment'): string[] {
   const parts = [
@@ -54,10 +56,10 @@ function itemXml(item: BriefItem, kind: 'recommendation' | 'commitment'): string
   ];
   if (item.detail) parts.push(para([{ text: item.detail }], { indent: 360, after: 80 }));
   if (kind === 'recommendation') {
-    parts.push(field('Directed at', item.directedAt));
+    if (named(item.directedAt)) parts.push(field('Directed at', item.directedAt));
     if (item.raisedBy.length) parts.push(field('Raised by', item.raisedBy.join('; ')));
   } else {
-    parts.push(field('Who will act', item.directedAt));
+    if (named(item.directedAt)) parts.push(field('Who will act', item.directedAt));
     if (item.raisedBy.length) parts.push(field('Said by', item.raisedBy.join('; ')));
   }
   if (item.deadline) parts.push(field('Timeline', item.deadline));
@@ -74,11 +76,10 @@ export function topBriefParagraphs(brief: TopBrief, preparedOn: string): string[
   const out = [
     para([{ text: brief.event, bold: true, size: 40 }], { after: 60 }),
     para([{ text: `Top ${n} recommendations and commitments`, bold: true, size: 30 }], { after: 120 }),
-    para([{ text: 'Theme: ', bold: true }, { text: brief.theme, italic: true }], { after: 120 }),
     para(
       [
         {
-          text: `Prepared ${preparedOn} from ${plural(brief.read.approved, 'approved call')} to action${brief.read.pending ? ` and ${brief.read.pending} still pending review` : ''}. Ranked with AI by relevance to the theme, how widely each was raised and how actionable it is. Speakers and quotes are as captioned. A draft: check before sharing.`,
+          text: `Prepared ${preparedOn} from ${plural(brief.read.approved, 'approved call')} to action${brief.read.pending ? ` and ${brief.read.pending} still pending review` : ''}, across all sessions. Ranked with AI by importance, how widely each was raised and how actionable it is, with no more than one pick per speaker and two per session in each list. Speakers and quotes are as captioned. A draft: check before sharing.`,
           italic: true,
           size: 18,
           color: '555555',
@@ -91,11 +92,11 @@ export function topBriefParagraphs(brief: TopBrief, preparedOn: string): string[
 
   out.push(para([{ text: 'Top recommendations', bold: true, size: 28 }], { before: 240, after: 60, keepNext: true }));
   if (brief.recommendations.length) out.push(...brief.recommendations.flatMap((r) => itemXml(r, 'recommendation')));
-  else out.push(para([{ text: 'No recommendation was relevant enough to the theme.', italic: true }]));
+  else out.push(para([{ text: 'No recommendations were found.', italic: true }]));
 
   out.push(para([{ text: 'Top commitments', bold: true, size: 28 }], { before: 360, after: 60, keepNext: true }));
   if (brief.commitments.length) out.push(...brief.commitments.flatMap((c) => itemXml(c, 'commitment')));
-  else out.push(para([{ text: 'No commitment was relevant enough to the theme.', italic: true }]));
+  else out.push(para([{ text: 'No commitments were found.', italic: true }]));
 
   if (brief.honourableMentions.length) {
     out.push(para([{ text: 'Also worth noting', bold: true, size: 24 }], { before: 360, after: 60, keepNext: true }));

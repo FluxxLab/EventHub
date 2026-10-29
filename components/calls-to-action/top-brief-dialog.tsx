@@ -14,24 +14,11 @@ import type { TopBrief } from '@/lib/calls-to-action/top-brief-docx';
 import { DEMO_MODE } from '@/lib/demo';
 import type { Edition } from '@/lib/events/events';
 
-const textarea = 'w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm leading-6 text-ink shadow-xs outline-none placeholder:text-placeholder focus:border-primary';
-
-/** The theme last used for this event, kept in the browser so it need not be typed again. */
-const themeKey = (editionId: string) => `top-brief-theme:${editionId}`;
-const readTheme = (editionId: string) => {
-  try {
-    return localStorage.getItem(themeKey(editionId)) ?? '';
-  } catch {
-    return '';
-  }
-};
-
 const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
 /** A sample answer for demo mode, which has no server to write one. */
-const demoBrief = (event: string, theme: string): TopBrief => ({
+const demoBrief = (event: string): TopBrief => ({
   event,
-  theme: theme || 'Shared compute and AI infrastructure',
   read: { approved: 12, pending: 3 },
   summary: 'Shared compute only pays off with reliable power and the skills to use it.',
   recommendations: [
@@ -54,15 +41,14 @@ const demoBrief = (event: string, theme: string): TopBrief => ({
 });
 
 /**
- * The event's abridged brief as a Word file: the AI ranks every call to action against the
- * event's theme and keeps the top recommendations and commitments, each with who it is for,
- * who raised it, their words and why it ranks.
+ * The event's abridged brief as a Word file: the AI ranks every call to action from across all
+ * sessions and keeps the top recommendations and commitments, spread across speakers and
+ * sessions, each with who it is for, who raised it, their words and why it ranks.
  */
 export function TopBriefDialog({ open, edition, approved, pending: pendingCount, onClose }: { open: boolean; edition: Edition; approved: number; pending: number; onClose: () => void }) {
   const id = useId();
   const toast = useToast();
-  const [theme, setTheme] = useState(() => readTheme(edition.id));
-  const [count, setCount] = useState('5');
+  const [count, setCount] = useState('10');
   const [includePending, setIncludePending] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,16 +59,9 @@ export function TopBriefDialog({ open, edition, approved, pending: pendingCount,
     if (considered === 0) return setError(includePending ? 'There are no calls to action yet. Analyse the sessions first.' : 'None are approved yet. Approve some, or include those pending review.');
     setError(null);
     setBusy(true);
-    try {
-      localStorage.setItem(themeKey(edition.id), theme.trim());
-    } catch {
-      // private browsing: the theme is just not remembered
-    }
     void (async () => {
       try {
-        const brief: TopBrief = DEMO_MODE
-          ? demoBrief(edition.name, theme.trim())
-          : await api.postSlow<TopBrief>(`/editions/${edition.id}/calls-to-action/top-brief`, { theme: theme.trim() || undefined, includePending, count: Number(count) });
+        const brief: TopBrief = DEMO_MODE ? demoBrief(edition.name) : await api.postSlow<TopBrief>(`/editions/${edition.id}/calls-to-action/top-brief`, { includePending, count: Number(count) });
         const [{ topBriefDocx }, { saveFile }] = await Promise.all([import('@/lib/calls-to-action/top-brief-docx'), import('@/lib/calls-to-action/report-docx')]);
         saveFile(await topBriefDocx(brief, longDate(new Date())), `${edition.shortName}-top-${count}-recommendations-and-commitments.docx`);
         toast.push({
@@ -104,9 +83,9 @@ export function TopBriefDialog({ open, edition, approved, pending: pendingCount,
       open={open}
       icon={TrophyIcon}
       title="Top recommendations brief"
-      subtitle="The AI ranks every call to action against the theme and writes the top picks into a short Word document."
+      subtitle="The AI ranks every call to action from across all sessions and writes the top picks into a short Word document, spread across speakers and sessions."
       pending={busy}
-      pendingLabel="Ranking… about a minute"
+      pendingLabel="Ranking… about two minutes"
       submitLabel="Download Word brief"
       error={error}
       onSubmit={submit}
@@ -115,17 +94,12 @@ export function TopBriefDialog({ open, edition, approved, pending: pendingCount,
       {busy ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <Spinner className="size-6" />
-          <p className="text-sm text-ink-soft">
-            Reading {considered} calls to action and picking the top {count} of each kind for the theme. Keep this open.
-          </p>
+          <p className="text-sm text-ink-soft">Reading {considered} calls to action and picking the top {count} of each kind from across the event. Keep this open.</p>
         </div>
       ) : (
         <>
-          <Field id={`${id}-theme`} label="Conference theme" hint="What the picks are ranked against. Leave blank to use the event’s description.">
-            <textarea id={`${id}-theme`} rows={2} maxLength={500} value={theme} placeholder="Africa’s Shared Compute and AI Infrastructure" onChange={(e) => setTheme(e.target.value)} className={textarea} />
-          </Field>
-          <Field id={`${id}-count`} label="How many of each">
-            <Select id={`${id}-count`} value={count} options={['3', '5', '7', '10'].map((n) => ({ value: n, label: `Top ${n} recommendations and top ${n} commitments` }))} onChange={setCount} />
+          <Field id={`${id}-count`} label="How many of each" hint="No more than one pick per speaker and two per session in each list, unless there are too few others.">
+            <Select id={`${id}-count`} value={count} options={['5', '10', '15'].map((n) => ({ value: n, label: `Top ${n} recommendations and top ${n} commitments` }))} onChange={setCount} />
           </Field>
           <div className="flex items-center gap-3">
             <Switch checked={includePending} onChange={setIncludePending} labelledBy={`${id}-pending`} />
