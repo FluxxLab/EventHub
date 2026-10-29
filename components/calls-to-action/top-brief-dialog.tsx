@@ -13,6 +13,7 @@ import { api } from '@/lib/api/client';
 import type { TopBrief } from '@/lib/calls-to-action/top-brief-docx';
 import { DEMO_MODE } from '@/lib/demo';
 import type { Edition } from '@/lib/events/events';
+import { RELOADING, reloadIfStale } from '@/lib/stale-build';
 
 const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -71,6 +72,7 @@ export function TopBriefDialog({ open, edition, approved, pending: pendingCount,
         });
         onClose();
       } catch (e) {
+        if (reloadIfStale(e)) return setError(RELOADING);
         setError(e instanceof Error ? e.message : 'The brief could not be written. Try again.');
       } finally {
         setBusy(false);

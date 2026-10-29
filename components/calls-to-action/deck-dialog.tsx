@@ -19,6 +19,7 @@ import type { DeckDesignResponse } from '@/lib/calls-to-action/deck';
 import { dateRange, type Edition } from '@/lib/events/events';
 import { dayDate, timeRange, type Session } from '@/lib/programme/programme';
 import { cn } from '@/lib/utils';
+import { RELOADING, reloadIfStale } from '@/lib/stale-build';
 
 type Kind = 'session' | 'day';
 
@@ -129,6 +130,7 @@ export function DeckDialog({
         });
         onClose();
       } catch (e) {
+        if (reloadIfStale(e)) return setError(RELOADING);
         setError(e instanceof Error ? e.message : 'The deck could not be made. Try again.');
       } finally {
         setPending(false);
@@ -159,6 +161,7 @@ export function DeckDialog({
       });
       onClose();
     } catch (e) {
+      if (reloadIfStale(e)) return setError(RELOADING);
       setError(e instanceof Error ? e.message : 'The deck could not be made. Try again.');
     } finally {
       setPending(false);

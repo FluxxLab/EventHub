@@ -14,6 +14,7 @@ import { DEMO_MODE } from '@/lib/demo';
 import type { Edition } from '@/lib/events/events';
 import { timeRange, type Session } from '@/lib/programme/programme';
 import { cn } from '@/lib/utils';
+import { RELOADING, reloadIfStale } from '@/lib/stale-build';
 
 type ReportResponse = { report: RapporteurReport; event: string; session: { title: string; startsAt: string; endsAt: string; room: string | null }; read: number };
 
@@ -273,6 +274,7 @@ export function ReportDialog({ open, edition, sessions, initialSessionId, onClos
         });
         onClose();
       } catch (e) {
+        if (reloadIfStale(e)) return setError(RELOADING);
         setError(e instanceof Error ? e.message : 'The report could not be written. Try again.');
       } finally {
         setPending(false);

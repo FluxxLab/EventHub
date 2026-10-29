@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ToastProvider } from '@/components/ui/toaster';
 import { ApiError } from '@/lib/api/client';
 import { session } from '@/lib/auth/session';
+import { reloadIfStale } from '@/lib/stale-build';
 
 /**
  * App-wide providers. Reads go through TanStack Query: 30 s freshness suits a console watching a
@@ -28,6 +29,18 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void session.restore();
+  }, []);
+
+  // a page opened before a deploy reloads when it reaches for the old build's code
+  useEffect(() => {
+    const onRejection = (e: PromiseRejectionEvent) => void reloadIfStale(e.reason);
+    const onError = (e: ErrorEvent) => void reloadIfStale(e.error ?? e.message);
+    window.addEventListener('unhandledrejection', onRejection);
+    window.addEventListener('error', onError);
+    return () => {
+      window.removeEventListener('unhandledrejection', onRejection);
+      window.removeEventListener('error', onError);
+    };
   }, []);
 
   return (

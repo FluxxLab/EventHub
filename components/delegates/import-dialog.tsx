@@ -30,6 +30,7 @@ import type { Edition } from '@/lib/events/events';
 import { count } from '@/lib/format';
 import { useTicketTypes } from '@/lib/ticketing/use-ticketing';
 import { cn } from '@/lib/utils';
+import { RELOADING, reloadIfStale } from '@/lib/stale-build';
 
 type Step = 'source' | 'columns' | 'review';
 const NONE = '-1';
@@ -131,7 +132,8 @@ export function ImportDialog({ open, editions, initialEditionId, onClose }: { op
       if (withRows.length === 0) return setProblem('That workbook has no sheet with rows under a heading row.');
       if (withRows.length === 1) return load(tableFromSheet(withRows[0]!.data), `${file.name} · ${withRows[0]!.name}`);
       setWorkbook({ file: file.name, sheets: withRows, picked: withRows[0]!.name });
-    } catch {
+    } catch (e) {
+      if (reloadIfStale(e)) return setProblem(RELOADING);
       setProblem('That workbook could not be read. If it is password-protected, remove the password; or save it as CSV.');
     } finally {
       setReading(false);
